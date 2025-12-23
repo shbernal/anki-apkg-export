@@ -1,26 +1,22 @@
 # anki-apkg-export
 
-[![Build Status](https://travis-ci.org/repeat-space/anki-apkg-export.svg?branch=master)](https://travis-ci.org/repeat-space/anki-apkg-export)
+Server-side ESM module for generating Anki `.apkg` decks.
 
-Universal module for generating decks for Anki.
-
-Port of the Ruby gem https://github.com/albertzak/anki2
+## Requirements
+- Node.js >= 24
+- ESM
 
 ## Install
-
+```sh
+pnpm add @shbernal/anki-apkg-export
 ```
-$ npm install anki-apkg-export --save
-```
 
-## Usage
+## Usage (Node/TypeScript)
+```ts
+import fs from 'fs';
+import AnkiExport from '@shbernal/anki-apkg-export';
 
-### server
-
-```js
-const fs = require('fs');
-const AnkiExport = require('anki-apkg-export').default;
-
-const apkg = new AnkiExport('deck-name');
+const apkg = await AnkiExport('deck-name');
 
 apkg.addMedia('anki.png', fs.readFileSync('anki.png'));
 
@@ -28,98 +24,34 @@ apkg.addCard('card #1 front', 'card #1 back');
 apkg.addCard('card #2 front', 'card #2 back', { tags: ['nice', 'better card'] });
 apkg.addCard('card #3 with image <img src="anki.png" />', 'card #3 back');
 
-apkg
-  .save()
-  .then(zip => {
-    fs.writeFileSync('./output.apkg', zip, 'binary');
-    console.log(`Package has been generated: output.pkg`);
-  })
-  .catch(err => console.log(err.stack || err));
+const zip = await apkg.save();
+fs.writeFileSync('./output.apkg', zip);
+console.log(`Package has been generated: output.apkg`);
 ```
 
-### browser
-
-Intended to be used with [`webpack`](https://github.com/webpack/webpack)
-
-```js
-const webpack = require('webpack');
-
-module.exports = {
-  entry: './index.js',
-  module: {
-    loaders: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        loader: 'babel'
-      },
-    ]
-  },
-  plugins: [
-    new webpack.DefinePlugin({
-      'process.env': {
-        NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development')
-      },
-    })
-  ],
-  output: {
-    path: __dirname,
-    filename: 'bundle.js'
-  }
-};
+### Template customization
+`AnkiExport(name, templateOverrides?)` returns a Promise that resolves to an exporter. You can override `questionFormat`, `answerFormat`, and `css`:
+```ts
+const apkg = await AnkiExport('customized', {
+  questionFormat: '{{Front}}',
+  answerFormat: '{{FrontSide}}<hr id="answer">{{Back}}',
+  css: '.card { font-family: Arial; font-size: 20px; }'
+});
 ```
 
-Required loaders:
-
-- [`script-loader`](https://github.com/webpack/script-loader)
-
-```js
-import { saveAs } from 'file-saver';
-import AnkiExport from 'anki-apkg-export';
-
-const apkg = new AnkiExport('deck-name');
-
-// could be a File from <input /> or a Blob from fetch
-// take a look at the example folder for a complete overview
-apkg.addMedia('anki.png', file);
-
-apkg.addCard('card #1 front', 'card #1 back');
-apkg.addCard('card #2 front', 'card #2 back', { tags: ['nice', 'better card'] });
-apkg.addCard('card #3 with image <img src="anki.png" />', 'card #3 back');
-
-apkg
-  .save()
-  .then(zip => {
-    saveAs(zip, 'output.apkg');
-  })
-  .catch(err => console.log(err.stack || err));
-```
+### API
+- `addCard(front: string, back: string, options?: { tags?: string | string[] })`
+- `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
+- `save(options?: JSZip.JSZipGeneratorOptions): Promise<Buffer>` (returns the APKG as a Node buffer)
 
 ## Examples
+- Server example: `examples/server/server.js`
 
-- [server from above](examples/server)
-- [browser from above](examples/browser)
-- [browser usage with media attachments via ajax](examples/browser-media-ajax)
-- [browser usage with media attachments via <form />](examples/browser-media-file-input)
+## Development
+- `pnpm install`
+- `pnpm run build`
+- `pnpm test`
+- `pnpm run lint`
 
-## Changelog
-
-- `v4.0.0` - expose template variables (frontside, backside and css)
-- `v3.1.0` - make setting APP_ENV optional
-- `v3.0.0` - add tags, ES6 refactor (breaking)
-- `v2.0.0` - add media support, update jszip dependency (breaking)
-- `v1.0.0` - initial rewrite
-
-## Tips
-
-- [issue#25](https://github.com/ewnd9/anki-apkg-export/issues/25) - Dealing with `sql.js` memory limits
-
-## Related
-
-- [apkg format documentation](http://decks.wikia.com/wiki/Anki_APKG_format_documentation)
-- [anki-apkg-export-cli](https://github.com/ewnd9/anki-apkg-export-cli) - CLI for this module
-- [anki-apkg-export-app](https://github.com/ewnd9/anki-apkg-export-app) - Simple web app to generate cards online
-
-## License
-
-MIT © [ewnd9](http://ewnd9.com)
+## References
+- [APKG format documentation](http://decks.wikia.com/wiki/Anki_APKG_format_documentation)

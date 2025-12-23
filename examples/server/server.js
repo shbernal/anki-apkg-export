@@ -1,22 +1,27 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const fs = require('fs');
+// import AnkiExport from 'anki-apkg-export';
+import AnkiExport from '../../dist/index.js';
 
-// const { default: AnkiExport } = require('anki-apkg-export');
-const { default: AnkiExport } = require('../../dist');
+const run = async () => {
+  const apkg = await AnkiExport('deck-name-node');
 
-const apkg = new AnkiExport('deck-name-node');
+  const assetPath = fileURLToPath(new URL('../assets/anki.png', import.meta.url));
+  apkg.addMedia('anki.png', fs.readFileSync(assetPath));
 
-apkg.addMedia('anki.png', fs.readFileSync('../assets/anki.png'));
+  apkg.addCard('card #1 front', 'card #1 back');
+  apkg.addCard('card #2 front', 'card #2 back');
+  apkg.addCard('card #3 with image <img src="anki.png" />', 'card #3 back');
 
-apkg.addCard('card #1 front', 'card #1 back');
-apkg.addCard('card #2 front', 'card #2 back');
-apkg.addCard('card #3 with image <img src="anki.png" />', 'card #3 back');
-
-apkg
-  .save()
-  .then(zip => {
-    fs.writeFileSync('./output.apkg', zip, 'binary');
+  try {
+    const zip = await apkg.save();
+    fs.writeFileSync(path.join(process.cwd(), 'output.apkg'), zip);
     console.log(`Package has been generated: output.apkg`);
-  })
-  .catch(err => console.log(err.stack || err));
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+run();

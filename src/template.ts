@@ -1,8 +1,14 @@
+export type TemplateOptions = {
+  questionFormat?: string;
+  answerFormat?: string;
+  css?: string;
+};
+
 export default function createTemplate({
   questionFormat = '{{Front}}',
   answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
   css = '.card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n'
-} = {}) {
+}: TemplateOptions = {}): string {
   const conf = {
     nextPos: 1,
     estTimes: true,

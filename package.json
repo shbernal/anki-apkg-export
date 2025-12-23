@@ -1,53 +1,58 @@
 {
-  "name": "anki-apkg-export",
-  "description": "Generate decks for Anki (spaced repetition software)",
-  "version": "4.0.3",
+  "name": "@shbernal/anki-apkg-export",
+  "description": "Generate decks (.apkg) for Anki",
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.12.3",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
-    "jszip": "^3.2.2",
-    "sha1": "^1.1.1",
-    "sql.js": "^0.5.0"
+    "jszip": "^3.10.1",
+    "sql.js": "^1.13.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.0.0",
-    "@babel/core": "^7.0.0",
-    "@babel/polyfill": "^7.0.0",
-    "@babel/preset-env": "^7.0.0",
-    "@babel/register": "^7.0.0",
-    "arraybuffer-equal": "1.0.4",
-    "ava": "^2.4.0",
-    "babel-eslint": "^10.0.3",
-    "eslint": "^6.8.0",
-    "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-prettier": "^3.1.2",
-    "husky": "^3.1.0",
-    "lodash.sortby": "4.7.0",
-    "mkdirp": "0.5.1",
-    "pify": "^4.0.1",
-    "prettier": "^1.19.1",
-    "proxyquire": "^2.1.3",
-    "sinon": "^8.0.2",
-    "sqlite3": "4.1.1"
+    "@types/node": "^25.0.3",
+    "@types/sql.js": "^1.4.9",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^17.0.0",
+    "prettier": "^3.7.4",
+    "sqlite3": "^5.1.7",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
   },
-  "author": "ewnd9 <ewndnine@gmail.com>",
+  "author": "shbernal <shbernal.01@gmail.com>",
   "keywords": [
     "anki",
-    "spaced repetition software",
-    "webpack"
+    "spaced repetition software"
   ],
   "license": "MIT",
-  "preferGlobal": "true",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ewnd9/anki-apkg-export.git"
+    "url": "git+https://github.com/shbernal/anki-apkg-export.git"
   },
   "scripts": {
-    "build": "babel -d dist src",
-    "build:watch": "babel -w -d dist src",
-    "lint": "eslint 'src/**/*.js' 'test/**/*.js'",
-    "postpublish": "rm -rf dist",
-    "prepare": "yarn run build",
-    "test": "yarn run lint && ava",
-    "test:watch": "yarn run test -- --watch"
+    "build": "tsc -p tsconfig.build.json",
+    "build:watch": "tsc -w -p tsconfig.build.json",
+    "lint": "eslint \"{src,test}/**/*.{ts,tsx}\"",
+    "prepare": "pnpm run build",
+    "test": "pnpm run lint && vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
   }
 }
