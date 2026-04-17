@@ -1,9 +1,9 @@
 {
   "name": "@shbernal/anki-apkg-export",
   "description": "Generate decks (.apkg) for Anki",
-  "version": "1.0.0",
+  "version": "4.0.4",
   "type": "module",
-  "packageManager": "pnpm@9.12.3",
+  "packageManager": "pnpm@10.33.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -20,21 +20,21 @@
   },
   "dependencies": {
     "jszip": "^3.10.1",
-    "sql.js": "^1.13.0"
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
-    "@types/node": "^25.0.3",
-    "@types/sql.js": "^1.4.9",
-    "@typescript-eslint/eslint-plugin": "^8.52.0",
-    "@typescript-eslint/parser": "^8.52.0",
-    "eslint": "^9.39.2",
+    "@types/node": "^25.6.0",
+    "@types/sql.js": "^1.4.11",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "globals": "^17.0.0",
-    "prettier": "^3.7.4",
-    "sqlite3": "^5.1.7",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.5.0",
+    "prettier": "^3.8.3",
+    "sqlite3": "^6.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
   },
   "author": "shbernal <shbernal.01@gmail.com>",
   "keywords": [
@@ -49,6 +49,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -w -p tsconfig.build.json",
+    "format": "prettier --list-different . | xargs -r prettier --write",
     "lint": "eslint \"{src,test}/**/*.{ts,tsx}\"",
     "prepare": "pnpm run build",
     "test": "pnpm run lint && vitest run",

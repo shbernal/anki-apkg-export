@@ -1,30 +1,40 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import fs from 'fs';
-import { promises as fsp } from 'fs';
-import os from 'os';
-import path from 'path';
-import sqlite3 from 'sqlite3';
-import { fileURLToPath } from 'url';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "fs";
+import { promises as fsp } from "fs";
+import os from "os";
+import path from "path";
+import sqlite3 from "sqlite3";
+import { fileURLToPath } from "url";
 
-import AnkiExport from '../src/index.js';
-import { addCards, unzipDeckToDir } from './_helpers.js';
+import AnkiExport from "../src/index.js";
+import { addCards, unzipDeckToDir } from "./_helpers.js";
 
 type SqliteDb = {
-  all: (query: string, callback: (err: Error | null, rows: unknown[]) => void) => void;
+  all: (
+    query: string,
+    callback: (err: Error | null, rows: unknown[]) => void,
+  ) => void;
   close: () => void;
 };
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const tmpDir = path.join(os.tmpdir(), 'anki-apkg-export');
-const dest = path.join(tmpDir, 'result.apkg');
-const destUnpacked = path.join(tmpDir, 'unpacked_result');
-const destUnpackedDb = path.join(destUnpacked, 'collection.anki2');
-const SEPARATOR = '\u001F';
-type SqliteDatabaseConstructor = new (filename: string, mode?: number, callback?: (err?: Error | null) => void) => SqliteDb;
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
+const dest = path.join(tmpDir, "result.apkg");
+const destUnpacked = path.join(tmpDir, "unpacked_result");
+const destUnpackedDb = path.join(destUnpacked, "collection.anki2");
+const SEPARATOR = "\u001F";
+type SqliteDatabaseConstructor = new (
+  filename: string,
+  mode?: number,
+  callback?: (err?: Error | null) => void,
+) => SqliteDb;
 const SQLiteDatabase: SqliteDatabaseConstructor =
   sqlite3.Database as unknown as SqliteDatabaseConstructor;
 
-const queryAll = (db: SqliteDb, query: string): Promise<{ [key: string]: string }[]> =>
+const queryAll = (
+  db: SqliteDb,
+  query: string,
+): Promise<{ [key: string]: string }[]> =>
   new Promise((resolve, reject) => {
     db.all(query, (err, rows) => {
       if (err) {
@@ -45,35 +55,43 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('anki-apkg-export', () => {
-  it('equals to sample', async () => {
+describe("anki-apkg-export", () => {
+  it("equals to sample", async () => {
     const now = 1482680798652;
-    vi.useFakeTimers({ now, toFake: ['Date'] });
+    vi.useFakeTimers({ now, toFake: ["Date"] });
 
-    const apkg = await AnkiExport('deck-name');
+    const apkg = await AnkiExport("deck-name");
 
-    apkg.addMedia('anki.png', fs.readFileSync(path.join(__dirname, 'fixtures/anki.png')));
+    apkg.addMedia(
+      "anki.png",
+      fs.readFileSync(path.join(__dirname, "fixtures/anki.png")),
+    );
 
-    apkg.addCard('card #1 front', 'card #1 back', { tags: ['food', 'fruit'] });
-    apkg.addCard('card #2 front', 'card #2 back');
-    apkg.addCard('card #3 with image <img src="anki.png" />', 'card #3 back');
+    apkg.addCard("card #1 front", "card #1 back", { tags: ["food", "fruit"] });
+    apkg.addCard("card #2 front", "card #2 back");
+    apkg.addCard('card #3 with image <img src="anki.png" />', "card #3 back");
 
     const zip = await apkg.save();
     await fsp.writeFile(dest, zip);
 
     expect(zip).toBeInstanceOf(Buffer);
 
-    const sampleZip = await fsp.readFile(path.join(__dirname, 'fixtures/output.apkg'));
+    const sampleZip = await fsp.readFile(
+      path.join(__dirname, "fixtures/output.apkg"),
+    );
     const destZip = await fsp.readFile(dest);
     expect(destZip.equals(sampleZip)).toBe(true);
   });
 
-  it('check internal structure', async () => {
-    const apkg = await AnkiExport('deck-name');
+  it("check internal structure", async () => {
+    const apkg = await AnkiExport("deck-name");
     const cards = [
-      { front: 'card #1 front', back: 'card #1 back' },
-      { front: 'card #2 front', back: 'card #2 back' },
-      { front: 'card #3 with image <img src="anki.png" />', back: 'card #3 back' }
+      { front: "card #1 front", back: "card #1 back" },
+      { front: "card #2 front", back: "card #2 back" },
+      {
+        front: 'card #3 with image <img src="anki.png" />',
+        back: "card #3 back",
+      },
     ];
     addCards(apkg, cards);
     const zip = await apkg.save();
@@ -86,27 +104,35 @@ describe('anki-apkg-export', () => {
       `SELECT
         notes.sfld as front,
         notes.flds as back
-        from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`
+        from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`,
     );
     db.close();
 
     const normalizedResult = result
       .map(({ front, back }) => ({
         front,
-        back: back.split(SEPARATOR).pop() as string
+        back: back.split(SEPARATOR).pop() as string,
       }))
       .sort((a, b) => a.front.localeCompare(b.front));
 
     expect(normalizedResult).toEqual(cards);
   });
 
-  it('check internal structure on adding card with tags', async () => {
+  it("check internal structure on adding card with tags", async () => {
     const decFile = `${dest}_with_tags.apkg`;
     const unzippedDeck = `${destUnpacked}_with_tags`;
-    const apkg = await AnkiExport('deck-name');
-    const [front1, back1, tags1] = ['Card front side 1', 'Card back side 1', ['some', 'tag', 'tags with multiple words']];
-    const [front2, back2, tags2] = ['Card front side 2', 'Card back side 2', 'some strin_tags'];
-    const [front3, back3] = ['Card front side 3', 'Card back side 3'];
+    const apkg = await AnkiExport("deck-name");
+    const [front1, back1, tags1] = [
+      "Card front side 1",
+      "Card back side 1",
+      ["some", "tag", "tags with multiple words"],
+    ];
+    const [front2, back2, tags2] = [
+      "Card front side 2",
+      "Card back side 2",
+      "some strin_tags",
+    ];
+    const [front3, back3] = ["Card front side 3", "Card back side 3"];
     apkg.addCard(front1, back1, { tags: tags1 });
     apkg.addCard(front2, back2, { tags: tags2 });
     apkg.addCard(front3, back3);
@@ -122,7 +148,7 @@ describe('anki-apkg-export', () => {
         notes.sfld as front,
         notes.flds as back,
         notes.tags as tags
-        from cards JOIN notes where cards.nid = notes.id ORDER BY front`
+        from cards JOIN notes where cards.nid = notes.id ORDER BY front`,
     );
     db.close();
 
@@ -130,10 +156,10 @@ describe('anki-apkg-export', () => {
       {
         front: front1,
         back: `${front1}${SEPARATOR}${back1}`,
-        tags: ` ${tags1.map(tag => tag.replace(/ /g, '_')).join(' ')} `
+        tags: ` ${tags1.map((tag) => tag.replace(/ /g, "_")).join(" ")} `,
       },
       { front: front2, back: `${front2}${SEPARATOR}${back2}`, tags: tags2 },
-      { front: front3, back: `${front3}${SEPARATOR}${back3}`, tags: '' }
+      { front: front3, back: `${front3}${SEPARATOR}${back3}`, tags: "" },
     ]);
   });
 });
