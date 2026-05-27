@@ -1,6 +1,6 @@
 {
   "name": "@shbernal/anki-apkg-export",
-  "description": "Generate decks (.apkg) for Anki",
+  "description": "Generate Anki deck packages from JavaScript and TypeScript.",
   "version": "4.0.5",
   "type": "module",
   "packageManager": "pnpm@11.1.2",
@@ -39,7 +39,11 @@
   "author": "shbernal <shbernal.01@gmail.com>",
   "keywords": [
     "anki",
-    "spaced repetition software"
+    "apkg",
+    "flashcards",
+    "spaced-repetition",
+    "deck-generation",
+    "developer-tools"
   ],
   "license": "MIT",
   "repository": {
