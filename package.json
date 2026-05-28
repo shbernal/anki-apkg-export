@@ -1,9 +1,9 @@
 {
   "name": "@shbernal/anki-apkg-export",
   "description": "Generate Anki deck packages from JavaScript and TypeScript.",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "type": "module",
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@11.4.0+sha512.f0febc7e37552ab485494a914241b338e0b3580b93d54ce31f00933015880863129038a1b4ae4e414a0ee63ac35bf21197e990172c4a68256450b5636310968f",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -23,10 +23,10 @@
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
-    "@types/node": "^25.8.0",
+    "@types/node": "^25.9.1",
     "@types/sql.js": "^1.4.11",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
-    "@typescript-eslint/parser": "^8.59.3",
+    "@typescript-eslint/eslint-plugin": "^8.60.0",
+    "@typescript-eslint/parser": "^8.60.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -34,7 +34,7 @@
     "prettier": "^3.8.3",
     "sqlite3": "^6.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   },
   "author": "shbernal <shbernal.01@gmail.com>",
   "keywords": [
