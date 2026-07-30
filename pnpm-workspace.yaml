@@ -2,7 +2,9 @@ minimumReleaseAgeStrict: true
 
 allowBuilds:
   esbuild: true
+  lefthook: true
   sqlite3: true
 onlyBuiltDependencies:
   - esbuild
+  - lefthook
   - sqlite3
