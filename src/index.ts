@@ -11,9 +11,7 @@ const locateFile = (file: string): string =>
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 const getSqlModule = (): Promise<SqlJsStatic> => {
-  if (!sqlModulePromise) {
-    sqlModulePromise = initSqlJs({ locateFile });
-  }
+  sqlModulePromise ??= initSqlJs({ locateFile });
   return sqlModulePromise;
 };
 

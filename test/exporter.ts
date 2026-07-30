@@ -82,14 +82,15 @@ describe("Exporter internals", () => {
 
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as Array<
-      [string, Record<string, string>]
-    >;
+    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as [
+      string,
+      Record<string, string>,
+    ][];
 
     expect(notesCall?.[0]).toBe(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
     );
-    const notesUpdate = notesCall?.[1] as Record<string, string>;
+    const notesUpdate = notesCall?.[1];
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
     expect(notesUpdate[":mid"]).toBe(topModelId);
@@ -97,7 +98,7 @@ describe("Exporter internals", () => {
     expect(cardsCall?.[0]).toBe(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
     );
-    const cardsUpdate = cardsCall?.[1] as Record<string, string>;
+    const cardsUpdate = cardsCall?.[1];
     expect(cardsUpdate[":did"]).toBe(topDeckId);
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
   });
@@ -115,10 +116,11 @@ describe("Exporter internals", () => {
 
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
 
-    const [notesCall] = exporterUpdateSpy.mock.calls as Array<
-      [string, Record<string, string>]
-    >;
-    const notesUpdate = notesCall?.[1] as Record<string, string>;
+    const [notesCall] = exporterUpdateSpy.mock.calls as [
+      string,
+      Record<string, string>,
+    ][];
+    const notesUpdate = notesCall?.[1];
     const notesTags = notesUpdate[":tags"].split(" ");
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
@@ -146,16 +148,17 @@ describe("Exporter internals", () => {
 
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as Array<
-      [string, Record<string, string>]
-    >;
-    const notesUpdate = notesCall?.[1] as Record<string, string>;
+    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as [
+      string,
+      Record<string, string>,
+    ][];
+    const notesUpdate = notesCall?.[1];
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
     expect(notesUpdate[":mid"]).toBe(topModelId);
     expect(notesUpdate[":tags"]).toBe(tags);
 
-    const cardsUpdate = cardsCall?.[1] as Record<string, string>;
+    const cardsUpdate = cardsCall?.[1];
     expect(cardsUpdate[":did"]).toBe(topDeckId);
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
   });
@@ -174,17 +177,17 @@ describe("Exporter internals", () => {
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(4);
 
     const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] =
-      exporterUpdateSpy.mock.calls as Array<[string, Record<string, string>]>;
-    const notesUpdate = firstNotesCall?.[1] as Record<string, string>;
-    const secondNotesUpdate = secondNotesCall?.[1] as Record<string, string>;
+      exporterUpdateSpy.mock.calls as [string, Record<string, string>][];
+    const notesUpdate = firstNotesCall?.[1];
+    const secondNotesUpdate = secondNotesCall?.[1];
     expect(notesUpdate[":id"]).toBe(secondNotesUpdate[":id"]);
     expect(notesUpdate[":guid"]).toBe(secondNotesUpdate[":guid"]);
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
     expect(notesUpdate[":mid"]).toBe(topModelId);
 
-    const cardsUpdate = firstCardsCall?.[1] as Record<string, string>;
-    const secondCardsUpdate = secondCardsCall?.[1] as Record<string, string>;
+    const cardsUpdate = firstCardsCall?.[1];
+    const secondCardsUpdate = secondCardsCall?.[1];
     expect(cardsUpdate[":id"]).toBe(secondCardsUpdate[":id"]);
     expect(cardsUpdate[":did"]).toBe(topDeckId);
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);

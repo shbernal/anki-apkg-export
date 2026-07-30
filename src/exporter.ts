@@ -3,15 +3,15 @@ import JSZip from "jszip";
 import type { JSZipGeneratorOptions } from "jszip";
 import type { Database, SqlJsStatic } from "sql.js";
 
-type MediaItem = {
+interface MediaItem {
   filename: string;
   data: string | ArrayBuffer | Uint8Array | Buffer;
-};
+}
 
-type ExporterOptions = {
+interface ExporterOptions {
   template: string;
   sql: SqlJsStatic;
-};
+}
 
 export default class Exporter {
   public readonly db: Database;
@@ -233,18 +233,18 @@ export default class Exporter {
   }
 }
 
-type DeckModel = {
+interface DeckModel {
   id: number;
   name: string;
   [key: string]: unknown;
-};
+}
 
-type NoteModel = {
+interface NoteModel {
   id: number;
   did: number;
   name: string;
   [key: string]: unknown;
-};
+}
 
 export const getLastItem = <T>(obj: Record<string, T>): T => {
   const keys = Object.keys(obj);

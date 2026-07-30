@@ -2,7 +2,10 @@ import { promises as fs } from "fs";
 import path from "path";
 import JSZip from "jszip";
 
-type Card = { front: string; back: string };
+interface Card {
+  front: string;
+  back: string;
+}
 
 export const addCards = (
   apkg: { addCard: (front: string, back: string) => void },
