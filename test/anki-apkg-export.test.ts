@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import fs from "fs";
-import { promises as fsp } from "fs";
+import fs, { promises as fsp } from "fs";
 import os from "os";
 import path from "path";
 import sqlite3 from "sqlite3";
@@ -9,13 +8,13 @@ import { fileURLToPath } from "url";
 import AnkiExport from "../src/index.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
 
-type SqliteDb = {
+interface SqliteDb {
   all: (
     query: string,
     callback: (err: Error | null, rows: unknown[]) => void,
   ) => void;
   close: () => void;
-};
+}
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
@@ -28,20 +27,19 @@ type SqliteDatabaseConstructor = new (
   mode?: number,
   callback?: (err?: Error | null) => void,
 ) => SqliteDb;
-const SQLiteDatabase: SqliteDatabaseConstructor =
-  sqlite3.Database as unknown as SqliteDatabaseConstructor;
+const SQLiteDatabase: SqliteDatabaseConstructor = sqlite3.Database;
 
 const queryAll = (
   db: SqliteDb,
   query: string,
-): Promise<{ [key: string]: string }[]> =>
+): Promise<Record<string, string>[]> =>
   new Promise((resolve, reject) => {
     db.all(query, (err, rows) => {
       if (err) {
         reject(err);
         return;
       }
-      resolve(rows as { [key: string]: string }[]);
+      resolve(rows as Record<string, string>[]);
     });
   });
 
@@ -111,7 +109,7 @@ describe("anki-apkg-export", () => {
     const normalizedResult = result
       .map(({ front, back }) => ({
         front,
-        back: back.split(SEPARATOR).pop() as string,
+        back: back.split(SEPARATOR).pop()!,
       }))
       .sort((a, b) => a.front.localeCompare(b.front));
 

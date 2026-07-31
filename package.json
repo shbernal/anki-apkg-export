@@ -1,7 +1,7 @@
 {
   "name": "@shbernal/anki-apkg-export",
   "description": "Generate Anki deck packages from JavaScript and TypeScript.",
-  "version": "4.0.6",
+  "version": "5.0.0",
   "type": "module",
   "packageManager": "pnpm@11.18.0+sha512.33d83c77da82f49fba836925c6f1b841181ec3132b670639bd012f7075f5c7cf634c5f870147c19aae7478fac01df09d8892e880454896edd23ee9b33757563c",
   "main": "dist/index.js",
@@ -19,7 +19,7 @@
     "node": ">=24"
   },
   "dependencies": {
-    "jszip": "^3.10.1",
+    "fflate": "^0.8.3",
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
@@ -28,12 +28,17 @@
     "@types/sql.js": "^1.4.11",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/eslint-plugin": "^1.6.24",
     "eslint": "^10.8.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import": "^2.32.0",
     "globals": "^17.8.0",
     "lefthook": "^2.1.10",
     "prettier": "^3.9.6",
     "sqlite3": "^6.0.1",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
   },
   "author": "shbernal <shbernal.01@gmail.com>",
@@ -57,7 +62,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "prepare": "pnpm run build",
-    "test": "pnpm run lint && vitest run",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
   }

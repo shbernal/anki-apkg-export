@@ -1,8 +1,8 @@
-export type TemplateOptions = {
+export interface TemplateOptions {
   questionFormat?: string;
   answerFormat?: string;
   css?: string;
-};
+}
 
 export default function createTemplate({
   questionFormat = "{{Front}}",
