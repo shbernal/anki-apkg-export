@@ -13,7 +13,7 @@ interface SqliteDb {
     query: string,
     callback: (err: Error | null, rows: unknown[]) => void,
   ) => void;
-  close: () => void;
+  close: (callback: (err: Error | null) => void) => void;
 }
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -40,6 +40,22 @@ const queryAll = (
         return;
       }
       resolve(rows as Record<string, string>[]);
+    });
+  });
+
+/**
+ * sqlite3 closes on the libuv threadpool, and its completion callback throws
+ * through N-API. Left unawaited, that callback can land after vitest has torn
+ * the worker down, aborting the process with a fatal napi_throw.
+ */
+const closeDb = (db: SqliteDb): Promise<void> =>
+  new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
     });
   });
 
@@ -104,7 +120,7 @@ describe("anki-apkg-export", () => {
         notes.flds as back
         from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`,
     );
-    db.close();
+    await closeDb(db);
 
     const normalizedResult = result
       .map(({ front, back }) => ({
@@ -148,7 +164,7 @@ describe("anki-apkg-export", () => {
         notes.tags as tags
         from cards JOIN notes where cards.nid = notes.id ORDER BY front`,
     );
-    db.close();
+    await closeDb(db);
 
     expect(results).toEqual([
       {
