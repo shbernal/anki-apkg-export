@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import JSZip from "jszip";
+import { unzipSync } from "fflate";
 
 interface Card {
   front: string;
@@ -13,20 +13,12 @@ export const addCards = (
 ): void => list.forEach(({ front, back }) => apkg.addCard(front, back));
 
 /** Reads a saved deck without touching the filesystem. */
-export const unzipDeckToBuffers = async (
-  deck: Buffer,
-): Promise<Map<string, Buffer>> => {
-  const zip = await new JSZip().loadAsync(deck);
-  const entries = Object.values(zip.files).filter((file) => !file.dir);
-
-  return new Map(
-    await Promise.all(
-      entries.map(
-        async (file) =>
-          [file.name, await file.async("nodebuffer")] as [string, Buffer],
-      ),
-    ),
+export const unzipDeckToBuffers = (deck: Buffer): Map<string, Buffer> => {
+  const entries = Object.entries(unzipSync(deck)).filter(
+    ([name]) => !name.endsWith("/"),
   );
+
+  return new Map(entries.map(([name, data]) => [name, Buffer.from(data)]));
 };
 
 export const unzipDeckToDir = async (
@@ -34,17 +26,12 @@ export const unzipDeckToDir = async (
   pathToUnzipTo: string,
 ): Promise<void> => {
   await fs.mkdir(pathToUnzipTo, { recursive: true });
-  const zipContent = await fs.readFile(pathToDeck);
-  const zip = await new JSZip().loadAsync(zipContent, { createFolders: true });
+  const files = unzipDeckToBuffers(await fs.readFile(pathToDeck));
 
   await Promise.all(
-    Object.keys(zip.files).map(async (key) => {
-      const file = zip.files[key];
-      if (!file || file.dir) return;
-
-      const filePath = path.join(pathToUnzipTo, file.name);
+    [...files].map(async ([name, data]) => {
+      const filePath = path.join(pathToUnzipTo, name);
       await fs.mkdir(path.dirname(filePath), { recursive: true });
-      const data = await file.async("nodebuffer");
       await fs.writeFile(filePath, data);
     }),
   );

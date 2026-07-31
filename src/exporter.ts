@@ -1,12 +1,14 @@
 import { createHash } from "crypto";
-import JSZip from "jszip";
-import type { JSZipGeneratorOptions } from "jszip";
+import { strToU8, zipSync } from "fflate";
+import type { ZipOptions, Zippable } from "fflate";
 import type { Database, SqlJsStatic } from "sql.js";
 
 interface MediaItem {
   filename: string;
   data: string | ArrayBuffer | Uint8Array | Buffer;
 }
+
+export type { ZipOptions };
 
 interface ExporterOptions {
   template: string;
@@ -15,7 +17,6 @@ interface ExporterOptions {
 
 export default class Exporter {
   public readonly db: Database;
-  public readonly zip: JSZip;
   private readonly media: MediaItem[];
   public readonly topDeckId: number;
   public readonly topModelId: number;
@@ -30,7 +31,6 @@ export default class Exporter {
 
     this.db = db;
     this.deckName = deckName;
-    this.zip = new JSZip();
     this.media = [];
     this.separator = "\u001F";
 
@@ -64,7 +64,9 @@ export default class Exporter {
     });
   }
 
-  save(options: JSZipGeneratorOptions = {}): Promise<Buffer> {
+  // Zipping is synchronous, but `save` stays async so callers keep awaiting it.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async save(options: ZipOptions = {}): Promise<Buffer> {
     const binaryArray = this.db.export();
     const mediaMap = this.media.reduce<Record<number, string>>(
       (acc, item, idx) => {
@@ -74,21 +76,23 @@ export default class Exporter {
       {},
     );
 
-    const fileDate = this.createdAt;
+    // Every entry carries the exporter's creation date so identical input
+    // yields an identical archive.
+    const mtime = toArchiveClock(this.createdAt);
+    const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [
+      data,
+      { mtime },
+    ];
 
-    this.zip.file("collection.anki2", Buffer.from(binaryArray), {
-      date: fileDate,
+    const files: Zippable = {
+      "collection.anki2": entry(binaryArray),
+      media: entry(strToU8(JSON.stringify(mediaMap))),
+    };
+    this.media.forEach((item, idx) => {
+      files[String(idx)] = entry(toBytes(item.data));
     });
-    this.zip.file("media", JSON.stringify(mediaMap), { date: fileDate });
-    this.media.forEach((item, idx) =>
-      this.zip.file(String(idx), item.data, { date: fileDate }),
-    );
 
-    return this.zip.generateAsync({
-      type: "nodebuffer",
-      compression: "DEFLATE",
-      ...options,
-    }) as Promise<Buffer>;
+    return Buffer.from(zipSync(files, { mtime, ...options }));
   }
 
   addMedia(filename: string, data: MediaItem["data"]): void {
@@ -245,6 +249,28 @@ interface NoteModel {
   name: string;
   [key: string]: unknown;
 }
+
+const toBytes = (data: MediaItem["data"]): Uint8Array => {
+  if (typeof data === "string") return strToU8(data);
+  if (data instanceof Uint8Array) return data;
+  return new Uint8Array(data);
+};
+
+/**
+ * fflate writes a ZIP entry's DOS timestamp from the *local* clock, so the same
+ * deck would compress to different bytes on machines in different timezones.
+ * Return a date whose local components spell out the original's UTC ones, which
+ * both pins the stamp to UTC and keeps archives byte-reproducible anywhere.
+ */
+const toArchiveClock = (date: Date): Date =>
+  new Date(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+  );
 
 export const getLastItem = <T>(obj: Record<string, T>): T => {
   const keys = Object.keys(obj);

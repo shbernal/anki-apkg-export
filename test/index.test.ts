@@ -38,7 +38,7 @@ describe("AnkiExport", () => {
     });
     apkg.addCard("front", "back");
 
-    const files = await unzipDeckToBuffers(await apkg.save());
+    const files = unzipDeckToBuffers(await apkg.save());
     const collection = files.get("collection.anki2");
     expect(collection).toBeDefined();
 
@@ -53,7 +53,7 @@ describe("AnkiExport", () => {
     apkg.addCard("front", "back");
     apkg.addMedia("note.txt", Buffer.from("hello"));
 
-    const files = await unzipDeckToBuffers(await apkg.save());
+    const files = unzipDeckToBuffers(await apkg.save());
 
     expect([...files.keys()].sort()).toEqual([
       "0",

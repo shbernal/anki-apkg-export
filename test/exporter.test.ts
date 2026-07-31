@@ -14,6 +14,7 @@ import { fileURLToPath } from "url";
 
 import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
+import { unzipDeckToBuffers } from "./_helpers.js";
 
 const template = createTemplate();
 const now = 1700000000000;
@@ -33,8 +34,6 @@ describe("Exporter internals", () => {
   });
 
   beforeEach(() => {
-    // Only fake `Date`: jszip's generateAsync schedules real timers internally,
-    // so faking them would deadlock `Exporter.save`.
     vi.useFakeTimers({ now, toFake: ["Date"] });
     exporter = new Exporter("testDeckName", {
       template,
@@ -53,32 +52,59 @@ describe("Exporter internals", () => {
 
   it("Exporter.save builds zip with DB and media", async () => {
     const dbExportSpy = vi.spyOn(exporter.db, "export");
-    const zipFileSpy = vi.spyOn(exporter.zip, "file");
-    const zipGenerateAsyncSpy = vi.spyOn(exporter.zip, "generateAsync");
 
     exporter.addMedia("1.jpg", Buffer.from("one"));
     exporter.addMedia("2.bmp", Buffer.from("two"));
-    await exporter.save();
-
-    // Every entry is stamped with the exporter's creation date so the archive
-    // is reproducible; fake timers pin that to `now`.
-    const fileDate = { date: new Date(now) };
+    const files = unzipDeckToBuffers(await exporter.save());
 
     expect(dbExportSpy).toHaveBeenCalled();
-    expect(zipFileSpy).toHaveBeenCalledWith(
+    expect([...files.keys()].sort()).toEqual([
+      "0",
+      "1",
       "collection.anki2",
-      expect.any(Buffer),
-      fileDate,
-    );
-    expect(zipFileSpy).toHaveBeenCalledWith(
       "media",
-      expect.any(String),
-      fileDate,
+    ]);
+    expect(files.get("collection.anki2")?.subarray(0, 15).toString()).toBe(
+      "SQLite format 3",
     );
-    expect(zipFileSpy).toHaveBeenCalledWith("0", expect.anything(), fileDate);
-    expect(zipFileSpy).toHaveBeenCalledWith("1", expect.anything(), fileDate);
-    expect(zipGenerateAsyncSpy).toHaveBeenCalled();
-    expect(zipGenerateAsyncSpy.mock.calls[0][0]?.type).toBe("nodebuffer");
+    expect(JSON.parse(files.get("media")!.toString())).toEqual({
+      0: "1.jpg",
+      1: "2.bmp",
+    });
+    expect(files.get("0")?.toString()).toBe("one");
+    expect(files.get("1")?.toString()).toBe("two");
+  });
+
+  it("Exporter.save stamps entries with the creation date in UTC", async () => {
+    exporter.addMedia("1.jpg", Buffer.from("one"));
+    const archive = await exporter.save();
+
+    // The DOS timestamp lives in the local file header at offset 10; pinning it
+    // to the exporter's creation date in UTC is what keeps saves reproducible
+    // regardless of the machine's timezone.
+    const created = new Date(now);
+    const expected =
+      (((created.getUTCFullYear() - 1980) << 25) |
+        ((created.getUTCMonth() + 1) << 21) |
+        (created.getUTCDate() << 16) |
+        (created.getUTCHours() << 11) |
+        (created.getUTCMinutes() << 5) |
+        (created.getUTCSeconds() >> 1)) >>>
+      0;
+
+    expect(archive.readUInt32LE(10)).toBe(expected);
+  });
+
+  it("Exporter.save accepts fflate zip options", async () => {
+    exporter.addMedia("1.jpg", Buffer.from("one".repeat(500)));
+
+    const compressed = await exporter.save();
+    const stored = await exporter.save({ level: 0 });
+
+    expect(stored.byteLength).toBeGreaterThan(compressed.byteLength);
+    expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe(
+      "one".repeat(500),
+    );
   });
 
   it("Exporter.addCard populates note and card rows", () => {
