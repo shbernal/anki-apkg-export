@@ -8,5 +8,11 @@ export default defineConfig({
     threads: {
       singleThread: true,
     },
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      reporter: ["text-summary", "lcov"],
+      reportsDirectory: "coverage",
+    },
   },
 });

@@ -12,6 +12,23 @@ export const addCards = (
   list: Card[],
 ): void => list.forEach(({ front, back }) => apkg.addCard(front, back));
 
+/** Reads a saved deck without touching the filesystem. */
+export const unzipDeckToBuffers = async (
+  deck: Buffer,
+): Promise<Map<string, Buffer>> => {
+  const zip = await new JSZip().loadAsync(deck);
+  const entries = Object.values(zip.files).filter((file) => !file.dir);
+
+  return new Map(
+    await Promise.all(
+      entries.map(
+        async (file) =>
+          [file.name, await file.async("nodebuffer")] as [string, Buffer],
+      ),
+    ),
+  );
+};
+
 export const unzipDeckToDir = async (
   pathToDeck: string,
   pathToUnzipTo: string,

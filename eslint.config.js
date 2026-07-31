@@ -29,7 +29,6 @@ export default tseslint.config(
       "node_modules/",
       "coverage/",
       "**/*.d.ts",
-      "templates/",
       "**/tsconfig*.json",
     ],
   },

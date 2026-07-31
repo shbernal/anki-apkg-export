@@ -33,7 +33,9 @@ describe("Exporter internals", () => {
   });
 
   beforeEach(() => {
-    vi.useFakeTimers({ now });
+    // Only fake `Date`: jszip's generateAsync schedules real timers internally,
+    // so faking them would deadlock `Exporter.save`.
+    vi.useFakeTimers({ now, toFake: ["Date"] });
     exporter = new Exporter("testDeckName", {
       template,
       sql: sqlModule,
@@ -58,14 +60,23 @@ describe("Exporter internals", () => {
     exporter.addMedia("2.bmp", Buffer.from("two"));
     await exporter.save();
 
+    // Every entry is stamped with the exporter's creation date so the archive
+    // is reproducible; fake timers pin that to `now`.
+    const fileDate = { date: new Date(now) };
+
     expect(dbExportSpy).toHaveBeenCalled();
     expect(zipFileSpy).toHaveBeenCalledWith(
       "collection.anki2",
       expect.any(Buffer),
+      fileDate,
     );
-    expect(zipFileSpy).toHaveBeenCalledWith("media", expect.any(String));
-    expect(zipFileSpy).toHaveBeenCalledWith("0", expect.anything());
-    expect(zipFileSpy).toHaveBeenCalledWith("1", expect.anything());
+    expect(zipFileSpy).toHaveBeenCalledWith(
+      "media",
+      expect.any(String),
+      fileDate,
+    );
+    expect(zipFileSpy).toHaveBeenCalledWith("0", expect.anything(), fileDate);
+    expect(zipFileSpy).toHaveBeenCalledWith("1", expect.anything(), fileDate);
     expect(zipGenerateAsyncSpy).toHaveBeenCalled();
     expect(zipGenerateAsyncSpy.mock.calls[0][0]?.type).toBe("nodebuffer");
   });
