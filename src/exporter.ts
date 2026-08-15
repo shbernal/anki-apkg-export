@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+
 import { strToU8, zipSync } from "fflate";
 import type { ZipOptions, Zippable } from "fflate";
 import type { Database, SqlJsStatic } from "sql.js";
@@ -38,10 +39,7 @@ export default class Exporter {
     this.topDeckId = this._getId("cards", "did", now);
     this.topModelId = this._getId("notes", "mid", now);
 
-    const decks = this._getInitialRowValue<Record<string, DeckModel>>(
-      "col",
-      "decks",
-    );
+    const decks = this._getInitialRowValue<Record<string, DeckModel>>("col", "decks");
     const deck = getLastItem(decks);
     deck.name = this.deckName;
     deck.id = this.topDeckId;
@@ -50,10 +48,7 @@ export default class Exporter {
       ":decks": JSON.stringify(decks),
     });
 
-    const models = this._getInitialRowValue<Record<string, NoteModel>>(
-      "col",
-      "models",
-    );
+    const models = this._getInitialRowValue<Record<string, NoteModel>>("col", "models");
     const model = getLastItem(models);
     model.name = this.deckName;
     model.did = this.topDeckId;
@@ -68,21 +63,15 @@ export default class Exporter {
   // eslint-disable-next-line @typescript-eslint/require-await
   async save(options: ZipOptions = {}): Promise<Buffer> {
     const binaryArray = this.db.export();
-    const mediaMap = this.media.reduce<Record<number, string>>(
-      (acc, item, idx) => {
-        acc[idx] = item.filename;
-        return acc;
-      },
-      {},
-    );
+    const mediaMap = this.media.reduce<Record<number, string>>((acc, item, idx) => {
+      acc[idx] = item.filename;
+      return acc;
+    }, {});
 
     // Every entry carries the exporter's creation date so identical input
     // yields an identical archive.
     const mtime = toArchiveClock(this.createdAt);
-    const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [
-      data,
-      { mtime },
-    ];
+    const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
     const files: Zippable = {
       "collection.anki2": entry(binaryArray),
@@ -99,11 +88,7 @@ export default class Exporter {
     this.media.push({ filename, data });
   }
 
-  addCard(
-    front: string,
-    back: string,
-    { tags }: { tags?: string | string[] } = {},
-  ): void {
+  addCard(front: string, back: string, { tags }: { tags?: string | string[] } = {}): void {
     const now = Date.now();
     const noteGuid = this._getNoteGuid(this.topDeckId, front, back);
     const noteId = this._getNoteId(noteGuid, now);
@@ -157,10 +142,7 @@ export default class Exporter {
     );
   }
 
-  protected _update(
-    query: string,
-    values: Record<string, string | number>,
-  ): void {
+  protected _update(query: string, values: Record<string, string | number>): void {
     this.db.prepare(query).getAsObject(values);
   }
 
@@ -204,10 +186,7 @@ export default class Exporter {
 
   private _getId(table: string, col: string, ts: number): number {
     const query = `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`;
-    const rowObj = this.db.prepare(query).getAsObject({ ":ts": ts }) as Record<
-      string,
-      number
-    >;
+    const rowObj = this.db.prepare(query).getAsObject({ ":ts": ts }) as Record<string, number>;
 
     return rowObj[col] ? Number(rowObj[col]) + 1 : ts;
   }
@@ -222,16 +201,12 @@ export default class Exporter {
   }
 
   private _getNoteGuid(topDeckId: number, front: string, back: string): string {
-    return createHash("sha1")
-      .update(`${topDeckId}${front}${back}`)
-      .digest("hex");
+    return createHash("sha1").update(`${topDeckId}${front}${back}`).digest("hex");
   }
 
   private _getCardId(noteId: number, ts: number): number {
     const query = `SELECT id from cards WHERE nid = :note_id ORDER BY id DESC LIMIT 1`;
-    const rowObj = this.db
-      .prepare(query)
-      .getAsObject({ ":note_id": noteId }) as { id?: number };
+    const rowObj = this.db.prepare(query).getAsObject({ ":note_id": noteId }) as { id?: number };
 
     return rowObj.id ?? this._getId("cards", "id", ts);
   }

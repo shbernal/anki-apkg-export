@@ -3,14 +3,16 @@ pre-commit:
   jobs:
     - name: format
       glob: "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml}"
-      run: pnpm exec prettier --ignore-unknown --write {staged_files}
+      run: pnpm exec oxfmt {staged_files}
       stage_fixed: true
     - name: lint
       glob: "*.{ts,tsx,js,mjs,cjs}"
-      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+      run: pnpm exec oxlint --deny-warnings {staged_files}
 
 pre-push:
   jobs:
+    - name: lint
+      run: pnpm run lint
     - name: typecheck
       run: pnpm run typecheck
     - name: test

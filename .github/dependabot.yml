@@ -13,6 +13,15 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      # oxlint and its type-aware sidecar must move together: oxlint-tsgolint's
+      # version tracks the TypeScript release it was built against, and a
+      # mismatched pair silently drops the type-aware rules. Listed first so it
+      # wins over the broader dev group below.
+      oxc:
+        patterns:
+          - oxlint
+          - oxlint-tsgolint
+          - oxfmt
       dev-minor-and-patch:
         dependency-type: development
         update-types:
@@ -23,11 +32,6 @@ updates:
         update-types:
           - minor
           - patch
-    ignore:
-      # typescript-eslint 8.x rejects the TS 7.0 API; see AGENTS.md.
-      - dependency-name: typescript
-        update-types:
-          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

@@ -64,7 +64,8 @@ const apkg = await AnkiExport("customized", {
 - `pnpm install`
 - `pnpm run build`
 - `pnpm test`
-- `pnpm run lint`
+- `pnpm run lint` (oxlint, type-aware)
+- `pnpm run format` (oxfmt)
 
 ## References
 

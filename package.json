@@ -1,9 +1,25 @@
 {
   "name": "@shbernal/anki-apkg-export",
-  "description": "Generate Anki deck packages from JavaScript and TypeScript.",
   "version": "5.0.0",
+  "description": "Generate Anki deck packages from JavaScript and TypeScript.",
+  "keywords": [
+    "anki",
+    "apkg",
+    "deck-generation",
+    "developer-tools",
+    "flashcards",
+    "spaced-repetition"
+  ],
+  "license": "MIT",
+  "author": "shbernal <shbernal.01@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shbernal/anki-apkg-export.git"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
-  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -12,59 +28,36 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
-  "engines": {
-    "node": ">=24"
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:watch": "tsc -w -p tsconfig.build.json",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "prepare": "pnpm run build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "fflate": "^0.8.3",
     "sql.js": "^1.14.2"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^26.2.0",
     "@types/sql.js": "^1.4.11",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/eslint-plugin": "^1.6.27",
-    "eslint": "^10.8.1",
-    "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-import": "^2.32.0",
-    "globals": "^17.11.0",
     "lefthook": "^2.1.10",
-    "prettier": "^3.9.6",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "sqlite3": "^6.0.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.67.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
-  "author": "shbernal <shbernal.01@gmail.com>",
-  "keywords": [
-    "anki",
-    "apkg",
-    "flashcards",
-    "spaced-repetition",
-    "deck-generation",
-    "developer-tools"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shbernal/anki-apkg-export.git"
+  "engines": {
+    "node": ">=24"
   },
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "build:watch": "tsc -w -p tsconfig.build.json",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint . --max-warnings 0",
-    "prepare": "pnpm run build",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
-  }
+  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621"
 }

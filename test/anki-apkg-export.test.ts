@@ -1,18 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs, { promises as fsp } from "fs";
 import os from "os";
 import path from "path";
-import sqlite3 from "sqlite3";
 import { fileURLToPath } from "url";
+
+import sqlite3 from "sqlite3";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AnkiExport from "../src/index.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
 
 interface SqliteDb {
-  all: (
-    query: string,
-    callback: (err: Error | null, rows: unknown[]) => void,
-  ) => void;
+  all: (query: string, callback: (err: Error | null, rows: unknown[]) => void) => void;
   close: (callback: (err: Error | null) => void) => void;
 }
 
@@ -29,10 +27,7 @@ type SqliteDatabaseConstructor = new (
 ) => SqliteDb;
 const SQLiteDatabase: SqliteDatabaseConstructor = sqlite3.Database;
 
-const queryAll = (
-  db: SqliteDb,
-  query: string,
-): Promise<Record<string, string>[]> =>
+const queryAll = (db: SqliteDb, query: string): Promise<Record<string, string>[]> =>
   new Promise((resolve, reject) => {
     db.all(query, (err, rows) => {
       if (err) {
@@ -76,10 +71,7 @@ describe("anki-apkg-export", () => {
 
     const apkg = await AnkiExport("deck-name");
 
-    apkg.addMedia(
-      "anki.png",
-      fs.readFileSync(path.join(__dirname, "fixtures/anki.png")),
-    );
+    apkg.addMedia("anki.png", fs.readFileSync(path.join(__dirname, "fixtures/anki.png")));
 
     apkg.addCard("card #1 front", "card #1 back", { tags: ["food", "fruit"] });
     apkg.addCard("card #2 front", "card #2 back");
@@ -90,9 +82,7 @@ describe("anki-apkg-export", () => {
 
     expect(zip).toBeInstanceOf(Buffer);
 
-    const sampleZip = await fsp.readFile(
-      path.join(__dirname, "fixtures/output.apkg"),
-    );
+    const sampleZip = await fsp.readFile(path.join(__dirname, "fixtures/output.apkg"));
     const destZip = await fsp.readFile(dest);
     expect(destZip.equals(sampleZip)).toBe(true);
   });
@@ -141,11 +131,7 @@ describe("anki-apkg-export", () => {
       "Card back side 1",
       ["some", "tag", "tags with multiple words"],
     ];
-    const [front2, back2, tags2] = [
-      "Card front side 2",
-      "Card back side 2",
-      "some strin_tags",
-    ];
+    const [front2, back2, tags2] = ["Card front side 2", "Card back side 2", "some strin_tags"];
     const [front3, back3] = ["Card front side 3", "Card back side 3"];
     apkg.addCard(front1, back1, { tags: tags1 });
     apkg.addCard(front2, back2, { tags: tags2 });

@@ -20,10 +20,7 @@ describe("AnkiExport", () => {
   });
 
   it("reuses the initialised sql.js module across calls", async () => {
-    const [first, second] = await Promise.all([
-      AnkiExport("first"),
-      AnkiExport("second"),
-    ]);
+    const [first, second] = await Promise.all([AnkiExport("first"), AnkiExport("second")]);
 
     // Distinct exporters, but the expensive wasm module is loaded once.
     expect(first).not.toBe(second);
@@ -55,11 +52,7 @@ describe("AnkiExport", () => {
 
     const files = unzipDeckToBuffers(await apkg.save());
 
-    expect([...files.keys()].sort()).toEqual([
-      "0",
-      "collection.anki2",
-      "media",
-    ]);
+    expect([...files.keys()].sort()).toEqual(["0", "collection.anki2", "media"]);
     expect(JSON.parse(files.get("media")!.toString())).toEqual({
       0: "note.txt",
     });

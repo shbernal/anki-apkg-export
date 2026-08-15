@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest", "promise"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "coverage/", "**/*.d.ts"],
+  "rules": {
+    // Carried over from the ESLint config.
+    "typescript/consistent-type-imports": [
+      "warn",
+      { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+    ],
+    "typescript/explicit-function-return-type": "off",
+    "typescript/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "import/extensions": ["error", "ignorePackages", { "ts": "never" }],
+    "no-console": "off",
+
+    // oxlint sorts these into `suspicious`/`perf`, but typescript-eslint ships
+    // them in its `strict` tier, which this package never enabled — only
+    // `recommendedTypeChecked` + `stylisticTypeChecked`. Keeping them on would
+    // be a strictness increase smuggled in with the linter swap, so they stay
+    // off. Enabling them is its own task, not part of the migration.
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-unnecessary-type-parameters": "off",
+    "typescript/no-unnecessary-type-conversion": "off",
+
+    // sql.js exposes `_update`/`_getId`-style members and the exporter mirrors
+    // that naming, so dangling underscores are load-bearing here. ESLint never
+    // enforced this rule either.
+    "no-underscore-dangle": "off",
+
+    // Test helpers sort fixture arrays in place on purpose; the arrays are
+    // local throwaways, so `toSorted()` would only add allocations.
+    "unicorn/no-array-sort": "off"
+  }
+}

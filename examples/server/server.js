@@ -8,9 +8,7 @@ import AnkiExport from "../../dist/index.js";
 const run = async () => {
   const apkg = await AnkiExport("deck-name-node");
 
-  const assetPath = fileURLToPath(
-    new URL("../assets/anki.png", import.meta.url),
-  );
+  const assetPath = fileURLToPath(new URL("../assets/anki.png", import.meta.url));
   apkg.addMedia("anki.png", fs.readFileSync(assetPath));
 
   apkg.addCard("card #1 front", "card #1 back");
@@ -26,4 +24,4 @@ const run = async () => {
   }
 };
 
-run();
+await run();

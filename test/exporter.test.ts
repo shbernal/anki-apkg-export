@@ -1,16 +1,8 @@
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
-import initSqlJs, { type SqlJsStatic } from "sql.js";
 import path from "path";
 import { fileURLToPath } from "url";
+
+import initSqlJs, { type SqlJsStatic } from "sql.js";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
@@ -19,11 +11,7 @@ import { unzipDeckToBuffers } from "./_helpers.js";
 const template = createTemplate();
 const now = 1700000000000;
 const locateFile = (file: string): string =>
-  path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../node_modules/sql.js/dist",
-    file,
-  );
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "../node_modules/sql.js/dist", file);
 let sqlModule: SqlJsStatic;
 
 describe("Exporter internals", () => {
@@ -58,15 +46,8 @@ describe("Exporter internals", () => {
     const files = unzipDeckToBuffers(await exporter.save());
 
     expect(dbExportSpy).toHaveBeenCalled();
-    expect([...files.keys()].sort()).toEqual([
-      "0",
-      "1",
-      "collection.anki2",
-      "media",
-    ]);
-    expect(files.get("collection.anki2")?.subarray(0, 15).toString()).toBe(
-      "SQLite format 3",
-    );
+    expect([...files.keys()].sort()).toEqual(["0", "1", "collection.anki2", "media"]);
+    expect(files.get("collection.anki2")?.subarray(0, 15).toString()).toBe("SQLite format 3");
     expect(JSON.parse(files.get("media")!.toString())).toEqual({
       0: "1.jpg",
       1: "2.bmp",
@@ -102,9 +83,7 @@ describe("Exporter internals", () => {
     const stored = await exporter.save({ level: 0 });
 
     expect(stored.byteLength).toBeGreaterThan(compressed.byteLength);
-    expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe(
-      "one".repeat(500),
-    );
+    expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(500));
   });
 
   it("Exporter.addCard populates note and card rows", () => {
@@ -153,29 +132,18 @@ describe("Exporter internals", () => {
 
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
 
-    const [notesCall] = exporterUpdateSpy.mock.calls as [
-      string,
-      Record<string, string>,
-    ][];
+    const [notesCall] = exporterUpdateSpy.mock.calls as [string, Record<string, string>][];
     const notesUpdate = notesCall?.[1];
     const notesTags = notesUpdate[":tags"].split(" ");
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
     expect(notesUpdate[":mid"]).toBe(topModelId);
-    expect(notesTags).toEqual([
-      "",
-      ...tags.map((tag) => tag.replace(/ /g, "_")),
-      "",
-    ]);
+    expect(notesTags).toEqual(["", ...tags.map((tag) => tag.replace(/ /g, "_")), ""]);
   });
 
   it("Exporter.addCard handles tag string", () => {
     const { topDeckId, topModelId, separator } = exporter;
-    const [front, back, tags] = [
-      "Test Front",
-      "Test back",
-      "Some string with_delimiters",
-    ];
+    const [front, back, tags] = ["Test Front", "Test back", "Some string with_delimiters"];
     const exporterUpdateSpy = vi.spyOn(
       exporter as unknown as { _update: Exporter["_update"] },
       "_update",
@@ -213,8 +181,8 @@ describe("Exporter internals", () => {
 
     expect(exporterUpdateSpy).toHaveBeenCalledTimes(4);
 
-    const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] =
-      exporterUpdateSpy.mock.calls as [string, Record<string, string>][];
+    const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] = exporterUpdateSpy
+      .mock.calls as [string, Record<string, string>][];
     const notesUpdate = firstNotesCall?.[1];
     const secondNotesUpdate = secondNotesCall?.[1];
     expect(notesUpdate[":id"]).toBe(secondNotesUpdate[":id"]);
@@ -237,16 +205,13 @@ describe("Exporter internals", () => {
       exporter.addCard(`${front} ${i}`, `${back} ${i}`);
     }
 
-    const noteIdsResult = exporter.db.exec(
-      "SELECT id FROM notes ORDER BY id DESC",
-    );
+    const noteIdsResult = exporter.db.exec("SELECT id FROM notes ORDER BY id DESC");
     expect(noteIdsResult).toEqual([
       {
         columns: ["id"],
-        values: new Array(numberOfCards)
-          .fill(0)
-          .map((_, index) => [now + index])
-          .sort((a, b) => b[0] - a[0]),
+        values: Array.from({ length: numberOfCards }, (_, index) => [now + index]).sort(
+          (a, b) => b[0] - a[0],
+        ),
       },
     ]);
   });

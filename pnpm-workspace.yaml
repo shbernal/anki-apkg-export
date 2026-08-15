@@ -4,9 +4,7 @@ allowBuilds:
   esbuild: true
   lefthook: true
   sqlite3: true
-  unrs-resolver: true
 onlyBuiltDependencies:
   - esbuild
   - lefthook
   - sqlite3
-  - unrs-resolver

@@ -1,6 +1,7 @@
-import initSqlJs, { type SqlJsStatic } from "sql.js";
 import { createRequire } from "module";
 import path from "path";
+
+import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import Exporter from "./exporter.js";
 import createTemplate, { type TemplateOptions } from "./template.js";
