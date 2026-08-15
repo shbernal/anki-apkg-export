@@ -4,153 +4,157 @@ export interface TemplateOptions {
   css?: string;
 }
 
-export default function createTemplate({
-  questionFormat = "{{Front}}",
-  answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
-  css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n",
-}: TemplateOptions = {}): string {
-  const conf = {
-    nextPos: 1,
-    estTimes: true,
-    activeDecks: [1],
-    sortType: "noteFld",
-    timeLim: 0,
-    sortBackwards: false,
-    addToCur: true,
-    curDeck: 1,
-    newBury: true,
-    newSpread: 0,
-    dueCounts: true,
-    curModel: "1435645724216",
-    collapseTime: 1200,
-  };
+/*
+ * The four objects below are Anki's own collection defaults. They are
+ * JSON.stringify'd into the generated collection.anki2 verbatim, so their keys
+ * and key order are emitted output rather than formatting.
+ */
 
-  const models = {
-    1388596687391: {
-      veArs: [],
-      name: "Basic-f15d2",
-      tags: ["Tag"],
-      did: 1435588830424,
-      usn: -1,
-      req: [[0, "all", [0]]],
-      flds: [
-        {
-          name: "Front",
-          media: [],
-          sticky: false,
-          rtl: false,
-          ord: 0,
-          font: "Arial",
-          size: 20,
-        },
-        {
-          name: "Back",
-          media: [],
-          sticky: false,
-          rtl: false,
-          ord: 1,
-          font: "Arial",
-          size: 20,
-        },
-      ],
-      sortf: 0,
-      latexPre:
-        "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
-      tmpls: [
-        {
-          name: "Card 1",
-          qfmt: questionFormat,
-          did: null,
-          bafmt: "",
-          afmt: answerFormat,
-          ord: 0,
-          bqfmt: "",
-        },
-      ],
-      latexPost: "\\end{document}",
-      type: 0,
-      id: 1388596687391,
-      css,
-      mod: 1435645658,
-    },
-  };
+const CONF = {
+  nextPos: 1,
+  estTimes: true,
+  activeDecks: [1],
+  sortType: "noteFld",
+  timeLim: 0,
+  sortBackwards: false,
+  addToCur: true,
+  curDeck: 1,
+  newBury: true,
+  newSpread: 0,
+  dueCounts: true,
+  curModel: "1435645724216",
+  collapseTime: 1200,
+};
 
-  const decks = {
-    1: {
-      desc: "",
-      name: "Default",
-      extendRev: 50,
-      usn: 0,
-      collapsed: false,
-      newToday: [0, 0],
-      timeToday: [0, 0],
-      dyn: 0,
-      extendNew: 10,
-      conf: 1,
-      revToday: [0, 0],
-      lrnToday: [0, 0],
-      id: 1,
-      mod: 1435645724,
-    },
-    1435588830424: {
-      desc: "",
-      name: "Template",
-      extendRev: 50,
-      usn: -1,
-      collapsed: false,
-      newToday: [545, 0],
-      timeToday: [545, 0],
-      dyn: 0,
-      extendNew: 10,
-      conf: 1,
-      revToday: [545, 0],
-      lrnToday: [545, 0],
-      id: 1435588830424,
-      mod: 1435588830,
-    },
-  };
+const NOTE_FIELDS = [
+  {
+    name: "Front",
+    media: [],
+    sticky: false,
+    rtl: false,
+    ord: 0,
+    font: "Arial",
+    size: 20,
+  },
+  {
+    name: "Back",
+    media: [],
+    sticky: false,
+    rtl: false,
+    ord: 1,
+    font: "Arial",
+    size: 20,
+  },
+];
 
-  const dconf = {
-    1: {
-      name: "Default",
-      replayq: true,
-      lapse: {
-        leechFails: 8,
-        minInt: 1,
-        delays: [10],
-        leechAction: 0,
-        mult: 0,
+const LATEX_PRE =
+  "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n";
+
+const DECKS = {
+  1: {
+    desc: "",
+    name: "Default",
+    extendRev: 50,
+    usn: 0,
+    collapsed: false,
+    newToday: [0, 0],
+    timeToday: [0, 0],
+    dyn: 0,
+    extendNew: 10,
+    conf: 1,
+    revToday: [0, 0],
+    lrnToday: [0, 0],
+    id: 1,
+    mod: 1_435_645_724,
+  },
+  1_435_588_830_424: {
+    desc: "",
+    name: "Template",
+    extendRev: 50,
+    usn: -1,
+    collapsed: false,
+    newToday: [545, 0],
+    timeToday: [545, 0],
+    dyn: 0,
+    extendNew: 10,
+    conf: 1,
+    revToday: [545, 0],
+    lrnToday: [545, 0],
+    id: 1_435_588_830_424,
+    mod: 1_435_588_830,
+  },
+};
+
+const DCONF = {
+  1: {
+    name: "Default",
+    replayq: true,
+    lapse: {
+      leechFails: 8,
+      minInt: 1,
+      delays: [10],
+      leechAction: 0,
+      mult: 0,
+    },
+    rev: {
+      perDay: 100,
+      fuzz: 0.05,
+      ivlFct: 1,
+      maxIvl: 36_500,
+      ease4: 1.3,
+      bury: true,
+      minSpace: 1,
+    },
+    timer: 0,
+    maxTaken: 60,
+    usn: 0,
+    new: {
+      perDay: 20,
+      delays: [1, 10],
+      separate: true,
+      ints: [1, 4, 7],
+      initialFactor: 2500,
+      bury: true,
+      order: 1,
+    },
+    mod: 0,
+    id: 1,
+    autoplay: true,
+  },
+};
+
+/** The note model is the only default that varies with the caller's overrides. */
+const buildModels = ({ questionFormat, answerFormat, css }: Required<TemplateOptions>) => ({
+  1_388_596_687_391: {
+    veArs: [],
+    name: "Basic-f15d2",
+    tags: ["Tag"],
+    did: 1_435_588_830_424,
+    usn: -1,
+    req: [[0, "all", [0]]],
+    flds: NOTE_FIELDS,
+    sortf: 0,
+    latexPre: LATEX_PRE,
+    tmpls: [
+      {
+        name: "Card 1",
+        qfmt: questionFormat,
+        did: null,
+        bafmt: "",
+        afmt: answerFormat,
+        ord: 0,
+        bqfmt: "",
       },
-      rev: {
-        perDay: 100,
-        fuzz: 0.05,
-        ivlFct: 1,
-        maxIvl: 36500,
-        ease4: 1.3,
-        bury: true,
-        minSpace: 1,
-      },
-      timer: 0,
-      maxTaken: 60,
-      usn: 0,
-      new: {
-        perDay: 20,
-        delays: [1, 10],
-        separate: true,
-        ints: [1, 4, 7],
-        initialFactor: 2500,
-        bury: true,
-        order: 1,
-      },
-      mod: 0,
-      id: 1,
-      autoplay: true,
-    },
-  };
+    ],
+    latexPost: "\\end{document}",
+    type: 0,
+    id: 1_388_596_687_391,
+    css,
+    mod: 1_435_645_658,
+  },
+});
 
-  return `
-    PRAGMA foreign_keys=OFF;
-    BEGIN TRANSACTION;
+const COL_TABLE = `
     CREATE TABLE col (
         id              integer primary key,
         crt             integer not null,
@@ -165,22 +169,9 @@ export default function createTemplate({
         decks           text not null,
         dconf           text not null,
         tags            text not null
-    );
-    INSERT INTO "col" VALUES(
-      1,
-      1388548800,
-      1435645724219,
-      1435645724215,
-      11,
-      0,
-      0,
-      0,
-      '${JSON.stringify(conf)}',
-      '${JSON.stringify(models)}',
-      '${JSON.stringify(decks)}',
-      '${JSON.stringify(dconf)}',
-      '{}'
-    );
+    );`;
+
+const NOTE_TABLES = `
     CREATE TABLE notes (
         id              integer primary key,   /* 0 */
         guid            text not null,         /* 1 */
@@ -229,7 +220,9 @@ export default function createTemplate({
         usn             integer not null,
         oid             integer not null,
         type            integer not null
-    );
+    );`;
+
+const INDEXES = `
     ANALYZE sqlite_master;
     INSERT INTO "sqlite_stat1" VALUES('col',NULL,'1');
     CREATE INDEX ix_notes_usn on notes (usn);
@@ -238,7 +231,33 @@ export default function createTemplate({
     CREATE INDEX ix_cards_nid on cards (nid);
     CREATE INDEX ix_cards_sched on cards (did, queue, due);
     CREATE INDEX ix_revlog_cid on revlog (cid);
-    CREATE INDEX ix_notes_csum on notes (csum);
+    CREATE INDEX ix_notes_csum on notes (csum);`;
+
+export default function createTemplate({
+  questionFormat = "{{Front}}",
+  answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
+  css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n",
+}: Readonly<TemplateOptions> = {}): string {
+  const models = buildModels({ questionFormat, answerFormat, css });
+
+  return `
+    PRAGMA foreign_keys=OFF;
+    BEGIN TRANSACTION;${COL_TABLE}
+    INSERT INTO "col" VALUES(
+      1,
+      1388548800,
+      1435645724219,
+      1435645724215,
+      11,
+      0,
+      0,
+      0,
+      '${JSON.stringify(CONF)}',
+      '${JSON.stringify(models)}',
+      '${JSON.stringify(DECKS)}',
+      '${JSON.stringify(DCONF)}',
+      '{}'
+    );${NOTE_TABLES}${INDEXES}
     COMMIT;
   `;
 }

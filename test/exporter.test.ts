@@ -1,20 +1,51 @@
 import path from "path";
-import { fileURLToPath } from "url";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
 import { unzipDeckToBuffers } from "./_helpers.js";
 
 const template = createTemplate();
-const now = 1700000000000;
+const now = 1_700_000_000_000;
 const locateFile = (file: string): string =>
-  path.join(path.dirname(fileURLToPath(import.meta.url)), "../node_modules/sql.js/dist", file);
+  path.join(import.meta.dirname, "../node_modules/sql.js/dist", file);
 let sqlModule: SqlJsStatic;
 
-describe("Exporter internals", () => {
+/** Every sqlite file opens with this magic string. */
+const SQLITE_HEADER = "SQLite format 3";
+
+/** A ZIP local file header stores its DOS timestamp four bytes in at offset 10. */
+const MTIME_OFFSET = 10;
+
+/* Field offsets within that packed DOS timestamp. */
+const DOS_EPOCH_YEAR = 1980;
+const YEAR_SHIFT = 25;
+const MONTH_SHIFT = 21;
+const DAY_SHIFT = 16;
+const HOUR_SHIFT = 11;
+const MINUTE_SHIFT = 5;
+const SECOND_SHIFT = 1;
+
+/** `addCard` writes one note row and one card row. */
+const WRITES_PER_CARD = 2;
+
+/** How many times the duplicate-handling test adds the same card. */
+const DUPLICATE_ADDS = 2;
+
+/** Enough repetition that deflate beats stored, so `level: 0` is observable. */
+const PADDING = 500;
+
+/**
+ * `_update` is protected, so spying on it needs one cast at this boundary
+ * rather than at every call site.
+ */
+const spyOnUpdate = (target: Readonly<Exporter>) =>
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  vi.spyOn(target as unknown as { _update: Exporter["_update"] }, "_update");
+
+describe("the exporter internals", () => {
   let exporter: Exporter;
 
   beforeAll(async () => {
@@ -29,26 +60,25 @@ describe("Exporter internals", () => {
     });
   });
 
-  afterAll(() => {
-    // nothing to clean up; keep hook to mirror beforeAll
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
-  it("Exporter.save builds zip with DB and media", async () => {
+  it("builds a zip holding the database and the media", async () => {
+    expect.hasAssertions();
     const dbExportSpy = vi.spyOn(exporter.db, "export");
 
     exporter.addMedia("1.jpg", Buffer.from("one"));
     exporter.addMedia("2.bmp", Buffer.from("two"));
     const files = unzipDeckToBuffers(await exporter.save());
 
-    expect(dbExportSpy).toHaveBeenCalled();
-    expect([...files.keys()].sort()).toEqual(["0", "1", "collection.anki2", "media"]);
-    expect(files.get("collection.anki2")?.subarray(0, 15).toString()).toBe("SQLite format 3");
-    expect(JSON.parse(files.get("media")!.toString())).toEqual({
+    expect(dbExportSpy).toHaveBeenCalledWith();
+    expect([...files.keys()].sort()).toStrictEqual(["0", "1", "collection.anki2", "media"]);
+    expect(files.get("collection.anki2")?.subarray(0, SQLITE_HEADER.length).toString()).toBe(
+      SQLITE_HEADER,
+    );
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({
       0: "1.jpg",
       1: "2.bmp",
     });
@@ -56,52 +86,50 @@ describe("Exporter internals", () => {
     expect(files.get("1")?.toString()).toBe("two");
   });
 
-  it("Exporter.save stamps entries with the creation date in UTC", async () => {
+  it("stamps entries with the creation date in UTC", async () => {
+    expect.hasAssertions();
     exporter.addMedia("1.jpg", Buffer.from("one"));
     const archive = await exporter.save();
 
-    // The DOS timestamp lives in the local file header at offset 10; pinning it
-    // to the exporter's creation date in UTC is what keeps saves reproducible
-    // regardless of the machine's timezone.
+    /*
+     * Pinning the DOS timestamp to the exporter's creation date in UTC is what
+     * keeps saves reproducible regardless of the machine's timezone.
+     */
     const created = new Date(now);
     const expected =
-      (((created.getUTCFullYear() - 1980) << 25) |
-        ((created.getUTCMonth() + 1) << 21) |
-        (created.getUTCDate() << 16) |
-        (created.getUTCHours() << 11) |
-        (created.getUTCMinutes() << 5) |
-        (created.getUTCSeconds() >> 1)) >>>
+      (((created.getUTCFullYear() - DOS_EPOCH_YEAR) << YEAR_SHIFT) |
+        ((created.getUTCMonth() + 1) << MONTH_SHIFT) |
+        (created.getUTCDate() << DAY_SHIFT) |
+        (created.getUTCHours() << HOUR_SHIFT) |
+        (created.getUTCMinutes() << MINUTE_SHIFT) |
+        (created.getUTCSeconds() >> SECOND_SHIFT)) >>>
       0;
 
-    expect(archive.readUInt32LE(10)).toBe(expected);
+    expect(archive.readUInt32LE(MTIME_OFFSET)).toBe(expected);
   });
 
-  it("Exporter.save accepts fflate zip options", async () => {
-    exporter.addMedia("1.jpg", Buffer.from("one".repeat(500)));
+  it("accepts fflate zip options", async () => {
+    expect.hasAssertions();
+    exporter.addMedia("1.jpg", Buffer.from("one".repeat(PADDING)));
 
     const compressed = await exporter.save();
     const stored = await exporter.save({ level: 0 });
 
     expect(stored.byteLength).toBeGreaterThan(compressed.byteLength);
-    expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(500));
+    expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(PADDING));
   });
 
-  it("Exporter.addCard populates note and card rows", () => {
+  it("populates note and card rows when a card is added", () => {
+    expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
-    const exporterUpdateSpy = vi.spyOn(
-      exporter as unknown as { _update: Exporter["_update"] },
-      "_update",
-    );
+    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back);
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
+    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as [
-      string,
-      Record<string, string>,
-    ][];
+    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
 
     expect(notesCall?.[0]).toBe(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
@@ -119,44 +147,37 @@ describe("Exporter internals", () => {
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
   });
 
-  it("Exporter.addCard handles tag array", () => {
+  it("joins a tag array into Anki's space-delimited form", () => {
+    expect.hasAssertions();
     const { topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
     const tags = ["tag1", "tag2", "multiple words tag"];
-    const exporterUpdateSpy = vi.spyOn(
-      exporter as unknown as { _update: Exporter["_update"] },
-      "_update",
-    );
+    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back, { tags });
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
+    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
 
-    const [notesCall] = exporterUpdateSpy.mock.calls as [string, Record<string, string>][];
+    const [notesCall] = exporterUpdateSpy.mock.calls;
     const notesUpdate = notesCall?.[1];
-    const notesTags = notesUpdate[":tags"].split(" ");
+    const notesTags = String(notesUpdate[":tags"]).split(" ");
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
     expect(notesUpdate[":mid"]).toBe(topModelId);
-    expect(notesTags).toEqual(["", ...tags.map((tag) => tag.replace(/ /g, "_")), ""]);
+    expect(notesTags).toStrictEqual(["", ...tags.map((tag) => tag.replaceAll(" ", "_")), ""]);
   });
 
-  it("Exporter.addCard handles tag string", () => {
+  it("passes a tag string through untouched", () => {
+    expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back, tags] = ["Test Front", "Test back", "Some string with_delimiters"];
-    const exporterUpdateSpy = vi.spyOn(
-      exporter as unknown as { _update: Exporter["_update"] },
-      "_update",
-    );
+    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back, { tags });
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(2);
+    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls as [
-      string,
-      Record<string, string>,
-    ][];
+    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
     const notesUpdate = notesCall?.[1];
     expect(notesUpdate[":sfld"]).toBe(front);
     expect(notesUpdate[":flds"]).toBe(front + separator + back);
@@ -168,21 +189,19 @@ describe("Exporter internals", () => {
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
   });
 
-  it("Exporter.addCard updates duplicates in place", () => {
+  it("updates duplicates in place", () => {
+    expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
-    const exporterUpdateSpy = vi.spyOn(
-      exporter as unknown as { _update: Exporter["_update"] },
-      "_update",
-    );
+    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back);
     exporter.addCard(front, back);
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(4);
+    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD * DUPLICATE_ADDS);
 
-    const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] = exporterUpdateSpy
-      .mock.calls as [string, Record<string, string>][];
+    const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] =
+      exporterUpdateSpy.mock.calls;
     const notesUpdate = firstNotesCall?.[1];
     const secondNotesUpdate = secondNotesCall?.[1];
     expect(notesUpdate[":id"]).toBe(secondNotesUpdate[":id"]);
@@ -198,19 +217,20 @@ describe("Exporter internals", () => {
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
   });
 
-  it("Exporter._getId increments values inserted at the same time", () => {
+  it("increments ids for rows inserted at the same timestamp", () => {
+    expect.hasAssertions();
     const numberOfCards = 5;
     const [front, back] = ["Test Front", "Test back"];
-    for (let i = 0; i < numberOfCards; i++) {
-      exporter.addCard(`${front} ${i}`, `${back} ${i}`);
+    for (let index = 0; index < numberOfCards; index++) {
+      exporter.addCard(`${front} ${index}`, `${back} ${index}`);
     }
 
     const noteIdsResult = exporter.db.exec("SELECT id FROM notes ORDER BY id DESC");
-    expect(noteIdsResult).toEqual([
+    expect(noteIdsResult).toStrictEqual([
       {
         columns: ["id"],
-        values: Array.from({ length: numberOfCards }, (_, index) => [now + index]).sort(
-          (a, b) => b[0] - a[0],
+        values: Array.from({ length: numberOfCards }, (_unused, index) => [now + index]).sort(
+          (left: readonly number[], right: readonly number[]) => right[0] - left[0],
         ),
       },
     ]);

@@ -1,45 +1,60 @@
 import { createHash } from "crypto";
 
-import { strToU8, zipSync } from "fflate";
-import type { ZipOptions, Zippable } from "fflate";
-import type { Database, SqlJsStatic } from "sql.js";
+import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
+import type { Database, SqlJsStatic, SqlValue } from "sql.js";
 
 interface MediaItem {
   filename: string;
   data: string | ArrayBuffer | Uint8Array | Buffer;
 }
 
-export type { ZipOptions };
+export type { ZipOptions } from "fflate";
 
 interface ExporterOptions {
   template: string;
   sql: SqlJsStatic;
 }
 
+/** Anki stores a note's fields as one string joined by this control character. */
+const FIELD_SEPARATOR = "\u001F";
+
+/** Anki's field checksum is the first 8 hex digits of the sha1, read as base 16. */
+const CHECKSUM_HEX_DIGITS = 8;
+const CHECKSUM_RADIX = 16;
+
+/** New cards are queued at this position, matching Anki's own default export. */
+const INITIAL_DUE_POSITION = 179;
+
 export default class Exporter {
   public readonly db: Database;
-  private readonly media: MediaItem[];
+  private readonly media: MediaItem[] = [];
   public readonly topDeckId: number;
   public readonly topModelId: number;
-  public readonly separator: string;
+  public readonly separator: string = FIELD_SEPARATOR;
   public readonly deckName: string;
   private readonly createdAt: Date;
 
-  constructor(deckName: string, { template, sql }: ExporterOptions) {
+  constructor(deckName: string, { template, sql }: Readonly<ExporterOptions>) {
     this.createdAt = new Date(Date.now());
     const db = new sql.Database();
     db.run(template);
 
     this.db = db;
     this.deckName = deckName;
-    this.media = [];
-    this.separator = "\u001F";
 
     const now = Date.now();
     this.topDeckId = this._getId("cards", "did", now);
     this.topModelId = this._getId("notes", "mid", now);
 
-    const decks = this._getInitialRowValue<Record<string, DeckModel>>("col", "decks");
+    this._renameTopDeck();
+    this._renameTopModel();
+  }
+
+  /** Point the collection's last deck at this export's name and id. */
+  private _renameTopDeck(): void {
+    /* `decks` is a JSON text column, so its decoded shape is only known here. */
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const decks = this._getInitialRowValue("col", "decks") as Record<string, DeckModel>;
     const deck = getLastItem(decks);
     deck.name = this.deckName;
     deck.id = this.topDeckId;
@@ -47,8 +62,13 @@ export default class Exporter {
     this._update("update col set decks=:decks where id=1", {
       ":decks": JSON.stringify(decks),
     });
+  }
 
-    const models = this._getInitialRowValue<Record<string, NoteModel>>("col", "models");
+  /** Point the collection's last note model at this export's name, deck and id. */
+  private _renameTopModel(): void {
+    /* `models` is a JSON text column, so its decoded shape is only known here. */
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const models = this._getInitialRowValue("col", "models") as Record<string, NoteModel>;
     const model = getLastItem(models);
     model.name = this.deckName;
     model.did = this.topDeckId;
@@ -59,17 +79,22 @@ export default class Exporter {
     });
   }
 
-  // Zipping is synchronous, but `save` stays async so callers keep awaiting it.
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async save(options: ZipOptions = {}): Promise<Buffer> {
+  /*
+   * Zipping is synchronous, but `save` stays async so callers keep awaiting it.
+   * `options` is fflate's own bag, forwarded to `zipSync` untouched; its nested
+   * `extra` record cannot be restated as deeply readonly from here.
+   */
+  // oxlint-disable-next-line typescript/require-await, typescript/prefer-readonly-parameter-types
+  async save(options: Readonly<ZipOptions> = {}): Promise<Buffer> {
     const binaryArray = this.db.export();
-    const mediaMap = this.media.reduce<Record<number, string>>((acc, item, idx) => {
-      acc[idx] = item.filename;
-      return acc;
-    }, {});
+    const mediaMap = Object.fromEntries(
+      this.media.map((item: Readonly<MediaItem>, idx) => [idx, item.filename]),
+    );
 
-    // Every entry carries the exporter's creation date so identical input
-    // yields an identical archive.
+    /*
+     * Every entry carries the exporter's creation date so identical input
+     * yields an identical archive.
+     */
     const mtime = toArchiveClock(this.createdAt);
     const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
@@ -77,7 +102,7 @@ export default class Exporter {
       "collection.anki2": entry(binaryArray),
       media: entry(strToU8(JSON.stringify(mediaMap))),
     };
-    this.media.forEach((item, idx) => {
+    this.media.forEach((item: Readonly<MediaItem>, idx) => {
       files[String(idx)] = entry(toBytes(item.data));
     });
 
@@ -88,7 +113,11 @@ export default class Exporter {
     this.media.push({ filename, data });
   }
 
-  addCard(front: string, back: string, { tags }: { tags?: string | string[] } = {}): void {
+  addCard(
+    front: string,
+    back: string,
+    { tags }: Readonly<{ tags?: string | readonly string[] }> = {},
+  ): void {
     const now = Date.now();
     const noteGuid = this._getNoteGuid(this.topDeckId, front, back);
     const noteId = this._getNoteId(noteGuid, now);
@@ -100,23 +129,32 @@ export default class Exporter {
       normalizedTags = this._tagsToStr(tags);
     }
 
+    this._insertNote({ back, front, guid: noteGuid, id: noteId, now, tags: normalizedTags });
+    this._insertCard(noteId, now);
+  }
+
+  private _insertNote({ back, front, guid, id, now, tags }: Readonly<NoteRow>): void {
+    const fields = front + this.separator + back;
+
     this._update(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
       {
-        ":id": noteId,
-        ":guid": noteGuid,
+        ":id": id,
+        ":guid": guid,
         ":mid": this.topModelId,
         ":mod": this._getId("notes", "mod", now),
         ":usn": -1,
-        ":tags": normalizedTags,
-        ":flds": front + this.separator + back,
+        ":tags": tags,
+        ":flds": fields,
         ":sfld": front,
-        ":csum": this._checksum(front + this.separator + back),
+        ":csum": this._checksum(fields),
         ":flags": 0,
         ":data": "",
       },
     );
+  }
 
+  private _insertCard(noteId: number, now: number): void {
     this._update(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
       {
@@ -128,7 +166,7 @@ export default class Exporter {
         ":usn": -1,
         ":type": 0,
         ":queue": 0,
-        ":due": 179,
+        ":due": INITIAL_DUE_POSITION,
         ":ivl": 0,
         ":factor": 0,
         ":reps": 0,
@@ -142,21 +180,25 @@ export default class Exporter {
     );
   }
 
-  protected _update(query: string, values: Record<string, string | number>): void {
+  protected _update(query: string, values: Readonly<Record<string, string | number>>): void {
     this.db.prepare(query).getAsObject(values);
   }
 
-  private _getInitialRowValue<T>(table: string, column = "id"): T {
+  private _getInitialRowValue(table: string, column = "id"): unknown {
     const query = `select ${column} from ${table}`;
-    return this._getFirstVal<T>(query);
+    return this._getFirstVal(query);
   }
 
   private _checksum(str: string): number {
-    const hash = createHash("sha1").update(str).digest("hex").slice(0, 8);
-    return parseInt(hash, 16);
+    const hash = createHash("sha1").update(str).digest("hex").slice(0, CHECKSUM_HEX_DIGITS);
+    return Number.parseInt(hash, CHECKSUM_RADIX);
   }
 
-  private _getFirstVal<T>(query: string): T {
+  /**
+   * Read the first column of the first row. JSON text columns are decoded here,
+   * so the result is `unknown` and each caller states the shape it expects.
+   */
+  private _getFirstVal(query: string): unknown {
     const stmt = this.db.prepare(query);
 
     try {
@@ -170,25 +212,27 @@ export default class Exporter {
         throw new Error(`Query returned no results: ${query}`);
       }
 
-      if (typeof result === "string") {
-        return JSON.parse(result) as T;
-      }
-
-      return result as T;
+      return decodeCell(result);
     } finally {
       stmt.free();
     }
   }
 
-  private _tagsToStr(tags: string[] = []): string {
-    return ` ${tags.map((tag) => tag.replace(/ /g, "_")).join(" ")} `;
+  private _tagsToStr(tags: readonly string[] = []): string {
+    return ` ${tags.map((tag) => tag.replaceAll(" ", "_")).join(" ")} `;
   }
 
   private _getId(table: string, col: string, ts: number): number {
     const query = `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`;
+    /* The column is chosen by the caller, so sql.js cannot type the row for us. */
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const rowObj = this.db.prepare(query).getAsObject({ ":ts": ts }) as Record<string, number>;
 
-    return rowObj[col] ? Number(rowObj[col]) + 1 : ts;
+    const highest = rowObj[col];
+    if (highest) {
+      return highest + 1;
+    }
+    return ts;
   }
 
   private _getNoteId(guid: string, ts: number): number {
@@ -212,6 +256,16 @@ export default class Exporter {
   }
 }
 
+/** The parts of a note row that `addCard` derives before writing it. */
+interface NoteRow {
+  id: number;
+  guid: string;
+  tags: string;
+  front: string;
+  back: string;
+  now: number;
+}
+
 interface DeckModel {
   id: number;
   name: string;
@@ -225,17 +279,30 @@ interface NoteModel {
   [key: string]: unknown;
 }
 
+/** JSON columns come back as text, everything else as the value sqlite stored. */
+const decodeCell = (value: SqlValue): unknown => {
+  if (typeof value === "string") {
+    return JSON.parse(value);
+  }
+  return value;
+};
+
 const toBytes = (data: MediaItem["data"]): Uint8Array => {
-  if (typeof data === "string") return strToU8(data);
-  if (data instanceof Uint8Array) return data;
+  if (typeof data === "string") {
+    return strToU8(data);
+  }
+  if (data instanceof Uint8Array) {
+    return data;
+  }
   return new Uint8Array(data);
 };
 
 /**
- * fflate writes a ZIP entry's DOS timestamp from the *local* clock, so the same
- * deck would compress to different bytes on machines in different timezones.
- * Return a date whose local components spell out the original's UTC ones, which
- * both pins the stamp to UTC and keeps archives byte-reproducible anywhere.
+ * ZIP entries carry a DOS timestamp, which fflate writes from the *local*
+ * clock, so the same deck would compress to different bytes on machines in
+ * different timezones. Return a date whose local components spell out the
+ * original's UTC ones, which both pins the stamp to UTC and keeps archives
+ * byte-reproducible anywhere.
  */
 const toArchiveClock = (date: Date): Date =>
   new Date(
@@ -247,9 +314,15 @@ const toArchiveClock = (date: Date): Date =>
     date.getUTCSeconds(),
   );
 
-export const getLastItem = <T>(obj: Record<string, T>): T => {
+/**
+ * Pop the last entry off a decoded collection map. Anki's default collection
+ * ships one placeholder deck and note model; this removes the placeholder and
+ * hands it back so the caller can re-key it under the export's own id.
+ */
+// oxlint-disable-next-line typescript/prefer-readonly-parameter-types
+export const getLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
   const keys = Object.keys(obj);
-  const lastKey = keys[keys.length - 1];
+  const lastKey = keys.at(-1) ?? "";
 
   const item = obj[lastKey];
   delete obj[lastKey];

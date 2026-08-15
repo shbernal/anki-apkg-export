@@ -51,7 +51,7 @@ const apkg = await AnkiExport("customized", {
 
 ### API
 
-- `addCard(front: string, back: string, options?: { tags?: string | string[] })`
+- `addCard(front: string, back: string, options?: { tags?: string | readonly string[] })`
 - `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
 - `save(options?: ZipOptions): Promise<Buffer>` (returns the APKG as a Node buffer; `ZipOptions` is [fflate](https://github.com/101arrowz/fflate)'s, e.g. `{ level: 0 }` to store uncompressed)
 

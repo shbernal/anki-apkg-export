@@ -4,7 +4,9 @@
   "categories": {
     "correctness": "error",
     "suspicious": "error",
-    "perf": "error"
+    "perf": "error",
+    "pedantic": "error",
+    "style": "error"
   },
   "ignorePatterns": ["dist/", "node_modules/", "coverage/", "**/*.d.ts"],
   "rules": {
@@ -18,14 +20,61 @@
     "import/extensions": ["error", "ignorePackages", { "ts": "never" }],
     "no-console": "off",
 
-    // oxlint sorts these into `suspicious`/`perf`, but typescript-eslint ships
-    // them in its `strict` tier, which this package never enabled — only
-    // `recommendedTypeChecked` + `stylisticTypeChecked`. Keeping them on would
-    // be a strictness increase smuggled in with the linter swap, so they stay
-    // off. Enabling them is its own task, not part of the migration.
-    "typescript/no-unsafe-type-assertion": "off",
-    "typescript/no-unnecessary-type-parameters": "off",
-    "typescript/no-unnecessary-type-conversion": "off",
+    // `sortImports` in .oxfmtrc.json already orders imports, and oxfmt rewrites
+    // on every commit. Leaving this on means the formatter and the linter each
+    // impose a different order and fight over the same lines.
+    "sort-imports": "off",
+
+    // This package is a Node library: it hashes with `crypto` and resolves the
+    // sql.js wasm through `module`/`path`. The rule exists to keep browser
+    // bundles free of builtins, which is the opposite of the target here.
+    "import/no-nodejs-modules": "off",
+
+    // The published surface is named exports (`Exporter`, `getLastItem`, the
+    // template types) alongside the default one. See the API guardrails in
+    // CLAUDE.md — collapsing them to a single default export is a breaking
+    // change, not a lint fix.
+    "import/no-named-export": "off",
+
+    // Types and helpers are declared next to the code they describe, so exports
+    // are interleaved rather than gathered at the bottom. Both rules only
+    // relocate existing statements; neither changes what the module exposes.
+    "import/group-exports": "off",
+    "import/exports-last": "off",
+
+    // Vitest globals are deliberately not enabled, so the test files import
+    // `describe`/`it`/`expect` explicitly and tsc needs those imports to
+    // resolve them. This rule's autofix deletes them and breaks `typecheck`.
+    "vitest/no-importing-vitest-globals": "off",
+
+    // `consistent-type-imports` above is set to `inline-type-imports`; this rule
+    // demands the opposite (a separate top-level `import type`). Leaving both on
+    // makes the two fixers undo each other. The inline style wins because it is
+    // the one the package already used under ESLint.
+    "import/consistent-type-specifier-style": "off",
+
+    // oxlint defaults `one-var` to "always", which would collapse every run of
+    // consecutive declarations into one comma-chained statement. The package has
+    // always declared one binding per statement, so the rule stays on and is
+    // pointed at that convention instead.
+    "one-var": ["error", "never"],
+
+    // `conf`/`models`/`decks`/`dconf` in src/template.ts are JSON.stringify'd
+    // straight into the generated collection.anki2, so key order is emitted
+    // output, not formatting. In src/exporter.ts the `:id`/`:guid`/`:mid` maps
+    // are written in the column order of the INSERT statement above them.
+    // Sorting either one alphabetically changes bytes or breaks that pairing.
+    "sort-keys": "off",
+
+    // Contradicts `vitest/prefer-strict-boolean-matchers`, which is also on and
+    // wants `toBe(true)` back. The assertion in question compares two buffers,
+    // where the strict matcher is the one worth keeping.
+    "vitest/prefer-to-be-truthy": "off",
+
+    // The `did: null` in the default note template is serialized into the deck.
+    // `undefined` is not valid JSON, so JSON.stringify would drop the key
+    // entirely and change what Anki reads back.
+    "unicorn/no-null": "off",
 
     // sql.js exposes `_update`/`_getId`-style members and the exporter mirrors
     // that naming, so dangling underscores are load-bearing here. ESLint never
@@ -34,6 +83,73 @@
 
     // Test helpers sort fixture arrays in place on purpose; the arrays are
     // local throwaways, so `toSorted()` would only add allocations.
-    "unicorn/no-array-sort": "off"
-  }
+    "unicorn/no-array-sort": "off",
+
+    // 0, 1 and -1 are the empty/first/sentinel values all over the sqlite rows
+    // and carry no meaning a constant could add. Everything else gets a name.
+    "no-magic-numbers": [
+      "error",
+      { "ignore": [-1, 0, 1], "ignoreArrayIndexes": true, "ignoreDefaultValues": true }
+    ],
+
+    // The rule is only workable here with its documented escape hatches. The
+    // media payloads and the zip clock are `Uint8Array`/`Buffer`/`Date`, which
+    // mutate through methods rather than properties, and sql.js's `SqlJsStatic`
+    // is a third-party class this package cannot restate as readonly.
+    "typescript/prefer-readonly-parameter-types": [
+      "error",
+      {
+        "treatMethodsAsReadonly": true,
+        "allow": [
+          { "from": "lib", "name": "ArrayBuffer" },
+          { "from": "lib", "name": "Date" },
+          { "from": "lib", "name": "Error" },
+          { "from": "lib", "name": "Uint8Array" },
+          { "from": "package", "package": "@types/node", "name": "Buffer" },
+          { "from": "package", "package": "sql.js", "name": "SqlJsStatic" }
+        ]
+      }
+    ],
+
+    // Doc comments carry most of this file's growth; the executable body is
+    // well under the limit.
+    "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+
+    // `AnkiExport` is this package's published entry point: a capitalized async
+    // factory that is called, never constructed. Every call site here is a use
+    // of that API, not a missing `new`.
+    "new-cap": ["error", { "capIsNewExceptions": ["AnkiExport"] }]
+  },
+  "overrides": [
+    {
+      // src/template.ts is a transcription of Anki's own collection defaults —
+      // deck config, note model, scheduler config — that gets JSON.stringify'd
+      // into the deck verbatim. The numbers are that schema's values (`545`,
+      // `36500`, `2500`), not quantities this package chose, so naming them
+      // would invent meaning rather than document it.
+      "files": ["src/template.ts"],
+      "rules": {
+        "no-magic-numbers": "off"
+      }
+    },
+    {
+      // `describe`/`it` callbacks are declarative blocks, not functions with
+      // logic, so a suite's length and statement count track how many cases it
+      // covers. Splitting a cohesive suite to fit a budget, or dropping the
+      // `beforeEach`/`afterEach` that open and close the sqlite handles and
+      // temp directories, would make these tests worse rather than smaller.
+      "files": ["test/**"],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-statements": "off",
+        "vitest/max-expects": "off",
+        "vitest/no-hooks": "off",
+
+        // `sqlModule` and `exporter` are handed to the suite by `beforeAll` and
+        // `beforeEach`, so there is no value to initialize them with at the
+        // point of declaration.
+        "init-declarations": "off"
+      }
+    }
+  ]
 }

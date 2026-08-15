@@ -1,7 +1,7 @@
 import fs, { promises as fsp } from "fs";
 import os from "os";
 import path from "path";
-import { fileURLToPath } from "url";
+import { promisify } from "util";
 
 import sqlite3 from "sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,11 +10,10 @@ import AnkiExport from "../src/index.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
 
 interface SqliteDb {
-  all: (query: string, callback: (err: Error | null, rows: unknown[]) => void) => void;
-  close: (callback: (err: Error | null) => void) => void;
+  all: (query: string, callback: (error: Error | null, rows: readonly unknown[]) => void) => void;
+  close: (callback: (error: Error | null) => void) => void;
 }
 
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
 const dest = path.join(tmpDir, "result.apkg");
 const destUnpacked = path.join(tmpDir, "unpacked_result");
@@ -27,51 +26,45 @@ type SqliteDatabaseConstructor = new (
 ) => SqliteDb;
 const SQLiteDatabase: SqliteDatabaseConstructor = sqlite3.Database;
 
-const queryAll = (db: SqliteDb, query: string): Promise<Record<string, string>[]> =>
-  new Promise((resolve, reject) => {
-    db.all(query, (err, rows) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(rows as Record<string, string>[]);
-    });
-  });
+const queryAll = async (
+  db: Readonly<SqliteDb>,
+  query: string,
+): Promise<Record<string, string>[]> => {
+  const rows = await promisify<string, readonly unknown[]>(db.all.bind(db))(query);
+
+  /* The column list is written in the query, so only the caller knows the shape. */
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return rows as Record<string, string>[];
+};
 
 /**
- * sqlite3 closes on the libuv threadpool, and its completion callback throws
- * through N-API. Left unawaited, that callback can land after vitest has torn
- * the worker down, aborting the process with a fatal napi_throw.
+ * Closing happens on the libuv threadpool, and sqlite3's completion callback
+ * throws through N-API. Left unawaited, that callback can land after vitest has
+ * torn the worker down, aborting the process with a fatal napi_throw.
  */
-const closeDb = (db: SqliteDb): Promise<void> =>
-  new Promise((resolve, reject) => {
-    db.close((err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve();
-    });
-  });
-
-beforeEach(async () => {
-  await fsp.rm(tmpDir, { recursive: true, force: true });
-  await fsp.mkdir(tmpDir, { recursive: true });
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-});
+const closeDb = async (db: Readonly<SqliteDb>): Promise<void> => {
+  await promisify(db.close.bind(db))();
+};
 
 describe("anki-apkg-export", () => {
+  beforeEach(async () => {
+    await fsp.rm(tmpDir, { recursive: true, force: true });
+    await fsp.mkdir(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   it("equals to sample", async () => {
-    const now = 1482680798652;
+    expect.hasAssertions();
+    const now = 1_482_680_798_652;
     vi.useFakeTimers({ now, toFake: ["Date"] });
 
     const apkg = await AnkiExport("deck-name");
 
-    apkg.addMedia("anki.png", fs.readFileSync(path.join(__dirname, "fixtures/anki.png")));
+    apkg.addMedia("anki.png", fs.readFileSync(path.join(import.meta.dirname, "fixtures/anki.png")));
 
     apkg.addCard("card #1 front", "card #1 back", { tags: ["food", "fruit"] });
     apkg.addCard("card #2 front", "card #2 back");
@@ -82,12 +75,13 @@ describe("anki-apkg-export", () => {
 
     expect(zip).toBeInstanceOf(Buffer);
 
-    const sampleZip = await fsp.readFile(path.join(__dirname, "fixtures/output.apkg"));
+    const sampleZip = await fsp.readFile(path.join(import.meta.dirname, "fixtures/output.apkg"));
     const destZip = await fsp.readFile(dest);
     expect(destZip.equals(sampleZip)).toBe(true);
   });
 
   it("check internal structure", async () => {
+    expect.hasAssertions();
     const apkg = await AnkiExport("deck-name");
     const cards = [
       { front: "card #1 front", back: "card #1 back" },
@@ -113,16 +107,19 @@ describe("anki-apkg-export", () => {
     await closeDb(db);
 
     const normalizedResult = result
-      .map(({ front, back }) => ({
+      .map(({ front, back }: Readonly<Record<string, string>>) => ({
         front,
         back: back.split(SEPARATOR).pop()!,
       }))
-      .sort((a, b) => a.front.localeCompare(b.front));
+      .sort((left: Readonly<{ front: string }>, right: Readonly<{ front: string }>) =>
+        left.front.localeCompare(right.front),
+      );
 
-    expect(normalizedResult).toEqual(cards);
+    expect(normalizedResult).toStrictEqual(cards);
   });
 
   it("check internal structure on adding card with tags", async () => {
+    expect.hasAssertions();
     const decFile = `${dest}_with_tags.apkg`;
     const unzippedDeck = `${destUnpacked}_with_tags`;
     const apkg = await AnkiExport("deck-name");
@@ -152,11 +149,11 @@ describe("anki-apkg-export", () => {
     );
     await closeDb(db);
 
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       {
         front: front1,
         back: `${front1}${SEPARATOR}${back1}`,
-        tags: ` ${tags1.map((tag) => tag.replace(/ /g, "_")).join(" ")} `,
+        tags: ` ${tags1.map((tag) => tag.replaceAll(" ", "_")).join(" ")} `,
       },
       { front: front2, back: `${front2}${SEPARATOR}${back2}`, tags: tags2 },
       { front: front3, back: `${front3}${SEPARATOR}${back3}`, tags: "" },

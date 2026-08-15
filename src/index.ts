@@ -16,12 +16,12 @@ const getSqlModule = (): Promise<SqlJsStatic> => {
   return sqlModulePromise;
 };
 
-export { Exporter };
-export type { TemplateOptions };
+export { default as Exporter } from "./exporter.js";
+export type { TemplateOptions } from "./template.js";
 
 export default async function AnkiExport(
   deckName: string,
-  template?: TemplateOptions,
+  template?: Readonly<TemplateOptions>,
 ): Promise<Exporter> {
   const sqlModule = await getSqlModule();
 
