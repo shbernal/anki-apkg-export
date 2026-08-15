@@ -3,7 +3,7 @@
   "description": "Generate Anki deck packages from JavaScript and TypeScript.",
   "version": "5.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.18.0+sha512.33d83c77da82f49fba836925c6f1b841181ec3132b670639bd012f7075f5c7cf634c5f870147c19aae7478fac01df09d8892e880454896edd23ee9b33757563c",
+  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -20,25 +20,25 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "sql.js": "^1.14.1"
+    "sql.js": "^1.14.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/sql.js": "^1.4.11",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/eslint-plugin": "^1.6.24",
-    "eslint": "^10.8.0",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^10.8.1",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
-    "globals": "^17.8.0",
+    "globals": "^17.11.0",
     "lefthook": "^2.1.10",
     "prettier": "^3.9.6",
     "sqlite3": "^6.0.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
   },
   "author": "shbernal <shbernal.01@gmail.com>",
