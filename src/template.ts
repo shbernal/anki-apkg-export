@@ -22,7 +22,9 @@ const CONF = {
   newBury: true,
   newSpread: 0,
   dueCounts: true,
-  curModel: "1435645724216",
+  /* Replaced with this export's real note model id once the exporter has one;
+     the seeded value names a model that is not in the file. */
+  curModel: 0,
   collapseTime: 1200,
 };
 
@@ -73,13 +75,14 @@ const DECKS = {
     extendRev: 50,
     usn: -1,
     collapsed: false,
-    newToday: [545, 0],
-    timeToday: [545, 0],
+    /* Per-day study counters. A freshly exported deck has studied nothing. */
+    newToday: [0, 0],
+    timeToday: [0, 0],
     dyn: 0,
     extendNew: 10,
     conf: 1,
-    revToday: [545, 0],
-    lrnToday: [545, 0],
+    revToday: [0, 0],
+    lrnToday: [0, 0],
     id: 1_435_588_830_424,
     mod: 1_435_588_830,
   },
@@ -126,9 +129,10 @@ const DCONF = {
 /** The note model is the only default that varies with the caller's overrides. */
 const buildModels = ({ questionFormat, answerFormat, css }: Required<TemplateOptions>) => ({
   1_388_596_687_391: {
-    veArs: [],
+    /* A dead schema-11 key Anki still writes; it was misspelled `veArs` here. */
+    vers: [],
     name: "Basic-f15d2",
-    tags: ["Tag"],
+    tags: [],
     did: 1_435_588_830_424,
     usn: -1,
     req: [[0, "all", [0]]],
@@ -233,6 +237,35 @@ const INDEXES = `
     CREATE INDEX ix_revlog_cid on revlog (cid);
     CREATE INDEX ix_notes_csum on notes (csum);`;
 
+const MILLISECONDS_PER_SECOND = 1000;
+const MILLISECONDS_PER_HOUR = 3_600_000;
+const MILLISECONDS_PER_DAY = 86_400_000;
+
+/** Anki's default day rollover: a study day starts at 04:00, not midnight. */
+const ROLLOVER_HOUR = 4;
+
+/**
+ * `col.crt` is the day a collection was created, pinned to the rollover hour,
+ * and it is the epoch every review-card day number counts from.
+ *
+ * Anki uses 04:00 *local*. This uses 04:00 UTC, because a local value would
+ * make the same deck compress to different bytes in different timezones —
+ * the reproducibility `toArchiveClock` in the exporter exists to protect.
+ * Nothing here depends on the difference: `crt` only converts day numbers for
+ * review and learning cards, and every card this package writes is new.
+ */
+const dayRollover = (nowMs: number): number => {
+  const midnightUtc = Math.floor(nowMs / MILLISECONDS_PER_DAY) * MILLISECONDS_PER_DAY;
+  const rollover = midnightUtc + ROLLOVER_HOUR * MILLISECONDS_PER_HOUR;
+
+  /* Before 04:00 the current study day still belongs to the previous date. */
+  if (rollover > nowMs) {
+    return Math.floor((rollover - MILLISECONDS_PER_DAY) / MILLISECONDS_PER_SECOND);
+  }
+
+  return Math.floor(rollover / MILLISECONDS_PER_SECOND);
+};
+
 export default function createTemplate({
   questionFormat = "{{Front}}",
   answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
@@ -240,14 +273,19 @@ export default function createTemplate({
 }: Readonly<TemplateOptions> = {}): string {
   const models = buildModels({ questionFormat, answerFormat, css });
 
+  /* `crt` is in seconds; `mod` and `scm` are in milliseconds, as Anki writes
+     them. Both are the moment this collection was built rather than the 2015
+     timestamps this template used to carry. */
+  const now = Date.now();
+
   return `
     PRAGMA foreign_keys=OFF;
     BEGIN TRANSACTION;${COL_TABLE}
     INSERT INTO "col" VALUES(
       1,
-      1388548800,
-      1435645724219,
-      1435645724215,
+      ${dayRollover(now)},
+      ${now},
+      ${now},
       11,
       0,
       0,

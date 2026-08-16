@@ -97,6 +97,10 @@ export default class Exporter {
     this._update("update col set models=:models where id=1", {
       ":models": JSON.stringify(models),
     });
+
+    /* `curModel` is the notetype Anki preselects when adding a note, so it has
+       to name one that exists in this file. The template cannot know the id. */
+    this._updateConf("curModel", this.topModelId);
   }
 
   /**
@@ -105,10 +109,15 @@ export default class Exporter {
    * hand that card a position this deck has already used.
    */
   private _storeNextPosition(): void {
+    this._updateConf("nextPos", this.nextPosition);
+  }
+
+  /** Read-modify-write one key of the collection's `conf` JSON column. */
+  private _updateConf(key: string, value: number): void {
     /* `conf` is a JSON text column, so its decoded shape is only known here. */
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const conf = this._getInitialRowValue("col", "conf") as Record<string, unknown>;
-    conf.nextPos = this.nextPosition;
+    conf[key] = value;
     this._update("update col set conf=:conf where id=1", {
       ":conf": JSON.stringify(conf),
     });

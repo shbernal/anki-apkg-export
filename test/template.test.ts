@@ -1,7 +1,7 @@
 import path from "path";
 
 import initSqlJs, { type SqlValue } from "sql.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import createTemplate from "../src/template.js";
 
@@ -12,7 +12,36 @@ const locateFile = (file: string): string =>
 interface TemplateModel {
   css: string;
   tmpls: { qfmt: string; afmt: string }[];
+  tags: string[];
+  vers: unknown[];
 }
+
+/** 2016-12-25T12:00:00Z, well after that day's 04:00 rollover. */
+const NOON_UTC = 1_482_667_200_000;
+
+/** 2016-12-25T04:00:00Z in seconds, the boundary `NOON_UTC` falls after. */
+const NOON_UTC_ROLLOVER = 1_482_638_400;
+
+/** 2016-12-25T03:00:00Z, an hour before the rollover. */
+const EARLY_UTC = 1_482_634_800_000;
+
+/** 2016-12-24T04:00:00Z: before 04:00 the study day is still the previous one. */
+const EARLY_UTC_ROLLOVER = 1_482_552_000;
+
+/** This package emits schema 11 / package version Legacy1 only. */
+const SCHEMA_VERSION = 11;
+
+/** Read the scalar `col` columns the collection is stamped with. */
+const readCol = async (template: string): Promise<Record<string, number>> => {
+  const sql = await initSqlJs({ locateFile });
+  const db = new sql.Database();
+  db.run(template);
+  const [result] = db.exec("SELECT crt, mod, scm, ver FROM col");
+  db.close();
+
+  const [crt, mod, scm, ver] = result.values[0].map(Number);
+  return { crt, mod, scm, ver };
+};
 
 /**
  * The template is one big SQL script; the note model lives in a JSON blob in
@@ -92,5 +121,42 @@ describe("the default note template", () => {
       expect.arrayContaining(["cards", "col", "graves", "notes", "revlog"]),
     );
     expect(col.values[0][0]).toBe(1);
+  });
+
+  it("stamps the collection with the time it was built", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ now: NOON_UTC, toFake: ["Date"] });
+    const col = await readCol(createTemplate());
+    vi.useRealTimers();
+
+    /* `crt` is the day rollover in seconds; `mod` and `scm` are the build
+       instant in milliseconds. Anki writes those widths, and a stale 2014
+       date here would misdate every day number counted from it. */
+    expect(col.crt).toBe(NOON_UTC_ROLLOVER);
+    expect(col.mod).toBe(NOON_UTC);
+    expect(col.scm).toBe(NOON_UTC);
+
+    // Still schema 11; nothing here moves the deck to a later package version.
+    expect(col.ver).toBe(SCHEMA_VERSION);
+  });
+
+  it("dates a collection built before the rollover to the previous day", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ now: EARLY_UTC, toFake: ["Date"] });
+    const col = await readCol(createTemplate());
+    vi.useRealTimers();
+
+    expect(col.crt).toBe(EARLY_UTC_ROLLOVER);
+  });
+
+  it("leaves the note model without the placeholder tag or the misspelled key", async () => {
+    expect.hasAssertions();
+    const model = await readModel(createTemplate());
+
+    /* `vers` is a dead schema-11 key that this template used to spell
+       `veArs`, and the sample tag was never anything a caller asked for. */
+    expect(model.tags).toStrictEqual([]);
+    expect(model.vers).toStrictEqual([]);
+    expect(model).not.toHaveProperty("veArs");
   });
 });
