@@ -52,7 +52,12 @@ buffers; nothing is written until `save`.
 
 `save(options?)` writes `nextPos` back to `col.conf`, exports the database,
 builds the `media` manifest mapping stringified indices to filenames, and zips
-`collection.anki2`, `media`, and one numerically named entry per media file.
+`collection.anki2`, `media`, and one numerically named entry per media file. It
+does not close the database, because it can be called again.
+
+`close()` does, and is what a caller that keeps building decks in one process
+has to reach for; `[Symbol.dispose]` makes `using` do it. Afterwards the
+exporter refuses every operation by name rather than faulting inside WASM.
 
 ## Boundaries
 
@@ -87,15 +92,25 @@ builds the `media` manifest mapping stringified indices to filenames, and zips
   unique identity by stepping past the highest existing value; uniqueness is
   meaningless for a modification time. `_getId` is for `id`-like columns only.
 
-- **Every prepared statement must be freed.** sql.js registers each statement on
-  the `Database` and finalizes it only on `stmt.free()` or `db.close()`, and this
-  class never closes its handle — so a dropped statement leaks for the life of
-  the process, inside a WASM heap that is created once per process and never
-  shrinks. Writes go through `db.run`, which frees internally; the two readers
-  that must prepare by hand — `_getFirstVal` and `_getHighestValue` — free in a
-  `finally`. A new `this.db.prepare(...)` outside those is a leak. Note that
-  `db.export()` frees every live statement as a side effect, so measuring after
-  `save()` will not show one.
+- **Every prepared statement must be freed, by the code that prepared it.**
+  sql.js registers each statement on the `Database` and finalizes it only on
+  `stmt.free()` or `db.close()`, inside a WASM heap that is created once per
+  process and never shrinks. Writes go through `db.run`, which frees internally;
+  the two readers that must prepare by hand — `_getFirstVal` and
+  `_getHighestValue` — free in a `finally`. A new `this.db.prepare(...)` outside
+  those is a leak. Note that `db.export()` frees every live statement as a side
+  effect, so measuring after `save()` will not show one.
+
+  `close()` now backstops this, but it is a backstop and not the owner: it runs
+  when the caller says so, which may be never.
+
+- **No prepared statement outlives the call that made it.** Keeping the two
+  insert statements around instead of paying `db.run`'s prepare/bind/free per
+  card was measured and rejected: it saves ~6µs of a ~22µs insert, so ~12% of
+  `addCard`, and `db.export()` invalidates every live statement — meaning a
+  cache would have to be dropped on each `save()`, and `save()` may be followed
+  by more `addCard` calls. Reusing a statement past an export throws with no
+  message at all. Not worth it against a per-card cost that is already flat.
 
 - **Reproducibility is a guarantee, not a side effect.** `toArchiveClock`
   rewrites the ZIP entry timestamp so its _local_ components spell the

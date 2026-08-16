@@ -125,6 +125,41 @@ Saving the same input twice produces byte-identical archives, so callers can
 compare or cache on the result. Across processes that also needs the same
 [`now`](#exportoptions).
 
+## `close()`
+
+```ts
+close(): void;
+[Symbol.dispose](): void;
+```
+
+Releases the sql.js database. Idempotent — calling it twice is a no-op, not a
+double free — and final: `addCard`, `addMedia`, and `save` all throw afterwards,
+naming the method rather than faulting inside WASM. A deck already returned by
+`save` is unaffected; those are plain bytes.
+
+sql.js allocates the collection inside a WASM heap that is created once per
+process and never shrinks, so dropping the last reference to an exporter and
+forcing a collection reclaims nothing — only closing the handle does. Measured
+over ten rounds of building 2,000 cards and discarding the exporter,
+`process.memoryUsage().external` climbs 30 → 41 MB without `close()` and holds
+flat at 31 MB with it.
+
+A one-shot script that exits does not need this. A server or a watch loop that
+builds deck after deck does.
+
+`Symbol.dispose` means `using` handles it:
+
+```ts
+{
+  using apkg = await AnkiExport("deck-name");
+  apkg.addCard("front", "back");
+  await fs.writeFile("out.apkg", await apkg.save());
+} // closed here, including on an early return or a throw
+```
+
+`save` deliberately does **not** close the database, because it is callable more
+than once.
+
 ## `Exporter`
 
 ```ts
@@ -138,19 +173,3 @@ The class behind the factory, exported for callers that already have a sql.js
 instance. `template` is the SQL script `createTemplate` produces, and `now` is
 the same clock value that built it — pass one to both or neither. Public
 readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.
-
-### There is no disposal method
-
-An exporter holds an open sql.js `Database` for its whole life and nothing
-closes it. sql.js allocates that collection inside a WASM heap that is created
-once per process and never shrinks, so a process that builds many decks in
-sequence keeps the memory of every one of them — dropping the reference and
-forcing GC reclaims nothing.
-
-A caller that needs the memory back can call `db.close()` on the public `db`
-property, after which the exporter is unusable. Adding a real `close()` to this
-class is deliberately deferred: it is an additive API change, and the leak that
-made it urgent — one prepared statement per row, never freed — is fixed.
-
-`save` deliberately does **not** close the database, because it is callable more
-than once.

@@ -319,6 +319,73 @@ describe("the injected clock", () => {
   });
 });
 
+describe("closing an exporter", () => {
+  let exporter: Exporter;
+
+  beforeAll(async () => {
+    sqlModule = await initSqlJs({ locateFile });
+  });
+
+  beforeEach(() => {
+    exporter = new Exporter("testDeckName", {
+      template: createTemplate(undefined, now),
+      sql: sqlModule,
+      now,
+    });
+  });
+
+  it("closes the database once, however many times it is called", () => {
+    expect.hasAssertions();
+    const closeSpy = vi.spyOn(exporter.db, "close");
+
+    exporter.close();
+    exporter.close();
+
+    /* Not just tidiness: `db.close()` frees the handle, so a second one would
+       be sqlite operating on a pointer it has already released. */
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes at the end of a `using` block", async () => {
+    expect.hasAssertions();
+    const closeSpy = vi.spyOn(exporter.db, "close");
+
+    {
+      using disposable = exporter;
+      disposable.addCard("Test Front", "Test back");
+    }
+
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    await expect(exporter.save()).rejects.toThrow(/closed exporter/u);
+  });
+
+  it("refuses every operation afterwards, by name", async () => {
+    expect.hasAssertions();
+    exporter.close();
+
+    /* A sentence, rather than whatever a WASM read of freed memory produces. */
+    expect(() => {
+      exporter.addCard("Test Front", "Test back");
+    }).toThrow("Cannot addCard on a closed exporter: close() released its database");
+    expect(() => {
+      exporter.addMedia("1.jpg", Buffer.from("one"));
+    }).toThrow("Cannot addMedia on a closed exporter: close() released its database");
+    await expect(exporter.save()).rejects.toThrow(
+      "Cannot save on a closed exporter: close() released its database",
+    );
+  });
+
+  it("leaves a saved deck usable after the database is gone", async () => {
+    expect.hasAssertions();
+    exporter.addCard("Test Front", "Test back");
+    const deck = await exporter.save();
+    exporter.close();
+
+    /* `save` returns bytes, not a view into the WASM heap. */
+    expect(unzipDeckToBuffers(deck).get("collection.anki2")?.byteLength).toBeGreaterThan(0);
+  });
+});
+
 describe("note guids", () => {
   beforeAll(async () => {
     sqlModule = await initSqlJs({ locateFile });

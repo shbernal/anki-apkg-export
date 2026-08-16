@@ -80,6 +80,9 @@ export default class Exporter {
    */
   private readonly noteIdsByGuid = new Map<string, number>();
 
+  /** Whether `close` has released `db`; see the method for why it is tracked. */
+  private closed = false;
+
   constructor(deckName: string, { template, sql, now = Date.now() }: Readonly<ExporterOptions>) {
     this.now = now;
 
@@ -158,6 +161,43 @@ export default class Exporter {
     this._updateConf("nextPos", this.nextPosition);
   }
 
+  /**
+   * Release the sql.js database. Idempotent, and the exporter is finished
+   * afterwards: `addCard`, `addMedia`, and `save` all throw.
+   *
+   * sql.js holds the collection in a WASM heap that is created once per process
+   * and never shrinks, so dropping the last reference to an exporter and even
+   * forcing a collection reclaims nothing — only closing the handle does. A
+   * one-shot script that exits never notices; a long-lived process building
+   * deck after deck keeps every one of them.
+   */
+  close(): void {
+    if (this.closed) {
+      return;
+    }
+
+    /* Set first: `db.close()` finalizes every statement still registered on the
+       handle, and a second close would be operating on a freed pointer. */
+    this.closed = true;
+    this.db.close();
+  }
+
+  /** So `using apkg = ...` releases the database at the end of the block. */
+  [Symbol.dispose](): void {
+    this.close();
+  }
+
+  /**
+   * Fail with a sentence rather than a WASM-level fault. Reaching a closed
+   * `Database` from JavaScript is an access into memory sqlite has freed, and
+   * what comes back from that is not worth debugging.
+   */
+  private _assertOpen(method: string): void {
+    if (this.closed) {
+      throw new Error(`Cannot ${method} on a closed exporter: close() released its database`);
+    }
+  }
+
   /** Set one key of the collection's `conf` JSON column. */
   private _updateConf(key: string, value: number): void {
     const conf = this._readJsonColumn("conf");
@@ -172,6 +212,7 @@ export default class Exporter {
    */
   // oxlint-disable-next-line typescript/require-await, typescript/prefer-readonly-parameter-types
   async save(options: Readonly<ZipOptions> = {}): Promise<Buffer> {
+    this._assertOpen("save");
     this._storeNextPosition();
     const binaryArray = this.db.export();
     const mediaMap = Object.fromEntries(
@@ -197,6 +238,7 @@ export default class Exporter {
   }
 
   addMedia(filename: string, data: MediaItem["data"]): void {
+    this._assertOpen("addMedia");
     this.media.push({ filename, data });
   }
 
@@ -205,6 +247,7 @@ export default class Exporter {
     back: string,
     { tags }: Readonly<{ tags?: string | readonly string[] }> = {},
   ): void {
+    this._assertOpen("addCard");
     const { now } = this;
     const noteGuid = this._getNoteGuid(front, back);
     const noteId = this._getNoteId(noteGuid, now);

@@ -82,6 +82,12 @@
     // where the strict matcher is the one worth keeping.
     "vitest/prefer-to-be-truthy": "off",
 
+    // Contradicts `vitest/prefer-called-times`, which is also on and rewrites
+    // the result straight back. Keeping the explicit count is the choice that
+    // reads the same whether the expected number is 1 or not — the close()
+    // tests assert exactly one call because a second would be a double free.
+    "vitest/prefer-called-once": "off",
+
     // The `did: null` in the default note template is serialized into the deck.
     // `undefined` is not valid JSON, so JSON.stringify would drop the key
     // entirely and change what Anki reads back.

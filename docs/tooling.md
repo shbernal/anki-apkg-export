@@ -131,12 +131,12 @@ Every entry in the `rules` block carries a comment saying why. Do not drop those
 comments. The reasons fall into four kinds, and a new entry should say which it
 is:
 
-| Kind                                | Examples                                                                                                                                                                                |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Would change emitted output         | `sort-keys` and `unicorn/no-null` reorder or drop keys `src/template.ts` serializes into the deck                                                                                       |
-| Contradicts another enabled rule    | `sort-imports` vs oxfmt's `sortImports`; `import/consistent-type-specifier-style` vs `consistent-type-imports`; `vitest/prefer-to-be-truthy` vs `vitest/prefer-strict-boolean-matchers` |
-| Wrong for this package              | `import/no-nodejs-modules` in a Node library; `import/no-named-export` against a published named surface; `new-cap` against the `AnkiExport` factory                                    |
-| Pointed at the project's convention | `one-var: never`; `no-magic-numbers` ignoring `-1/0/1`; `prefer-readonly-parameter-types` with `treatMethodsAsReadonly` and an `allow` list                                             |
+| Kind                                | Examples                                                                                                                                                                                                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Would change emitted output         | `sort-keys` and `unicorn/no-null` reorder or drop keys `src/template.ts` serializes into the deck                                                                                                                                                    |
+| Contradicts another enabled rule    | `sort-imports` vs oxfmt's `sortImports`; `import/consistent-type-specifier-style` vs `consistent-type-imports`; `vitest/prefer-to-be-truthy` vs `vitest/prefer-strict-boolean-matchers`; `vitest/prefer-called-once` vs `vitest/prefer-called-times` |
+| Wrong for this package              | `import/no-nodejs-modules` in a Node library; `import/no-named-export` against a published named surface; `new-cap` against the `AnkiExport` factory                                                                                                 |
+| Pointed at the project's convention | `one-var: never`; `no-magic-numbers` ignoring `-1/0/1`; `prefer-readonly-parameter-types` with `treatMethodsAsReadonly` and an `allow` list                                                                                                          |
 
 `overrides` scopes three exemptions: `no-magic-numbers` off for
 `src/template.ts`, whose numbers are Anki's own schema values; the length and

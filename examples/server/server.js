@@ -13,7 +13,10 @@ const addCards = (apkg) => {
 };
 
 const run = async () => {
-  const apkg = await AnkiExport("deck-name-node");
+  /* `using` closes the sql.js database at the end of this block. A script that
+     exits here would not care; a server building deck after deck would, since
+     the collection lives in a WASM heap that never shrinks. */
+  using apkg = await AnkiExport("deck-name-node");
 
   const assetPath = fileURLToPath(new URL("../assets/anki.png", import.meta.url));
   apkg.addMedia("anki.png", fs.readFileSync(assetPath));

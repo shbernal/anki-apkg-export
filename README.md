@@ -64,6 +64,9 @@ const apkg = await AnkiExport("deck-name", undefined, { now: 1_700_000_000_000 }
 - `addCard(front: string, back: string, options?: { tags?: string | readonly string[] })`
 - `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
 - `save(options?: ZipOptions): Promise<Buffer>`
+- `close()` — releases the sql.js database; also wired to `Symbol.dispose`, so
+  `using apkg = await AnkiExport(…)` does it for you. Only a process that builds
+  many decks needs it; a one-shot script can ignore it.
 
 Full signatures and defaults: [docs/reference](docs/reference/index.md).
 
