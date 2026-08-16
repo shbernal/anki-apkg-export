@@ -97,6 +97,30 @@ dependency is gone from this one. TS 7 was verified to emit byte-identical `.js`
 and `.d.ts` against TS 6. Keep `oxlint-tsgolint` in step with the `typescript`
 major — its version tracks the TS release it was built against.
 
+## Why `verbatimModuleSyntax` Is Off
+
+`tsconfig.json` turns on `strict` plus `noImplicitOverride`, `isolatedModules`,
+`exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The one strictness
+knob deliberately left off is `verbatimModuleSyntax`, and it should stay off
+unless the import style changes with it.
+
+It conflicts with a style decision this package already made. `.oxlintrc.json`
+sets `consistent-type-imports` to `inline-type-imports`, so a module importing
+both a value and a type from one specifier writes
+`import initSqlJs, { type SqlJsStatic } from "sql.js"`. Under
+`verbatimModuleSyntax` tsc emits that verbatim minus the type, leaving
+`import initSqlJs, {} from "sql.js"` in `dist/`. Splitting the type onto its own
+`import type` line fixes the emit and immediately trips `no-duplicate-imports`
+instead — two specifiers, one module.
+
+So the knob costs either odd bytes in shipped output or two suppressed lint
+rules, and it buys little here: `isolatedModules` is already on and catches the
+single-file-transpiler hazard, the package is ESM-only under `module: NodeNext`,
+and `tsc` is the only thing that ever compiles it. Turning it on is a decision
+about import _style_, not a ratchet — take it together with
+`consistent-type-imports` and `import/consistent-type-specifier-style`, or not
+at all.
+
 ## Why Rules Are Disabled
 
 Every entry in the `rules` block carries a comment saying why. Do not drop those
