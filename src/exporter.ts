@@ -459,13 +459,20 @@ const toArchiveClock = (date: Date): Date =>
  * Pop the last entry off a decoded collection map. Anki's default collection
  * ships one placeholder deck and note model; this removes the placeholder and
  * hands it back so the caller can re-key it under the export's own id.
+ *
+ * Throws on an empty map rather than returning `undefined` as `TItem`. Both
+ * callers are renaming a placeholder the template is required to have seeded,
+ * so an empty map means the template is broken — which is worth saying loudly
+ * instead of writing `undefined` into the deck.
  */
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
-export const getLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
-  const keys = Object.keys(obj);
-  const lastKey = keys.at(-1) ?? "";
+const getLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
+  const lastEntry = Object.entries(obj).at(-1);
+  if (lastEntry === undefined) {
+    throw new Error("Cannot take the last item of an empty collection map");
+  }
 
-  const item = obj[lastKey];
+  const [lastKey, item] = lastEntry;
   delete obj[lastKey];
 
   return item;

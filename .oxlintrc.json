@@ -30,9 +30,9 @@
     // bundles free of builtins, which is the opposite of the target here.
     "import/no-nodejs-modules": "off",
 
-    // The published surface is named exports (`Exporter`, `getLastItem`, the
-    // template types) alongside the default one. See the API guardrails in
-    // CLAUDE.md — collapsing them to a single default export is a breaking
+    // The published surface pairs named exports — `Exporter`, `TemplateOptions`
+    // and `ZipOptions` — with the default `AnkiExport`. See the API guardrails
+    // in CLAUDE.md: collapsing them to a single default export is a breaking
     // change, not a lint fix.
     "import/no-named-export": "off",
 
