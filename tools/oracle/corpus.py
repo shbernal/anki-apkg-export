@@ -83,6 +83,7 @@ ENTITY_EDGE_CASES: list[str] = [
     "&#32a;",
     "&#xfoo;",
     "&#-1;",
+    "&#x;",  # the hex form with no digits at all
     # named forms
     "&Amp;",  # case matters
     "&amp",  # unterminated
@@ -94,6 +95,8 @@ ENTITY_EDGE_CASES: list[str] = [
     # surrogate / astral
     "&#x1F600;",
     "\U0001f600",
+    "&#xD800;",  # a lone surrogate, which is not a code point
+    "&#55296;",  # the same one in decimal
     # nbsp replacement -- the second case is a literal U+00A0, spelled with an
     # escape so it stays visible in a diff
     "&nbsp;&nbsp;",
