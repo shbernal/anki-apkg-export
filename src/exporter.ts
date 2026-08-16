@@ -263,7 +263,7 @@ export default class Exporter {
    * would leak: sql.js registers every statement on the Database and finalizes
    * it only on `free()` or `close()`, and this class never closes its handle.
    */
-  protected _update(query: string, values: Readonly<Record<string, string | number>>): void {
+  private _update(query: string, values: Readonly<Record<string, string | number>>): void {
     this.db.run(query, values);
   }
 

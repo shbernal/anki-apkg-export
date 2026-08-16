@@ -1,6 +1,6 @@
 import path from "path";
 
-import initSqlJs, { type SqlJsStatic } from "sql.js";
+import initSqlJs, { type SqlJsStatic, type SqlValue } from "sql.js";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Exporter from "../src/exporter.js";
@@ -28,14 +28,8 @@ const HOUR_SHIFT = 11;
 const MINUTE_SHIFT = 5;
 const SECOND_SHIFT = 1;
 
-/** `addCard` writes one note row and one card row. */
-const WRITES_PER_CARD = 2;
-
 /** Row ids are epoch milliseconds; `mod` columns are epoch seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
-
-/** How many times the duplicate-handling test adds the same card. */
-const DUPLICATE_ADDS = 2;
 
 /** Enough repetition that deflate beats stored, so `level: 0` is observable. */
 const PADDING = 500;
@@ -50,12 +44,22 @@ const readCollectionConf = (target: Readonly<Exporter>): unknown => {
 };
 
 /**
- * `_update` is protected, so spying on it needs one cast at this boundary
- * rather than at every call site.
+ * Read a query back as row objects. These tests assert on the rows the exporter
+ * actually wrote rather than on the calls it made to write them, so that they
+ * pin the deck's contents and not the method that happens to produce it.
  */
-const spyOnUpdate = (target: Readonly<Exporter>) =>
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  vi.spyOn(target as unknown as { _update: Exporter["_update"] }, "_update");
+const readRows = (target: Readonly<Exporter>, query: string): Record<string, SqlValue>[] => {
+  /* `exec` returns one result set per statement, and every query here is a
+     single statement — so no result set at all means no matching rows. */
+  const [result] = target.db.exec(query);
+  const columns = result?.columns ?? [];
+
+  return (result?.values ?? []).map((row: readonly SqlValue[]) =>
+    Object.fromEntries(
+      columns.map((column: string, index: number) => [column, row[index] ?? null]),
+    ),
+  );
+};
 
 describe("the exporter internals", () => {
   let exporter: Exporter;
@@ -135,62 +139,51 @@ describe("the exporter internals", () => {
     expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back);
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
+    const notes = readRows(exporter, "select * from notes");
+    const cards = readRows(exporter, "select * from cards");
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
-
-    expect(notesCall?.[0]).toBe(
-      "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
-    );
-    const notesUpdate = notesCall?.[1];
-    expect(notesUpdate[":sfld"]).toBe(front);
-    expect(notesUpdate[":flds"]).toBe(front + separator + back);
-    expect(notesUpdate[":mid"]).toBe(topModelId);
-
-    expect(cardsCall?.[0]).toBe(
-      "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
-    );
-    const cardsUpdate = cardsCall?.[1];
-    expect(cardsUpdate[":did"]).toBe(topDeckId);
-    expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
+    expect(notes).toHaveLength(1);
+    expect(cards).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      sfld: front,
+      flds: front + separator + back,
+      mid: topModelId,
+    });
+    expect(cards[0]).toMatchObject({
+      did: topDeckId,
+      nid: notes[0]?.id,
+    });
   });
 
   it("writes ids in milliseconds and mod times in seconds", () => {
     expect.hasAssertions();
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard("Test Front", "Test back");
-
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
 
     /* Anki keeps an imported row's `mod` as given. Milliseconds in a column
        read as seconds date the row to roughly the year 58,600, and nothing on
        the import path corrects it — unlike `sfld` and `csum`. */
-    expect(notesCall?.[1][":mod"]).toBe(Math.floor(now / MILLISECONDS_PER_SECOND));
-    expect(cardsCall?.[1][":mod"]).toBe(Math.floor(now / MILLISECONDS_PER_SECOND));
+    const expected = { id: now, mod: Math.floor(now / MILLISECONDS_PER_SECOND) };
 
-    expect(notesCall?.[1][":id"]).toBe(now);
-    expect(cardsCall?.[1][":id"]).toBe(now);
+    expect(readRows(exporter, "select id, mod from notes")).toStrictEqual([expected]);
+    expect(readRows(exporter, "select id, mod from cards")).toStrictEqual([expected]);
   });
 
   it("gives each new card the next position in the queue", async () => {
     expect.hasAssertions();
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     QUEUED_CARDS.forEach((front: string) => {
       exporter.addCard(front, "back");
     });
 
-    const positions = exporterUpdateSpy.mock.calls
-      .filter(([query]: readonly [string, unknown]) => query.includes("into cards"))
-      .map(
-        ([, values]: readonly [string, Readonly<Record<string, string | number>>]) =>
-          values[":due"],
-      );
+    /* Ordering by id is insertion order: the clock is frozen, so each card
+       claims the previous id plus one. */
+    const positions = readRows(exporter, "select due from cards order by id").map(
+      (row: Readonly<Record<string, SqlValue>>) => row.due,
+    );
 
     /* Anki counts new cards up from 1, rather than giving every card the same
        hardcoded position. */
@@ -198,7 +191,6 @@ describe("the exporter internals", () => {
 
     /* `nextPos` has to end past the last position handed out, or the next card
        a user adds in Anki lands on top of one of these. */
-    exporterUpdateSpy.mockRestore();
     await exporter.save();
 
     expect(readCollectionConf(exporter)).toMatchObject({ nextPos: QUEUED_CARDS.length + 1 });
@@ -209,69 +201,74 @@ describe("the exporter internals", () => {
     const { topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
     const tags = ["tag1", "tag2", "multiple words tag"];
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back, { tags });
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
+    const notes = readRows(exporter, "select * from notes");
 
-    const [notesCall] = exporterUpdateSpy.mock.calls;
-    const notesUpdate = notesCall?.[1];
-    const notesTags = String(notesUpdate[":tags"]).split(" ");
-    expect(notesUpdate[":sfld"]).toBe(front);
-    expect(notesUpdate[":flds"]).toBe(front + separator + back);
-    expect(notesUpdate[":mid"]).toBe(topModelId);
-    expect(notesTags).toStrictEqual(["", ...tags.map((tag) => tag.replaceAll(" ", "_")), ""]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      sfld: front,
+      flds: front + separator + back,
+      mid: topModelId,
+    });
+
+    /* Anki splits tags on spaces, so a tag containing one is underscored and
+       the whole field is space-padded at both ends. */
+    expect(String(notes[0]?.tags).split(" ")).toStrictEqual([
+      "",
+      ...tags.map((tag: string) => tag.replaceAll(" ", "_")),
+      "",
+    ]);
   });
 
   it("passes a tag string through untouched", () => {
     expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back, tags] = ["Test Front", "Test back", "Some string with_delimiters"];
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back, { tags });
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD);
+    const notes = readRows(exporter, "select * from notes");
+    const cards = readRows(exporter, "select * from cards");
 
-    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
-    const notesUpdate = notesCall?.[1];
-    expect(notesUpdate[":sfld"]).toBe(front);
-    expect(notesUpdate[":flds"]).toBe(front + separator + back);
-    expect(notesUpdate[":mid"]).toBe(topModelId);
-    expect(notesUpdate[":tags"]).toBe(tags);
-
-    const cardsUpdate = cardsCall?.[1];
-    expect(cardsUpdate[":did"]).toBe(topDeckId);
-    expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      sfld: front,
+      flds: front + separator + back,
+      mid: topModelId,
+      tags,
+    });
+    expect(cards[0]).toMatchObject({
+      did: topDeckId,
+      nid: notes[0]?.id,
+    });
   });
 
   it("updates duplicates in place", () => {
     expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
     const [front, back] = ["Test Front", "Test back"];
-    const exporterUpdateSpy = spyOnUpdate(exporter);
 
     exporter.addCard(front, back);
     exporter.addCard(front, back);
 
-    expect(exporterUpdateSpy).toHaveBeenCalledTimes(WRITES_PER_CARD * DUPLICATE_ADDS);
+    const notes = readRows(exporter, "select * from notes");
+    const cards = readRows(exporter, "select * from cards");
 
-    const [firstNotesCall, firstCardsCall, secondNotesCall, secondCardsCall] =
-      exporterUpdateSpy.mock.calls;
-    const notesUpdate = firstNotesCall?.[1];
-    const secondNotesUpdate = secondNotesCall?.[1];
-    expect(notesUpdate[":id"]).toBe(secondNotesUpdate[":id"]);
-    expect(notesUpdate[":guid"]).toBe(secondNotesUpdate[":guid"]);
-    expect(notesUpdate[":sfld"]).toBe(front);
-    expect(notesUpdate[":flds"]).toBe(front + separator + back);
-    expect(notesUpdate[":mid"]).toBe(topModelId);
-
-    const cardsUpdate = firstCardsCall?.[1];
-    const secondCardsUpdate = secondCardsCall?.[1];
-    expect(cardsUpdate[":id"]).toBe(secondCardsUpdate[":id"]);
-    expect(cardsUpdate[":did"]).toBe(topDeckId);
-    expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
+    /* The whole claim of "in place": adding the same card twice leaves one note
+       and one card behind, not two. */
+    expect(notes).toHaveLength(1);
+    expect(cards).toHaveLength(1);
+    expect(notes[0]).toMatchObject({
+      sfld: front,
+      flds: front + separator + back,
+      mid: topModelId,
+    });
+    expect(cards[0]).toMatchObject({
+      did: topDeckId,
+      nid: notes[0]?.id,
+    });
   });
 
   it("increments ids for rows inserted at the same timestamp", () => {
