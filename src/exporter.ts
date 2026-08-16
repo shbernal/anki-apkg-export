@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
-import type { Database, SqlJsStatic, SqlValue } from "sql.js";
+import type { Database, SqlJsStatic } from "sql.js";
 
 import stripHtmlPreservingMediaFilenames from "./text.js";
 
@@ -100,16 +100,38 @@ export default class Exporter {
   }
 
   /**
-   * Decode one of the collection row's JSON text columns. `CollectionJson` is
-   * what makes this the single place those columns are trusted to hold what the
-   * template put there: the assertion happens once, and the column name picks
-   * the shape rather than the caller naming it independently.
+   * Read and decode one of the collection row's JSON text columns. There is
+   * exactly one `col` row and the template seeds all four of these columns, so
+   * anything else means the collection is not the one this class built.
+   *
+   * `CollectionJson` is what makes this the single place those columns are
+   * trusted to hold what the template put there: the assertion happens once,
+   * and the column name picks the shape rather than the caller naming it
+   * independently.
    */
   private _readJsonColumn<TColumn extends keyof CollectionJson>(
     column: TColumn,
   ): CollectionJson[TColumn] {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    return this._getInitialRowValue("col", column) as CollectionJson[TColumn];
+    const stmt = this.db.prepare(`select ${column} from col`);
+
+    try {
+      if (!stmt.step()) {
+        throw new Error(`Cannot read col.${column}: the collection has no col row`);
+      }
+
+      /* Narrowing, not validation: sqlite types this as any storage class, and
+         only text can be JSON. Anything else means the row was rewritten by
+         something other than this class. */
+      const [value] = stmt.get();
+      if (typeof value !== "string") {
+        throw new TypeError(`Cannot read col.${column}: the column does not hold text`);
+      }
+
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return JSON.parse(value) as CollectionJson[TColumn];
+    } finally {
+      stmt.free();
+    }
   }
 
   /**
@@ -336,11 +358,6 @@ export default class Exporter {
     this.db.run(query, values);
   }
 
-  private _getInitialRowValue(table: string, column = "id"): unknown {
-    const query = `select ${column} from ${table}`;
-    return this._getFirstVal(query);
-  }
-
   /**
    * Anki's `field_checksum`: the first four bytes of the sha1, read big endian.
    * Named for what it must be given — the *stripped first field*. The hash
@@ -353,30 +370,6 @@ export default class Exporter {
       .slice(0, CHECKSUM_HEX_DIGITS);
 
     return Number.parseInt(hash, CHECKSUM_RADIX);
-  }
-
-  /**
-   * Read the first column of the first row. JSON text columns are decoded here,
-   * so the result is `unknown` and each caller states the shape it expects.
-   */
-  private _getFirstVal(query: string): unknown {
-    const stmt = this.db.prepare(query);
-
-    try {
-      const hasRow = stmt.step();
-      if (!hasRow) {
-        throw new Error(`Query returned no results: ${query}`);
-      }
-
-      const [result] = stmt.get();
-      if (result === undefined) {
-        throw new Error(`Query returned no results: ${query}`);
-      }
-
-      return decodeCell(result);
-    } finally {
-      stmt.free();
-    }
   }
 
   /**
@@ -498,14 +491,6 @@ interface CollectionJson {
   models: Record<string, NoteModel>;
   conf: Record<string, unknown>;
 }
-
-/** JSON columns come back as text, everything else as the value sqlite stored. */
-const decodeCell = (value: SqlValue): unknown => {
-  if (typeof value === "string") {
-    return JSON.parse(value);
-  }
-  return value;
-};
 
 /**
  * Put `addCard`'s `tags` option into the single space-delimited string Anki

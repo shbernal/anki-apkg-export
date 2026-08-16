@@ -96,7 +96,7 @@ exporter refuses every operation by name rather than faulting inside WASM.
   sql.js registers each statement on the `Database` and finalizes it only on
   `stmt.free()` or `db.close()`, inside a WASM heap that is created once per
   process and never shrinks. Writes go through `db.run`, which frees internally;
-  the two readers that must prepare by hand — `_getFirstVal` and
+  the two readers that must prepare by hand — `_readJsonColumn` and
   `_getHighestValue` — free in a `finally`. A new `this.db.prepare(...)` outside
   those is a leak. Note that `db.export()` frees every live statement as a side
   effect, so measuring after `save()` will not show one.

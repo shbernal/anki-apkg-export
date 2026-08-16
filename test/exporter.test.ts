@@ -319,6 +319,47 @@ describe("the injected clock", () => {
   });
 });
 
+describe("reading the collection row", () => {
+  let exporter: Exporter;
+
+  beforeAll(async () => {
+    sqlModule = await initSqlJs({ locateFile });
+  });
+
+  beforeEach(() => {
+    exporter = new Exporter("testDeckName", {
+      template: createTemplate(undefined, now),
+      sql: sqlModule,
+      now,
+    });
+  });
+
+  /* Both paths are reached through the public `db`, which is the only way to
+     get a collection into either state — and the reason the checks exist. */
+
+  it("says which column it could not read when the col row is gone", async () => {
+    expect.hasAssertions();
+    exporter.db.run("delete from col");
+
+    /* `save` writes `nextPos` back, so it reads `conf` first. */
+    await expect(exporter.save()).rejects.toThrow(
+      "Cannot read col.conf: the collection has no col row",
+    );
+  });
+
+  it("says so when the column does not hold text", async () => {
+    expect.hasAssertions();
+
+    /* A blob, because the column's TEXT affinity coerces a number to '5' and
+       that would parse. Only a blob actually arrives as a non-string. */
+    exporter.db.run("update col set conf = x'0102'");
+
+    await expect(exporter.save()).rejects.toThrow(
+      new TypeError("Cannot read col.conf: the column does not hold text"),
+    );
+  });
+});
+
 describe("closing an exporter", () => {
   let exporter: Exporter;
 
