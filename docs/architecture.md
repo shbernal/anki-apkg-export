@@ -64,6 +64,16 @@ builds the `media` manifest mapping stringified indices to filenames, and zips
   unique identity by stepping past the highest existing value; uniqueness is
   meaningless for a modification time. `_getId` is for `id`-like columns only.
 
+- **Every prepared statement must be freed.** sql.js registers each statement on
+  the `Database` and finalizes it only on `stmt.free()` or `db.close()`, and this
+  class never closes its handle — so a dropped statement leaks for the life of
+  the process, inside a WASM heap that is created once per process and never
+  shrinks. Writes go through `db.run`, which frees internally; the two readers
+  that must prepare by hand — `_getFirstVal` and `_getHighestValue` — free in a
+  `finally`. A new `this.db.prepare(...)` outside those is a leak. Note that
+  `db.export()` frees every live statement as a side effect, so measuring after
+  `save()` will not show one.
+
 - **Reproducibility is a guarantee, not a side effect.** `toArchiveClock`
   rewrites the ZIP entry timestamp so its _local_ components spell the
   original's UTC ones, because fflate writes DOS timestamps from the local
