@@ -1,16 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
 import type { Database, SqlJsStatic } from "sql.js";
 
+import { type MediaItem, packageDeck, type ZipOptions } from "./archive.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
 
-interface MediaItem {
-  filename: string;
-  data: string | ArrayBuffer | Uint8Array | Buffer;
-}
-
-export type { ZipOptions } from "fflate";
+export type { ZipOptions } from "./archive.js";
 
 interface ExporterOptions {
   template: string;
@@ -236,27 +231,13 @@ export default class Exporter {
   async save(options: Readonly<ZipOptions> = {}): Promise<Buffer> {
     this._assertOpen("save");
     this._storeNextPosition();
-    const binaryArray = this.db.export();
-    const mediaMap = Object.fromEntries(
-      this.media.map((item: Readonly<MediaItem>, idx) => [idx, item.filename]),
+
+    /* The archive is stamped with the same instant the rows are, so identical
+       input yields an identical file. */
+    return packageDeck(
+      { collection: this.db.export(), media: this.media, createdAt: new Date(this.now) },
+      options,
     );
-
-    /*
-     * Every entry carries the exporter's creation date so identical input
-     * yields an identical archive.
-     */
-    const mtime = toArchiveClock(new Date(this.now));
-    const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
-
-    const files: Zippable = {
-      "collection.anki2": entry(binaryArray),
-      media: entry(strToU8(JSON.stringify(mediaMap))),
-    };
-    this.media.forEach((item: Readonly<MediaItem>, idx) => {
-      files[String(idx)] = entry(toBytes(item.data));
-    });
-
-    return Buffer.from(zipSync(files, { mtime, ...options }));
   }
 
   addMedia(filename: string, data: MediaItem["data"]): void {
@@ -508,33 +489,6 @@ const normalizeTags = (tags?: string | readonly string[]): string => {
 
   return ` ${tags.map((tag: string) => tag.replaceAll(" ", "_")).join(" ")} `;
 };
-
-const toBytes = (data: MediaItem["data"]): Uint8Array => {
-  if (typeof data === "string") {
-    return strToU8(data);
-  }
-  if (data instanceof Uint8Array) {
-    return data;
-  }
-  return new Uint8Array(data);
-};
-
-/**
- * ZIP entries carry a DOS timestamp, which fflate writes from the *local*
- * clock, so the same deck would compress to different bytes on machines in
- * different timezones. Return a date whose local components spell out the
- * original's UTC ones, which both pins the stamp to UTC and keeps archives
- * byte-reproducible anywhere.
- */
-const toArchiveClock = (date: Date): Date =>
-  new Date(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds(),
-  );
 
 /**
  * Take the last entry off a decoded collection map — the name says `take`

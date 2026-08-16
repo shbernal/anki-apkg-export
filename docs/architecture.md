@@ -1,7 +1,7 @@
 ---
 doc-schema-version: 1
 title: "Architecture"
-summary: "The five source modules, what each owns, and the boundaries that should not be rediscovered."
+summary: "The six source modules, what each owns, and the boundaries that should not be rediscovered."
 read_when:
   - Changing module boundaries
   - Adding a feature and deciding where it belongs
@@ -11,23 +11,30 @@ doc_type: "architecture"
 
 # Architecture
 
-Five modules under `src/`, about 1,300 lines total.
+Six modules under `src/`, about 1,400 lines total.
 
-Five is the number, and a sixth needs a reason better than deduplication.
-`MILLISECONDS_PER_SECOND` is declared in `exporter.ts`, in `template.ts`, and
-again in `test/exporter.test.ts`, which looks like a module waiting to happen —
-it is not. In `template.ts` it belongs to a family with `MILLISECONDS_PER_HOUR`
-and `MILLISECONDS_PER_DAY` that the day-rollover maths needs together; in
-`exporter.ts` it is one divisor used once; and a test restating a constant
-independently is what keeps the assertion from being a tautology. A module
-holding `1000` would split the first group to merge the second.
+A new module needs a reason better than deduplication — it needs a seam.
+`archive.ts` is the sixth because it has one: it knows about ZIP entries, DOS
+timestamps, and the media manifest, and nothing at all about sqlite. The
+exporter hands it bytes and gets a `.apkg` back.
+
+`MILLISECONDS_PER_SECOND`, by contrast, is declared in `exporter.ts`, in
+`template.ts`, and again in `test/exporter.test.ts`, and looks like a module
+waiting to happen — it is not. In `template.ts` it belongs to a family with
+`MILLISECONDS_PER_HOUR` and `MILLISECONDS_PER_DAY` that the day-rollover maths
+needs together; in `exporter.ts` it is one divisor used once; and a test
+restating a constant independently is what keeps the assertion from being a
+tautology. A module holding `1000` would split the first group to merge the
+second. That is the distinction: a shared boundary earns a file, a shared
+literal does not.
 
 ## Responsibilities
 
 | Module             | Owns                                                                                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, reads the clock, then constructs an `Exporter` with a freshly built template. |
-| `exporter.ts`      | The deck. Row insertion, id allocation, media collection, and zipping.                                                                              |
+| `exporter.ts`      | The deck. Row insertion, id allocation, note identity, and media collection.                                                                        |
+| `archive.ts`       | The `.apkg` container: the media manifest, the UTC-pinned ZIP timestamps, and the zipping. Knows nothing about sqlite.                              |
 | `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                            |
 | `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                    |
 | `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                              |
@@ -50,8 +57,9 @@ the new model id, because the template cannot know it.
 first field, and inserts one `notes` row and one `cards` row. `addMedia` only
 buffers; nothing is written until `save`.
 
-`save(options?)` writes `nextPos` back to `col.conf`, exports the database,
-builds the `media` manifest mapping stringified indices to filenames, and zips
+`save(options?)` writes `nextPos` back to `col.conf`, exports the database, and
+hands the bytes plus the buffered media to `packageDeck`, which builds the
+`media` manifest mapping stringified indices to filenames and zips
 `collection.anki2`, `media`, and one numerically named entry per media file. It
 does not close the database, because it can be called again.
 
