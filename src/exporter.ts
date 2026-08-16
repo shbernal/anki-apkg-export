@@ -15,6 +15,8 @@ export type { ZipOptions } from "fflate";
 interface ExporterOptions {
   template: string;
   sql: SqlJsStatic;
+  /** Epoch milliseconds to build this deck at; defaults to the current time. */
+  now?: number;
 }
 
 /** Anki stores a note's fields as one string joined by this control character. */
@@ -49,20 +51,24 @@ export default class Exporter {
   public readonly topModelId: number;
   public readonly separator: string = FIELD_SEPARATOR;
   public readonly deckName: string;
-  private readonly createdAt: Date;
+
+  /**
+   * The one instant this deck is built at, in epoch milliseconds. Every
+   * timestamp the exporter writes — the id seeds, each row's `id` and `mod`,
+   * and the archive stamp — derives from it, so nothing here reads the clock
+   * again after construction. Two readings can straddle a millisecond, which
+   * would give a deck built from identical input a different creation date
+   * than its own ids, and this package promises byte-identical archives for
+   * identical input. Supplying `now` extends that promise across processes:
+   * same input plus same clock, same bytes.
+   */
+  private readonly now: number;
 
   /** The queue position the next new card takes; see `FIRST_NEW_CARD_POSITION`. */
   private nextPosition: number = FIRST_NEW_CARD_POSITION;
 
-  constructor(deckName: string, { template, sql }: Readonly<ExporterOptions>) {
-    /*
-     * One clock reading serves both the archive timestamp and the id seeds.
-     * Two readings can straddle a millisecond, which would give a deck built
-     * from identical input a different creation date than its own ids — and
-     * this package promises byte-identical archives for identical input.
-     */
-    const now = Date.now();
-    this.createdAt = new Date(now);
+  constructor(deckName: string, { template, sql, now = Date.now() }: Readonly<ExporterOptions>) {
+    this.now = now;
 
     const db = new sql.Database();
     db.run(template);
@@ -163,7 +169,7 @@ export default class Exporter {
      * Every entry carries the exporter's creation date so identical input
      * yields an identical archive.
      */
-    const mtime = toArchiveClock(this.createdAt);
+    const mtime = toArchiveClock(new Date(this.now));
     const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
     const files: Zippable = {
@@ -186,7 +192,7 @@ export default class Exporter {
     back: string,
     { tags }: Readonly<{ tags?: string | readonly string[] }> = {},
   ): void {
-    const now = Date.now();
+    const { now } = this;
     const noteGuid = this._getNoteGuid(this.topDeckId, front, back);
     const noteId = this._getNoteId(noteGuid, now);
 

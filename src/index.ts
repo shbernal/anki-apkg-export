@@ -27,14 +27,26 @@ const getSqlModule = (): Promise<SqlJsStatic> => {
 export { default as Exporter } from "./exporter.js";
 export type { TemplateOptions } from "./template.js";
 
+export interface ExportOptions {
+  /**
+   * The epoch-millisecond instant to build the deck at, defaulting to now.
+   * Every timestamp in the archive derives from this one reading, so passing a
+   * fixed value makes a deck byte-reproducible across processes and not just
+   * within one.
+   */
+  now?: number;
+}
+
 export default async function AnkiExport(
   deckName: string,
   template?: Readonly<TemplateOptions>,
+  { now = Date.now() }: Readonly<ExportOptions> = {},
 ): Promise<Exporter> {
   const sqlModule = await getSqlModule();
 
   return new Exporter(deckName, {
-    template: createTemplate(template),
+    template: createTemplate(template, now),
     sql: sqlModule,
+    now,
   });
 }

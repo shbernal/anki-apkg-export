@@ -270,3 +270,48 @@ describe("the exporter internals", () => {
     );
   });
 });
+
+describe("the injected clock", () => {
+  beforeAll(async () => {
+    sqlModule = await initSqlJs({ locateFile });
+  });
+
+  /* No fake timers here on purpose: these assert that nothing in the exporter
+     reads the clock once `now` is given, which a frozen `Date` would hide. */
+  const buildAt = (injected: number): Exporter =>
+    new Exporter("testDeckName", {
+      template: createTemplate(undefined, injected),
+      sql: sqlModule,
+      now: injected,
+    });
+
+  it("stamps every row it writes with the injected instant", () => {
+    expect.hasAssertions();
+    const exporter = buildAt(now);
+
+    exporter.addCard("Test Front", "Test back");
+
+    const expected = { id: now, mod: Math.floor(now / MILLISECONDS_PER_SECOND) };
+
+    expect(readRows(exporter.db, "select id, mod from notes")).toStrictEqual([expected]);
+    expect(readRows(exporter.db, "select id, mod from cards")).toStrictEqual([expected]);
+    expect(readRow(exporter.db, "select mod from col").mod).toBe(now);
+  });
+
+  it("builds byte-identical archives from the same input and clock", async () => {
+    expect.hasAssertions();
+    const save = (): Promise<Buffer> => {
+      const exporter = buildAt(now);
+      exporter.addCard("Test Front", "Test back");
+      exporter.addMedia("1.jpg", Buffer.from("one"));
+
+      return exporter.save();
+    };
+
+    /* The whole point of the option: reproducibility survives leaving the
+       process, not just leaving the millisecond. */
+    const [firstSave, secondSave] = [await save(), await save()];
+
+    expect(firstSave.equals(secondSave)).toBe(true);
+  });
+});

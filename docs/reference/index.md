@@ -23,18 +23,42 @@ decision, not incidental cleanup.
 | `default` — `AnkiExport` | async function | The factory. Resolves to an `Exporter`.          |
 | `Exporter`               | class          | For callers supplying their own sql.js instance. |
 | `TemplateOptions`        | type           | The override bag accepted by the factory.        |
+| `ExportOptions`          | type           | The second bag: `now`.                           |
 | `ZipOptions`             | type           | Re-exported from fflate, for `save`.             |
 
-## `AnkiExport(deckName, template?)`
+## `AnkiExport(deckName, template?, options?)`
 
 ```ts
-function AnkiExport(deckName: string, template?: TemplateOptions): Promise<Exporter>;
+function AnkiExport(
+  deckName: string,
+  template?: TemplateOptions,
+  options?: ExportOptions,
+): Promise<Exporter>;
 ```
 
 Async because sql.js loads a WASM module. That module is initialized once per
 process and memoized, so repeated calls do not repay the cost.
 
 `deckName` names both the deck and its notetype in the generated collection.
+
+## `ExportOptions`
+
+| Field | Type     | Default      |
+| ----- | -------- | ------------ |
+| `now` | `number` | `Date.now()` |
+
+The epoch-millisecond instant to build the deck at. It is the **only** clock the
+deck reads: the collection's `crt`, `mod`, and `scm`, every row's `id` and
+`mod`, and the archive's entry timestamps all derive from this one value.
+
+Without it, saving the same input twice in one process still produces identical
+bytes, because the reading is taken once per exporter. Passing it extends that
+across processes and machines — same input plus same clock, same bytes — which
+is what a build that diffs or caches its decks needs.
+
+```ts
+const apkg = await AnkiExport("reproducible", undefined, { now: 1_700_000_000_000 });
+```
 
 ## `TemplateOptions`
 
@@ -93,16 +117,21 @@ to `zipSync` untouched — `{ level: 0 }` stores uncompressed, for example.
 Async for call-site compatibility; the zipping itself is synchronous.
 
 Saving the same input twice produces byte-identical archives, so callers can
-compare or cache on the result.
+compare or cache on the result. Across processes that also needs the same
+[`now`](#exportoptions).
 
 ## `Exporter`
 
 ```ts
-new Exporter(deckName: string, options: { template: string; sql: SqlJsStatic });
+new Exporter(
+  deckName: string,
+  options: { template: string; sql: SqlJsStatic; now?: number },
+);
 ```
 
 The class behind the factory, exported for callers that already have a sql.js
-instance. `template` is the SQL script `createTemplate` produces. Public
+instance. `template` is the SQL script `createTemplate` produces, and `now` is
+the same clock value that built it — pass one to both or neither. Public
 readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.
 
 ### There is no disposal method

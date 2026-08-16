@@ -48,8 +48,19 @@ const apkg = await AnkiExport("customized", {
 });
 ```
 
+### Reproducible builds
+
+The deck reads the clock exactly once, so saving the same input twice in one
+process already gives identical bytes. Pin that reading to get the same bytes
+from any process, on any machine:
+
+```ts
+const apkg = await AnkiExport("deck-name", undefined, { now: 1_700_000_000_000 });
+```
+
 ### API
 
+- `AnkiExport(name: string, template?: TemplateOptions, options?: { now?: number })`
 - `addCard(front: string, back: string, options?: { tags?: string | readonly string[] })`
 - `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
 - `save(options?: ZipOptions): Promise<Buffer>`
@@ -60,7 +71,8 @@ Full signatures and defaults: [docs/reference](docs/reference/index.md).
 
 Decks are written at **schema 11** (package version Legacy1), which every
 current Anki release imports, with rows written the way Anki writes them for the
-same content. Saving the same input twice produces byte-identical archives.
+same content. Identical input and clock produce byte-identical archives; see
+[reproducible builds](#reproducible-builds) for what pins the clock.
 
 The field-by-field contract, the deliberate deviations, and the known
 non-conformances are in [docs/reference/deck-format](docs/reference/deck-format.md).

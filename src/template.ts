@@ -274,16 +274,23 @@ const dayRollover = (nowMs: number): number => {
   return Math.floor(rollover / MILLISECONDS_PER_SECOND);
 };
 
-export default function createTemplate({
-  questionFormat = "{{Front}}",
-  answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
-  css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n",
-}: Readonly<TemplateOptions> = {}): string {
+/**
+ * Build the SQL script for an empty collection. `now` is the epoch-millisecond
+ * instant to stamp it with; the exporter passes its own single clock reading so
+ * the collection and the rows written into it agree on when the deck was built.
+ */
+export default function createTemplate(
+  {
+    questionFormat = "{{Front}}",
+    answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
+    css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n",
+  }: Readonly<TemplateOptions> = {},
+  now: number = Date.now(),
+): string {
   /* `crt` is in seconds; `col.mod` and `col.scm` are in milliseconds, as Anki
      writes them. All of them are the moment this collection was built rather
      than the 2014/2015 timestamps this template used to carry. The deck and
      note-model `mod` fields are seconds, and get the same instant. */
-  const now = Date.now();
   const nowSeconds = Math.floor(now / MILLISECONDS_PER_SECOND);
 
   const decks = buildDecks(nowSeconds);

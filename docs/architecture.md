@@ -24,19 +24,20 @@ holding `1000` would split the first group to merge the second.
 
 ## Responsibilities
 
-| Module             | Owns                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, then constructs an `Exporter` with a freshly built template. |
-| `exporter.ts`      | The deck. Row insertion, id allocation, media collection, and zipping.                                                             |
-| `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.           |
-| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                   |
-| `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                             |
+| Module             | Owns                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, reads the clock, then constructs an `Exporter` with a freshly built template. |
+| `exporter.ts`      | The deck. Row insertion, id allocation, media collection, and zipping.                                                                              |
+| `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                            |
+| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                    |
+| `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                              |
 
 ## Data And Control Flow
 
-`AnkiExport(name, overrides?)` awaits the sql.js module, calls
-`createTemplate(overrides)` to get a SQL script, and hands both to
-`new Exporter(name, { template, sql })`.
+`AnkiExport(name, overrides?, { now }?)` awaits the sql.js module, reads the
+clock once if `now` was not supplied, calls `createTemplate(overrides, now)` to
+get a SQL script, and hands all three to
+`new Exporter(name, { template, sql, now })`.
 
 The constructor runs that script into a fresh in-memory database, which leaves
 one seeded deck and one seeded note model in the `col` row's JSON columns. It
@@ -88,6 +89,16 @@ builds the `media` manifest mapping stringified indices to filenames, and zips
   original's UTC ones, because fflate writes DOS timestamps from the local
   clock. `col.crt` uses a UTC rollover for the same reason. Anything new that
   reads a local clock breaks byte reproducibility.
+
+- **The clock is read exactly once, in `AnkiExport`.** That reading is threaded
+  into `createTemplate(overrides, now)` and stored as the exporter's `now`;
+  `Date.now()` appears nowhere else under `src/`, so the template, the id seeds,
+  every row's `id` and `mod`, and the archive stamp cannot disagree about when
+  the deck was built. It is one reading rather than one clock because two
+  readings can straddle a millisecond. Because it is a parameter and not an
+  ambient call, a caller can supply it and get the same bytes in another
+  process. A new `Date.now()` anywhere below the entry point reintroduces both
+  problems at once.
 
 - **The sort field follows `sortf`, which is pinned to 0.** `sfld` and `csum`
   both come from the stripped _first_ field, never the joined field list. If
