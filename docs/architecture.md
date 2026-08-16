@@ -13,6 +13,15 @@ doc_type: "architecture"
 
 Five modules under `src/`, about 1,300 lines total.
 
+Five is the number, and a sixth needs a reason better than deduplication.
+`MILLISECONDS_PER_SECOND` is declared in `exporter.ts`, in `template.ts`, and
+again in `test/exporter.test.ts`, which looks like a module waiting to happen —
+it is not. In `template.ts` it belongs to a family with `MILLISECONDS_PER_HOUR`
+and `MILLISECONDS_PER_DAY` that the day-rollover maths needs together; in
+`exporter.ts` it is one divisor used once; and a test restating a constant
+independently is what keeps the assertion from being a tautology. A module
+holding `1000` would split the first group to merge the second.
+
 ## Responsibilities
 
 | Module             | Owns                                                                                                                               |
