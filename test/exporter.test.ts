@@ -31,6 +31,9 @@ const SECOND_SHIFT = 1;
 /** `addCard` writes one note row and one card row. */
 const WRITES_PER_CARD = 2;
 
+/** Row ids are epoch milliseconds; `mod` columns are epoch seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
+
 /** How many times the duplicate-handling test adds the same card. */
 const DUPLICATE_ADDS = 2;
 
@@ -145,6 +148,24 @@ describe("the exporter internals", () => {
     const cardsUpdate = cardsCall?.[1];
     expect(cardsUpdate[":did"]).toBe(topDeckId);
     expect(cardsUpdate[":nid"]).toBe(notesUpdate[":id"]);
+  });
+
+  it("writes ids in milliseconds and mod times in seconds", () => {
+    expect.hasAssertions();
+    const exporterUpdateSpy = spyOnUpdate(exporter);
+
+    exporter.addCard("Test Front", "Test back");
+
+    const [notesCall, cardsCall] = exporterUpdateSpy.mock.calls;
+
+    /* Anki keeps an imported row's `mod` as given. Milliseconds in a column
+       read as seconds date the row to roughly the year 58,600, and nothing on
+       the import path corrects it — unlike `sfld` and `csum`. */
+    expect(notesCall?.[1][":mod"]).toBe(Math.floor(now / MILLISECONDS_PER_SECOND));
+    expect(cardsCall?.[1][":mod"]).toBe(Math.floor(now / MILLISECONDS_PER_SECOND));
+
+    expect(notesCall?.[1][":id"]).toBe(now);
+    expect(cardsCall?.[1][":id"]).toBe(now);
   });
 
   it("joins a tag array into Anki's space-delimited form", () => {

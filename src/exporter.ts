@@ -27,6 +27,17 @@ const CHECKSUM_RADIX = 16;
 /** New cards are queued at this position, matching Anki's own default export. */
 const INITIAL_DUE_POSITION = 179;
 
+const MILLISECONDS_PER_SECOND = 1000;
+
+/**
+ * Row `id`s are epoch milliseconds, but `mod` columns are epoch *seconds*.
+ * Anki keeps whatever `mod` an imported note or card carries, so a millisecond
+ * value read as seconds lands tens of thousands of years in the future and
+ * stays there — unlike `sfld` and `csum`, which the importer recomputes.
+ */
+const toModified = (timestampMs: number): number =>
+  Math.floor(timestampMs / MILLISECONDS_PER_SECOND);
+
 export default class Exporter {
   public readonly db: Database;
   private readonly media: MediaItem[] = [];
@@ -152,7 +163,7 @@ export default class Exporter {
         ":id": id,
         ":guid": guid,
         ":mid": this.topModelId,
-        ":mod": this._getId("notes", "mod", now),
+        ":mod": toModified(now),
         ":usn": -1,
         ":tags": tags,
         ":flds": fields,
@@ -172,7 +183,7 @@ export default class Exporter {
         ":nid": noteId,
         ":did": this.topDeckId,
         ":ord": 0,
-        ":mod": this._getId("cards", "mod", now),
+        ":mod": toModified(now),
         ":usn": -1,
         ":type": 0,
         ":queue": 0,
@@ -241,6 +252,12 @@ export default class Exporter {
     return ` ${tags.map((tag) => tag.replaceAll(" ", "_")).join(" ")} `;
   }
 
+  /**
+   * Claim an unused millisecond timestamp for an identity column, stepping past
+   * the highest existing value so two rows created in the same millisecond do
+   * not collide. Only for id-like columns: `mod` is a plain modification time
+   * where being unique means nothing, so it does not come through here.
+   */
   private _getId(table: string, col: string, ts: number): number {
     const query = `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`;
     /* The column is chosen by the caller, so sql.js cannot type the row for us. */
