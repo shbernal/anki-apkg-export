@@ -242,8 +242,13 @@ export default class Exporter {
     );
   }
 
+  /*
+   * `run` prepares, binds, steps and frees in one call. Preparing by hand here
+   * would leak: sql.js registers every statement on the Database and finalizes
+   * it only on `free()` or `close()`, and this class never closes its handle.
+   */
   protected _update(query: string, values: Readonly<Record<string, string | number>>): void {
-    this.db.prepare(query).getAsObject(values);
+    this.db.run(query, values);
   }
 
   private _getInitialRowValue(table: string, column = "id"): unknown {
@@ -301,24 +306,36 @@ export default class Exporter {
    */
   private _getId(table: string, col: string, ts: number): number {
     const query = `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`;
-    /* The column is chosen by the caller, so sql.js cannot type the row for us. */
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const rowObj = this.db.prepare(query).getAsObject({ ":ts": ts }) as Record<string, number>;
+    const stmt = this.db.prepare(query);
 
-    const highest = rowObj[col];
-    if (highest) {
-      return highest + 1;
+    try {
+      /* The column is chosen by the caller, so sql.js cannot type the row for us. */
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      const rowObj = stmt.getAsObject({ ":ts": ts }) as Record<string, number>;
+
+      const highest = rowObj[col];
+      if (highest) {
+        return highest + 1;
+      }
+      return ts;
+    } finally {
+      stmt.free();
     }
-    return ts;
   }
 
   private _getNoteId(guid: string, ts: number): number {
     const query = `SELECT id from notes WHERE guid = :guid ORDER BY id DESC LIMIT 1`;
-    const rowObj = this.db.prepare(query).getAsObject({ ":guid": guid }) as {
-      id?: number;
-    };
+    const stmt = this.db.prepare(query);
 
-    return rowObj.id ?? this._getId("notes", "id", ts);
+    try {
+      const rowObj = stmt.getAsObject({ ":guid": guid }) as {
+        id?: number;
+      };
+
+      return rowObj.id ?? this._getId("notes", "id", ts);
+    } finally {
+      stmt.free();
+    }
   }
 
   private _getNoteGuid(topDeckId: number, front: string, back: string): string {
@@ -327,9 +344,15 @@ export default class Exporter {
 
   private _getCardId(noteId: number, ts: number): number {
     const query = `SELECT id from cards WHERE nid = :note_id ORDER BY id DESC LIMIT 1`;
-    const rowObj = this.db.prepare(query).getAsObject({ ":note_id": noteId }) as { id?: number };
+    const stmt = this.db.prepare(query);
 
-    return rowObj.id ?? this._getId("cards", "id", ts);
+    try {
+      const rowObj = stmt.getAsObject({ ":note_id": noteId }) as { id?: number };
+
+      return rowObj.id ?? this._getId("cards", "id", ts);
+    } finally {
+      stmt.free();
+    }
   }
 }
 

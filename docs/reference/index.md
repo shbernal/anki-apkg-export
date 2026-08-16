@@ -104,3 +104,19 @@ new Exporter(deckName: string, options: { template: string; sql: SqlJsStatic });
 The class behind the factory, exported for callers that already have a sql.js
 instance. `template` is the SQL script `createTemplate` produces. Public
 readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.
+
+### There is no disposal method
+
+An exporter holds an open sql.js `Database` for its whole life and nothing
+closes it. sql.js allocates that collection inside a WASM heap that is created
+once per process and never shrinks, so a process that builds many decks in
+sequence keeps the memory of every one of them — dropping the reference and
+forcing GC reclaims nothing.
+
+A caller that needs the memory back can call `db.close()` on the public `db`
+property, after which the exporter is unusable. Adding a real `close()` to this
+class is deliberately deferred: it is an additive API change, and the leak that
+made it urgent — one prepared statement per row, never freed — is fixed.
+
+`save` deliberately does **not** close the database, because it is callable more
+than once.
