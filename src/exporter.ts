@@ -315,60 +315,74 @@ export default class Exporter {
   }
 
   /**
+   * Read one numeric column out of the first row a `ORDER BY ... DESC LIMIT 1`
+   * query returns, or `undefined` when it matches nothing. Every id lookup
+   * below is that shape, so this is the one place a statement is prepared and
+   * freed for them.
+   */
+  private _getHighestValue(
+    query: string,
+    column: string,
+    params: Readonly<Record<string, string | number>>,
+  ): number | undefined {
+    const stmt = this.db.prepare(query);
+
+    try {
+      /* The column is chosen by the caller, so sql.js cannot type the row for us. */
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      const rowObj = stmt.getAsObject(params) as Record<string, number | undefined>;
+
+      return rowObj[column];
+    } finally {
+      stmt.free();
+    }
+  }
+
+  /**
    * Claim an unused millisecond timestamp for an identity column, stepping past
    * the highest existing value so two rows created in the same millisecond do
    * not collide. Only for id-like columns: `mod` is a plain modification time
    * where being unique means nothing, so it does not come through here.
    */
   private _getId(table: string, col: string, ts: number): number {
-    const query = `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`;
-    const stmt = this.db.prepare(query);
+    const highest = this._getHighestValue(
+      `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`,
+      col,
+      { ":ts": ts },
+    );
 
-    try {
-      /* The column is chosen by the caller, so sql.js cannot type the row for us. */
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      const rowObj = stmt.getAsObject({ ":ts": ts }) as Record<string, number>;
-
-      const highest = rowObj[col];
-      if (highest) {
-        return highest + 1;
-      }
+    /* Explicitly against `undefined`: these columns hold timestamps, but 0 is a
+       value the query can return and truthiness would read it as "no row". */
+    if (highest === undefined) {
       return ts;
-    } finally {
-      stmt.free();
     }
+    return highest + 1;
   }
 
+  /** Reuse a duplicate note's id so it is updated in place rather than added. */
   private _getNoteId(guid: string, ts: number): number {
-    const query = `SELECT id from notes WHERE guid = :guid ORDER BY id DESC LIMIT 1`;
-    const stmt = this.db.prepare(query);
+    const existing = this._getHighestValue(
+      `SELECT id from notes WHERE guid = :guid ORDER BY id DESC LIMIT 1`,
+      "id",
+      { ":guid": guid },
+    );
 
-    try {
-      const rowObj = stmt.getAsObject({ ":guid": guid }) as {
-        id?: number;
-      };
-
-      return rowObj.id ?? this._getId("notes", "id", ts);
-    } finally {
-      stmt.free();
-    }
+    return existing ?? this._getId("notes", "id", ts);
   }
 
   private _getNoteGuid(topDeckId: number, front: string, back: string): string {
     return createHash("sha1").update(`${topDeckId}${front}${back}`).digest("hex");
   }
 
+  /** Reuse the card already attached to this note, for the same reason. */
   private _getCardId(noteId: number, ts: number): number {
-    const query = `SELECT id from cards WHERE nid = :note_id ORDER BY id DESC LIMIT 1`;
-    const stmt = this.db.prepare(query);
+    const existing = this._getHighestValue(
+      `SELECT id from cards WHERE nid = :note_id ORDER BY id DESC LIMIT 1`,
+      "id",
+      { ":note_id": noteId },
+    );
 
-    try {
-      const rowObj = stmt.getAsObject({ ":note_id": noteId }) as { id?: number };
-
-      return rowObj.id ?? this._getId("cards", "id", ts);
-    } finally {
-      stmt.free();
-    }
+    return existing ?? this._getId("cards", "id", ts);
   }
 }
 
