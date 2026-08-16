@@ -1,0 +1,106 @@
+---
+doc-schema-version: 1
+title: "Reference"
+summary: "The exported API surface: the factory, the exporter methods, and the template override fields."
+read_when:
+  - Looking up an exported signature or option
+  - Checking what counts as a breaking change
+  - Verifying docs against the exported contract
+doc_type: "reference"
+---
+
+# Reference
+
+Everything on this page is published API. Changing it needs a deliberate semver
+decision, not incidental cleanup.
+
+## Exports
+
+`@shbernal/anki-apkg-export` is ESM-only and requires Node.js >= 24.
+
+| Export                   | Kind           | Notes                                            |
+| ------------------------ | -------------- | ------------------------------------------------ |
+| `default` — `AnkiExport` | async function | The factory. Resolves to an `Exporter`.          |
+| `Exporter`               | class          | For callers supplying their own sql.js instance. |
+| `TemplateOptions`        | type           | The override bag accepted by the factory.        |
+| `ZipOptions`             | type           | Re-exported from fflate, for `save`.             |
+
+## `AnkiExport(deckName, template?)`
+
+```ts
+function AnkiExport(deckName: string, template?: TemplateOptions): Promise<Exporter>;
+```
+
+Async because sql.js loads a WASM module. That module is initialized once per
+process and memoized, so repeated calls do not repay the cost.
+
+`deckName` names both the deck and its notetype in the generated collection.
+
+## `TemplateOptions`
+
+All three are optional; each falls back to Anki's own default.
+
+| Field            | Type     | Default                                         |
+| ---------------- | -------- | ----------------------------------------------- |
+| `questionFormat` | `string` | `{{Front}}`                                     |
+| `answerFormat`   | `string` | `{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}` |
+| `css`            | `string` | Arial, 20px, centered, black on white           |
+
+```ts
+const apkg = await AnkiExport("customized", {
+  questionFormat: "{{Front}}",
+  answerFormat: '{{FrontSide}}<hr id="answer">{{Back}}',
+  css: ".card { font-family: Arial; font-size: 20px; }",
+});
+```
+
+Passing `{}` is equivalent to passing nothing.
+
+## `addCard(front, back, options?)`
+
+```ts
+addCard(front: string, back: string, options?: { tags?: string | readonly string[] }): void;
+```
+
+Writes one note and one card. Both fields are HTML; whatever is passed is
+stored verbatim in `flds`, and the first field additionally drives `sfld` and
+`csum` after stripping — see [deck format](deck-format.md).
+
+`tags` accepts either a preformatted string or an array. Array entries have
+their spaces replaced with underscores, since Anki separates tags by spaces.
+
+Cards are numbered in the new-card queue in call order, starting at 1.
+
+## `addMedia(filename, data)`
+
+```ts
+addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string): void;
+```
+
+Buffers a media file. `filename` is what card HTML references, e.g.
+`<img src="anki.png">`. Nothing is written until `save`, and no check is made
+that any card actually references the file.
+
+## `save(options?)`
+
+```ts
+save(options?: ZipOptions): Promise<Buffer>;
+```
+
+Returns the `.apkg` as a Node `Buffer`. `options` is fflate's own bag, forwarded
+to `zipSync` untouched — `{ level: 0 }` stores uncompressed, for example.
+
+Async for call-site compatibility; the zipping itself is synchronous.
+
+Saving the same input twice produces byte-identical archives, so callers can
+compare or cache on the result.
+
+## `Exporter`
+
+```ts
+new Exporter(deckName: string, options: { template: string; sql: SqlJsStatic });
+```
+
+The class behind the factory, exported for callers that already have a sql.js
+instance. `template` is the SQL script `createTemplate` produces. Public
+readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.
