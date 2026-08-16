@@ -42,7 +42,7 @@ get a SQL script, and hands all three to
 The constructor runs that script into a fresh in-memory database, which leaves
 one seeded deck and one seeded note model in the `col` row's JSON columns. It
 then claims a deck id and a model id, and re-keys those two placeholders under
-them — `getLastItem` pops the placeholder out of the decoded map so it can be
+them — `takeLastItem` pops the placeholder out of the decoded map so it can be
 reinserted under the real id rather than duplicated. `curModel` is pointed at
 the new model id, because the template cannot know it.
 

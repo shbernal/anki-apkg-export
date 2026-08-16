@@ -144,7 +144,7 @@ export default class Exporter {
     column: TColumn,
     value: Readonly<CollectionJson[TColumn]>,
   ): void {
-    this._update(`update col set ${column}=:value where id=1`, {
+    this.db.run(`update col set ${column}=:value where id=1`, {
       ":value": JSON.stringify(value),
     });
   }
@@ -152,7 +152,7 @@ export default class Exporter {
   /** Point the collection's last deck at this export's name and id. */
   private _renameTopDeck(): void {
     const decks = this._readJsonColumn("decks");
-    const deck = getLastItem(decks);
+    const deck = takeLastItem(decks);
     deck.name = this.deckName;
     deck.id = this.topDeckId;
     decks[String(this.topDeckId)] = deck;
@@ -162,7 +162,7 @@ export default class Exporter {
   /** Point the collection's last note model at this export's name, deck and id. */
   private _renameTopModel(): void {
     const models = this._readJsonColumn("models");
-    const model = getLastItem(models);
+    const model = takeLastItem(models);
     model.name = this.deckName;
     model.did = this.topDeckId;
     model.id = this.topModelId;
@@ -286,6 +286,11 @@ export default class Exporter {
     this.nextPosition += 1;
   }
 
+  /*
+   * Every write in this class goes through `db.run`, which prepares, binds,
+   * steps and frees in one call. Holding these two statements open across cards
+   * instead was measured and rejected; see docs/architecture.md.
+   */
   private _insertNote({ back, front, guid, id, now, tags }: Readonly<NoteRow>): void {
     const fields = front + this.separator + back;
 
@@ -297,7 +302,7 @@ export default class Exporter {
      */
     const sortField = stripHtmlPreservingMediaFilenames(front);
 
-    this._update(
+    this.db.run(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
       {
         ":id": id,
@@ -316,7 +321,7 @@ export default class Exporter {
   }
 
   private _insertCard(noteId: number, now: number): void {
-    this._update(
+    this.db.run(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
       {
         ":id": this._getCardId(noteId, now),
@@ -347,15 +352,6 @@ export default class Exporter {
         ":data": "",
       },
     );
-  }
-
-  /*
-   * `run` prepares, binds, steps and frees in one call. Preparing by hand here
-   * would leak: sql.js registers every statement on the Database and finalizes
-   * it only on `free()` or `close()`, and this class never closes its handle.
-   */
-  private _update(query: string, values: Readonly<Record<string, string | number>>): void {
-    this.db.run(query, values);
   }
 
   /**
@@ -541,9 +537,10 @@ const toArchiveClock = (date: Date): Date =>
   );
 
 /**
- * Pop the last entry off a decoded collection map. Anki's default collection
- * ships one placeholder deck and note model; this removes the placeholder and
- * hands it back so the caller can re-key it under the export's own id.
+ * Take the last entry off a decoded collection map — the name says `take`
+ * because the entry is deleted, not read. Anki's default collection ships one
+ * placeholder deck and note model; this removes the placeholder and hands it
+ * back so the caller can re-key it under the export's own id.
  *
  * Throws on an empty map rather than returning `undefined` as `TItem`. Both
  * callers are renaming a placeholder the template is required to have seeded,
@@ -551,7 +548,7 @@ const toArchiveClock = (date: Date): Date =>
  * instead of writing `undefined` into the deck.
  */
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
-const getLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
+const takeLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
   const lastEntry = Object.entries(obj).at(-1);
   if (lastEntry === undefined) {
     throw new Error("Cannot take the last item of an empty collection map");
