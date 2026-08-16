@@ -190,14 +190,14 @@ export default class Exporter {
     const noteGuid = this._getNoteGuid(this.topDeckId, front, back);
     const noteId = this._getNoteId(noteGuid, now);
 
-    let normalizedTags = "";
-    if (typeof tags === "string") {
-      normalizedTags = tags;
-    } else if (Array.isArray(tags)) {
-      normalizedTags = this._tagsToStr(tags);
-    }
-
-    this._insertNote({ back, front, guid: noteGuid, id: noteId, now, tags: normalizedTags });
+    this._insertNote({
+      back,
+      front,
+      guid: noteGuid,
+      id: noteId,
+      now,
+      tags: normalizeTags(tags),
+    });
     this._insertCard(noteId, now);
     this.nextPosition += 1;
   }
@@ -317,10 +317,6 @@ export default class Exporter {
     }
   }
 
-  private _tagsToStr(tags: readonly string[] = []): string {
-    return ` ${tags.map((tag) => tag.replaceAll(" ", "_")).join(" ")} `;
-  }
-
   /**
    * Read one numeric column out of the first row a `ORDER BY ... DESC LIMIT 1`
    * query returns, or `undefined` when it matches nothing. Every id lookup
@@ -433,6 +429,27 @@ const decodeCell = (value: SqlValue): unknown => {
     return JSON.parse(value);
   }
   return value;
+};
+
+/**
+ * Put `addCard`'s `tags` option into the single space-delimited string Anki
+ * stores. A preformatted string passes through untouched; an array is joined
+ * with each entry's spaces underscored, since a space would otherwise split one
+ * tag into several. The result is padded at both ends, which is what lets an
+ * Anki search for `" tag "` match the first and last tags too.
+ */
+const normalizeTags = (tags?: string | readonly string[]): string => {
+  if (typeof tags === "string") {
+    return tags;
+  }
+
+  /* Not `tags === undefined`: this is a published entry point, so a JavaScript
+     caller can pass anything, and only an array has tags to write. */
+  if (!Array.isArray(tags)) {
+    return "";
+  }
+
+  return ` ${tags.map((tag: string) => tag.replaceAll(" ", "_")).join(" ")} `;
 };
 
 const toBytes = (data: MediaItem["data"]): Uint8Array => {

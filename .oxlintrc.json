@@ -122,9 +122,14 @@
       }
     ],
 
-    // Doc comments carry most of this file's growth; the executable body is
-    // well under the limit.
-    "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+    // Aimed at src/exporter.ts, the only file near it. The obvious way to cut
+    // it is to move the module-level helpers at the bottom into their own file,
+    // but they are heterogeneous — byte conversion, date conversion, sqlite
+    // cell decoding, map popping, tag joining — and share nothing but a
+    // location. There is no honest name for that module, so the split would
+    // trade a long file for a meaningless boundary. Raise this again only when
+    // the file gains something with a real seam in it.
+    "max-lines": ["error", { "max": 340, "skipBlankLines": true, "skipComments": true }],
 
     // `AnkiExport` is this package's published entry point: a capitalized async
     // factory that is called, never constructed. Every call site here is a use
