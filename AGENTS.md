@@ -69,5 +69,7 @@ commit**. See `docs/tooling.md` for why the order matters.
 - it triggers on a published GitHub release or manual dispatch, and uses the
   protected `npm-publish` environment
 - the release tag must match `package.json#version`
+- `CHANGELOG.md` gets the release's section in the same commit as the version
+  bump, and the GitHub release body is that section verbatim
 - do not `npm publish` or `pnpm publish` by hand
 - ask before creating tags, GitHub releases, or publishing

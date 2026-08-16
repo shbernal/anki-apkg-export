@@ -17,6 +17,7 @@
     "url": "git+https://github.com/shbernal/anki-apkg-export.git"
   },
   "files": [
+    "CHANGELOG.md",
     "dist"
   ],
   "type": "module",

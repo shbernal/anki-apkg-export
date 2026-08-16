@@ -86,6 +86,7 @@ non-conformances are in [docs/reference/deck-format](docs/reference/deck-format.
 - [Architecture](docs/architecture.md)
 - [Reference](docs/reference/index.md) and [deck format](docs/reference/deck-format.md)
 - [Tooling](docs/tooling.md) and [troubleshooting](docs/troubleshooting.md)
+- [Changelog](CHANGELOG.md)
 
 ## Development
 
