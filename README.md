@@ -55,6 +55,29 @@ const apkg = await AnkiExport("customized", {
 - `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
 - `save(options?: ZipOptions): Promise<Buffer>` (returns the APKG as a Node buffer; `ZipOptions` is [fflate](https://github.com/101arrowz/fflate)'s, e.g. `{ level: 0 }` to store uncompressed)
 
+## Generated decks
+
+Decks are written at **schema 11** (package version Legacy1), which every
+current Anki release imports.
+
+The rows are written the way Anki writes them for the same content:
+
+- `sfld` and `csum` come from the first field with its HTML stripped, using
+  Anki's own stripper — media filenames are kept, so
+  `a <img src="b.png">` sorts as `a  b.png `.
+- `mod` columns are epoch **seconds**; only `id` columns are milliseconds.
+- New cards are numbered from 1 in the new-card queue, and `col.conf.nextPos`
+  is left pointing past the last one used.
+
+One deliberate difference: `col.crt` is pinned to the 04:00 **UTC** day
+rollover where Anki uses 04:00 local. Deriving it from the local clock would
+make the same deck compress to different bytes in different timezones, and
+`crt` only matters for review and learning cards, which this package never
+emits.
+
+Saving the same input twice produces byte-identical archives, so callers can
+compare or cache on the result.
+
 ## Examples
 
 - Server example: `examples/server/server.js`
@@ -66,6 +89,8 @@ const apkg = await AnkiExport("customized", {
 - `pnpm test`
 - `pnpm run lint` (oxlint, type-aware)
 - `pnpm run format` (oxfmt)
+- `pnpm run fixture:regen` rebuilds `test/fixtures/output.apkg` after an
+  intended change to the emitted deck
 
 ## References
 
