@@ -70,33 +70,53 @@ export default class Exporter {
     this._renameTopModel();
   }
 
+  /**
+   * Decode one of the collection row's JSON text columns. `CollectionJson` is
+   * what makes this the single place those columns are trusted to hold what the
+   * template put there: the assertion happens once, and the column name picks
+   * the shape rather than the caller naming it independently.
+   */
+  private _readJsonColumn<TColumn extends keyof CollectionJson>(
+    column: TColumn,
+  ): CollectionJson[TColumn] {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    return this._getInitialRowValue("col", column) as CollectionJson[TColumn];
+  }
+
+  /**
+   * Write a decoded JSON column back. Always paired with a fresh
+   * `_readJsonColumn` rather than a cached value, so two updates to the same
+   * column cannot clobber one another — which is why `conf` is re-parsed once
+   * per key set rather than accumulated in memory.
+   */
+  private _writeJsonColumn<TColumn extends keyof CollectionJson>(
+    column: TColumn,
+    value: Readonly<CollectionJson[TColumn]>,
+  ): void {
+    this._update(`update col set ${column}=:value where id=1`, {
+      ":value": JSON.stringify(value),
+    });
+  }
+
   /** Point the collection's last deck at this export's name and id. */
   private _renameTopDeck(): void {
-    /* `decks` is a JSON text column, so its decoded shape is only known here. */
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const decks = this._getInitialRowValue("col", "decks") as Record<string, DeckModel>;
+    const decks = this._readJsonColumn("decks");
     const deck = getLastItem(decks);
     deck.name = this.deckName;
     deck.id = this.topDeckId;
     decks[String(this.topDeckId)] = deck;
-    this._update("update col set decks=:decks where id=1", {
-      ":decks": JSON.stringify(decks),
-    });
+    this._writeJsonColumn("decks", decks);
   }
 
   /** Point the collection's last note model at this export's name, deck and id. */
   private _renameTopModel(): void {
-    /* `models` is a JSON text column, so its decoded shape is only known here. */
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const models = this._getInitialRowValue("col", "models") as Record<string, NoteModel>;
+    const models = this._readJsonColumn("models");
     const model = getLastItem(models);
     model.name = this.deckName;
     model.did = this.topDeckId;
     model.id = this.topModelId;
     models[String(this.topModelId)] = model;
-    this._update("update col set models=:models where id=1", {
-      ":models": JSON.stringify(models),
-    });
+    this._writeJsonColumn("models", models);
 
     /* `curModel` is the notetype Anki preselects when adding a note, so it has
        to name one that exists in this file. The template cannot know the id. */
@@ -112,15 +132,11 @@ export default class Exporter {
     this._updateConf("nextPos", this.nextPosition);
   }
 
-  /** Read-modify-write one key of the collection's `conf` JSON column. */
+  /** Set one key of the collection's `conf` JSON column. */
   private _updateConf(key: string, value: number): void {
-    /* `conf` is a JSON text column, so its decoded shape is only known here. */
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const conf = this._getInitialRowValue("col", "conf") as Record<string, unknown>;
+    const conf = this._readJsonColumn("conf");
     conf[key] = value;
-    this._update("update col set conf=:conf where id=1", {
-      ":conf": JSON.stringify(conf),
-    });
+    this._writeJsonColumn("conf", conf);
   }
 
   /*
@@ -377,6 +393,17 @@ interface NoteModel {
   did: number;
   name: string;
   [key: string]: unknown;
+}
+
+/**
+ * The `col` row's JSON text columns, keyed by column name. Anki stores each of
+ * these as a text blob, so sqlite has nothing to say about their contents and
+ * this map is the only statement of what a decoded column holds.
+ */
+interface CollectionJson {
+  decks: Record<string, DeckModel>;
+  models: Record<string, NoteModel>;
+  conf: Record<string, unknown>;
 }
 
 /** JSON columns come back as text, everything else as the value sqlite stored. */
