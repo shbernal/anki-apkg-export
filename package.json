@@ -31,6 +31,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -w -p tsconfig.build.json",
+    "fixture:regen": "UPDATE_FIXTURE=1 vitest run test/anki-apkg-export.test.ts",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --deny-warnings",

@@ -59,6 +59,11 @@
     // pointed at that convention instead.
     "one-var": ["error", "never"],
 
+    // oxfmt normalizes hexadecimal literals to lowercase and rewrites on every
+    // commit, while this rule wants them uppercase. Same standoff as
+    // `sort-imports` above: the formatter owns how a literal is spelled.
+    "unicorn/number-literal-case": "off",
+
     // `conf`/`models`/`decks`/`dconf` in src/template.ts are JSON.stringify'd
     // straight into the generated collection.anki2, so key order is emitted
     // output, not formatting. In src/exporter.ts the `:id`/`:guid`/`:mid` maps

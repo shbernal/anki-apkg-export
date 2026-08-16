@@ -3,6 +3,8 @@ import { createHash } from "crypto";
 import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
 import type { Database, SqlJsStatic, SqlValue } from "sql.js";
 
+import stripHtmlPreservingMediaFilenames from "./text.js";
+
 interface MediaItem {
   filename: string;
   data: string | ArrayBuffer | Uint8Array | Buffer;
@@ -136,6 +138,14 @@ export default class Exporter {
   private _insertNote({ back, front, guid, id, now, tags }: Readonly<NoteRow>): void {
     const fields = front + this.separator + back;
 
+    /**
+     * Both the sort field and the checksum come from the first field with its
+     * HTML stripped — never from the joined field list. The notetype's `sortf`
+     * picks which field sorts, and this package pins it to 0; were `sortf` ever
+     * made configurable, both of these would follow it rather than `front`.
+     */
+    const sortField = stripHtmlPreservingMediaFilenames(front);
+
     this._update(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
       {
@@ -146,8 +156,8 @@ export default class Exporter {
         ":usn": -1,
         ":tags": tags,
         ":flds": fields,
-        ":sfld": front,
-        ":csum": this._checksum(fields),
+        ":sfld": sortField,
+        ":csum": this._fieldChecksum(sortField),
         ":flags": 0,
         ":data": "",
       },
@@ -189,8 +199,17 @@ export default class Exporter {
     return this._getFirstVal(query);
   }
 
-  private _checksum(str: string): number {
-    const hash = createHash("sha1").update(str).digest("hex").slice(0, CHECKSUM_HEX_DIGITS);
+  /**
+   * Anki's `field_checksum`: the first four bytes of the sha1, read big endian.
+   * Named for what it must be given — the *stripped first field*. The hash
+   * itself was always right; passing it the joined field list was the defect.
+   */
+  private _fieldChecksum(strippedFirstField: string): number {
+    const hash = createHash("sha1")
+      .update(strippedFirstField)
+      .digest("hex")
+      .slice(0, CHECKSUM_HEX_DIGITS);
+
     return Number.parseInt(hash, CHECKSUM_RADIX);
   }
 

@@ -1,4 +1,4 @@
-import fs, { promises as fsp } from "fs";
+import { promises as fsp } from "fs";
 import os from "os";
 import path from "path";
 import { promisify } from "util";
@@ -7,6 +7,7 @@ import sqlite3 from "sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AnkiExport from "../src/index.js";
+import { buildFixtureDeck, FIXTURE_NOW } from "./_fixture-deck.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
 
 interface SqliteDb {
@@ -18,6 +19,7 @@ const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
 const dest = path.join(tmpDir, "result.apkg");
 const destUnpacked = path.join(tmpDir, "unpacked_result");
 const destUnpackedDb = path.join(destUnpacked, "collection.anki2");
+const fixturePath = path.join(import.meta.dirname, "fixtures/output.apkg");
 const SEPARATOR = "\u001F";
 type SqliteDatabaseConstructor = new (
   filename: string,
@@ -46,6 +48,24 @@ const closeDb = async (db: Readonly<SqliteDb>): Promise<void> => {
   await promisify(db.close.bind(db))();
 };
 
+/**
+ * Every field the exporter writes ends up in these bytes, so comparing them is
+ * what catches an unintended change to the emitted deck.
+ *
+ * `pnpm run fixture:regen` adopts an intended change by rerunning this file
+ * with UPDATE_FIXTURE set, which writes the deck just built back over the
+ * fixture and reports a match. Regenerating through the same definition the
+ * assertion uses is what stops the two from drifting apart.
+ */
+const matchesFixture = async (zip: Readonly<Buffer>): Promise<boolean> => {
+  if (process.env.UPDATE_FIXTURE !== undefined) {
+    await fsp.writeFile(fixturePath, zip);
+    return true;
+  }
+
+  return zip.equals(await fsp.readFile(fixturePath));
+};
+
 describe("anki-apkg-export", () => {
   beforeEach(async () => {
     await fsp.rm(tmpDir, { recursive: true, force: true });
@@ -59,25 +79,11 @@ describe("anki-apkg-export", () => {
 
   it("equals to sample", async () => {
     expect.hasAssertions();
-    const now = 1_482_680_798_652;
-    vi.useFakeTimers({ now, toFake: ["Date"] });
+    vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ["Date"] });
 
-    const apkg = await AnkiExport("deck-name");
-
-    apkg.addMedia("anki.png", fs.readFileSync(path.join(import.meta.dirname, "fixtures/anki.png")));
-
-    apkg.addCard("card #1 front", "card #1 back", { tags: ["food", "fruit"] });
-    apkg.addCard("card #2 front", "card #2 back");
-    apkg.addCard('card #3 with image <img src="anki.png" />', "card #3 back");
-
-    const zip = await apkg.save();
-    await fsp.writeFile(dest, zip);
-
+    const zip = await buildFixtureDeck(AnkiExport);
     expect(zip).toBeInstanceOf(Buffer);
-
-    const sampleZip = await fsp.readFile(path.join(import.meta.dirname, "fixtures/output.apkg"));
-    const destZip = await fsp.readFile(dest);
-    expect(destZip.equals(sampleZip)).toBe(true);
+    await expect(matchesFixture(zip)).resolves.toBe(true);
   });
 
   it("check internal structure", async () => {
@@ -100,22 +106,30 @@ describe("anki-apkg-export", () => {
     const result = await queryAll(
       db,
       `SELECT
-        notes.sfld as front,
-        notes.flds as back
+        notes.flds as fields,
+        notes.sfld as sortField
         from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`,
     );
     await closeDb(db);
 
+    /* Both sides of a note live in `flds`; `sfld` is a stripped copy of the
+       first one, so the round trip has to be read out of `flds`. */
     const normalizedResult = result
-      .map(({ front, back }: Readonly<Record<string, string>>) => ({
-        front,
-        back: back.split(SEPARATOR).pop()!,
-      }))
+      .map(({ fields }: Readonly<Record<string, string>>) => {
+        const [front, back] = fields.split(SEPARATOR);
+        return { front, back };
+      })
       .sort((left: Readonly<{ front: string }>, right: Readonly<{ front: string }>) =>
         left.front.localeCompare(right.front),
       );
 
     expect(normalizedResult).toStrictEqual(cards);
+
+    /* The sort field drops the img tag and keeps the filename, the way Anki
+       would write it: one space either side of the name it recovered. */
+    expect(
+      result.map(({ sortField }: Readonly<Record<string, string>>) => sortField),
+    ).toStrictEqual(["card #1 front", "card #2 front", "card #3 with image  anki.png "]);
   });
 
   it("check internal structure on adding card with tags", async () => {
