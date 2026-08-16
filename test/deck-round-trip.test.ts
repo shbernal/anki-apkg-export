@@ -16,6 +16,30 @@ const destUnpackedDb = path.join(destUnpacked, "collection.anki2");
 const fixturePath = path.join(import.meta.dirname, "fixtures/output.apkg");
 const SEPARATOR = "\u001F";
 
+interface Card {
+  front: string;
+  back: string;
+}
+
+const CARDS: readonly Readonly<Card>[] = [
+  { front: "card #1 front", back: "card #1 back" },
+  { front: "card #2 front", back: "card #2 back" },
+  { front: 'card #3 with image <img src="anki.png" />', back: "card #3 back" },
+];
+
+/**
+ * One tagged card, so the round trip covers the `tags` column too. How the tag
+ * string is built is `test/exporter.test.ts`'s subject; the only question here
+ * is whether it survives save, zip, unzip, and a different SQLite build.
+ */
+const TAGGED = {
+  front: "card #4 front",
+  back: "card #4 back",
+  tags: ["some", "tag", "tags with multiple words"],
+} as const;
+
+const EXPECTED_TAGS = " some tag tags_with_multiple_words ";
+
 /**
  * Reads back a deck the exporter just wrote, through a SQLite build other than
  * the one that produced it.
@@ -56,7 +80,7 @@ const matchesFixture = async (zip: Readonly<Buffer>): Promise<boolean> => {
   return zip.equals(await fsp.readFile(fixturePath));
 };
 
-describe("anki-apkg-export", () => {
+describe("a deck read back through node:sqlite", () => {
   beforeEach(async () => {
     await fsp.rm(tmpDir, { recursive: true, force: true });
     await fsp.mkdir(tmpDir, { recursive: true });
@@ -67,7 +91,7 @@ describe("anki-apkg-export", () => {
     vi.restoreAllMocks();
   });
 
-  it("equals to sample", async () => {
+  it("is byte-identical to the committed fixture", async () => {
     expect.hasAssertions();
     vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ["Date"] });
 
@@ -76,18 +100,12 @@ describe("anki-apkg-export", () => {
     await expect(matchesFixture(zip)).resolves.toBe(true);
   });
 
-  it("check internal structure", async () => {
+  it("carries back the fields, sort fields and tags it was given", async () => {
     expect.hasAssertions();
     const apkg = await AnkiExport("deck-name");
-    const cards = [
-      { front: "card #1 front", back: "card #1 back" },
-      { front: "card #2 front", back: "card #2 back" },
-      {
-        front: 'card #3 with image <img src="anki.png" />',
-        back: "card #3 back",
-      },
-    ];
-    addCards(apkg, cards);
+    addCards(apkg, CARDS);
+    apkg.addCard(TAGGED.front, TAGGED.back, { tags: TAGGED.tags });
+
     const zip = await apkg.save();
     await fsp.writeFile(dest, zip);
 
@@ -96,70 +114,40 @@ describe("anki-apkg-export", () => {
       destUnpackedDb,
       `SELECT
         notes.flds as fields,
-        notes.sfld as sortField
+        notes.sfld as sortField,
+        notes.tags as tags
         from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`,
     );
 
     /* Both sides of a note live in `flds`; `sfld` is a stripped copy of the
        first one, so the round trip has to be read out of `flds`. */
-    const normalizedResult = result
-      .map(({ fields }: Readonly<Record<string, string>>) => {
-        /* `flds` always holds both sides joined by the separator, so the split
-           has exactly two parts; the defaults keep that promise typed rather
-           than letting an `undefined` reach an assertion. */
-        const [front = "", back = ""] = String(fields).split(SEPARATOR);
-        return { front, back };
-      })
-      .sort((left: Readonly<{ front: string }>, right: Readonly<{ front: string }>) =>
-        left.front.localeCompare(right.front),
-      );
+    const roundTripped = result.map(({ fields }: Readonly<Record<string, string>>) => {
+      /* `flds` always holds both sides joined by the separator, so the split
+         has exactly two parts; the defaults keep that promise typed rather
+         than letting an `undefined` reach an assertion. */
+      const [front = "", back = ""] = String(fields).split(SEPARATOR);
+      return { front, back };
+    });
 
-    expect(normalizedResult).toStrictEqual(cards);
+    expect(roundTripped).toStrictEqual([...CARDS, { front: TAGGED.front, back: TAGGED.back }]);
 
     /* The sort field drops the img tag and keeps the filename, the way Anki
        would write it: one space either side of the name it recovered. */
     expect(
       result.map(({ sortField }: Readonly<Record<string, string>>) => sortField),
-    ).toStrictEqual(["card #1 front", "card #2 front", "card #3 with image  anki.png "]);
-  });
+    ).toStrictEqual([
+      "card #1 front",
+      "card #2 front",
+      "card #3 with image  anki.png ",
+      TAGGED.front,
+    ]);
 
-  it("check internal structure on adding card with tags", async () => {
-    expect.hasAssertions();
-    const decFile = `${dest}_with_tags.apkg`;
-    const unzippedDeck = `${destUnpacked}_with_tags`;
-    const apkg = await AnkiExport("deck-name");
-    const [front1, back1, tags1] = [
-      "Card front side 1",
-      "Card back side 1",
-      ["some", "tag", "tags with multiple words"],
-    ];
-    const [front2, back2, tags2] = ["Card front side 2", "Card back side 2", "some strin_tags"];
-    const [front3, back3] = ["Card front side 3", "Card back side 3"];
-    apkg.addCard(front1, back1, { tags: tags1 });
-    apkg.addCard(front2, back2, { tags: tags2 });
-    apkg.addCard(front3, back3);
-
-    const zip = await apkg.save();
-    await fsp.writeFile(decFile, zip);
-
-    await unzipDeckToDir(decFile, unzippedDeck);
-    const results = readRows(
-      `${unzippedDeck}/collection.anki2`,
-      `SELECT
-        notes.sfld as front,
-        notes.flds as back,
-        notes.tags as tags
-        from cards JOIN notes where cards.nid = notes.id ORDER BY front`,
-    );
-
-    expect(results).toStrictEqual([
-      {
-        front: front1,
-        back: `${front1}${SEPARATOR}${back1}`,
-        tags: ` ${tags1.map((tag) => tag.replaceAll(" ", "_")).join(" ")} `,
-      },
-      { front: front2, back: `${front2}${SEPARATOR}${back2}`, tags: tags2 },
-      { front: front3, back: `${front3}${SEPARATOR}${back3}`, tags: "" },
+    /* Untagged cards store the empty string, not null: the column is NOT NULL. */
+    expect(result.map(({ tags }: Readonly<Record<string, string>>) => tags)).toStrictEqual([
+      "",
+      "",
+      "",
+      EXPECTED_TAGS,
     ]);
   });
 });

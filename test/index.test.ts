@@ -6,6 +6,9 @@ import { unzipDeckToBuffers } from "./_helpers.js";
 /** Any fixed instant; only that both builds are handed the same one matters. */
 const FIXED_NOW = 1_700_000_000_000;
 
+/** The same bytes written four ways, one per accepted media type. */
+const MEDIA_CONTENT = "hi";
+
 describe("the package entry point", () => {
   it("resolves to an Exporter bound to the deck name", async () => {
     expect.hasAssertions();
@@ -15,7 +18,7 @@ describe("the package entry point", () => {
     expect(apkg.deckName).toBe("deck-name");
   });
 
-  it("exposes addCard, addMedia and save", async () => {
+  it("exposes addCard, addMedia, save and close", async () => {
     expect.hasAssertions();
     const apkg = await AnkiExport("deck-name");
 
@@ -27,6 +30,8 @@ describe("the package entry point", () => {
     expect(typeof apkg.addCard).toBe("function");
     expect(typeof apkg.addMedia).toBe("function");
     expect(typeof apkg.save).toBe("function");
+    expect(typeof apkg.close).toBe("function");
+    expect(typeof apkg[Symbol.dispose]).toBe("function");
     /* oxlint-enable vitest/prefer-expect-type-of */
   });
 
@@ -72,6 +77,32 @@ describe("the package entry point", () => {
     const [firstBuild, secondBuild] = [await build(), await build()];
 
     expect(firstBuild.equals(secondBuild)).toBe(true);
+  });
+
+  it("accepts every media type the README documents", async () => {
+    expect.hasAssertions();
+    const apkg = await AnkiExport("deck-name");
+    const bytes = new TextEncoder().encode(MEDIA_CONTENT);
+
+    /* One entry per accepted type, in the order `toBytes` handles them. */
+    apkg.addMedia("string.txt", MEDIA_CONTENT);
+    apkg.addMedia("buffer.txt", Buffer.from(MEDIA_CONTENT));
+    apkg.addMedia("uint8.txt", bytes);
+    apkg.addMedia("arraybuffer.txt", bytes.buffer);
+
+    const files = unzipDeckToBuffers(await apkg.save());
+
+    expect([...files.keys()].sort()).toStrictEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+      "collection.anki2",
+      "media",
+    ]);
+    expect(["0", "1", "2", "3"].map((name: string) => files.get(name)?.toString())).toStrictEqual(
+      Array.from({ length: 4 }, () => MEDIA_CONTENT),
+    );
   });
 
   it("produces an apkg containing a collection and a media map", async () => {

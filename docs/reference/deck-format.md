@@ -132,7 +132,7 @@ keeps no state between runs to remember it by.
 
 ## Changing Any Of This
 
-The golden test in `test/anki-apkg-export.test.ts` asserts byte equality against
+The golden test in `test/deck-round-trip.test.ts` asserts byte equality against
 `test/fixtures/output.apkg` under a pinned clock, so every change above
 invalidates it. Regenerate with `pnpm run fixture:regen` **in the same commit**
 as the behavioral change, so the byte diff and its reason land together.

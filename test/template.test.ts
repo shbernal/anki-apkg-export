@@ -1,13 +1,8 @@
-import path from "node:path";
-
-import initSqlJs, { type SqlValue } from "sql.js";
+import type { SqlValue } from "sql.js";
 import { describe, expect, it, vi } from "vitest";
 
 import createTemplate from "../src/template.js";
-import { first, readRow, readRows } from "./_helpers.js";
-
-const locateFile = (file: string): string =>
-  path.join(import.meta.dirname, "../node_modules/sql.js/dist", file);
+import { first, loadSqlModule, readRow, readRows } from "./_helpers.js";
 
 /** The parts of the persisted note model these tests assert on. */
 interface TemplateModel {
@@ -38,7 +33,7 @@ const SCHEMA_VERSION = 11;
 
 /** Read the scalar `col` columns the collection is stamped with. */
 const readCol = async (template: string): Promise<Record<string, number>> => {
-  const sql = await initSqlJs({ locateFile });
+  const sql = await loadSqlModule();
   const db = new sql.Database();
   db.run(template);
   const col = readRow(db, "SELECT crt, mod, scm, ver FROM col");
@@ -58,7 +53,7 @@ const readCol = async (template: string): Promise<Record<string, number>> => {
  * what actually reaches the collection.
  */
 const readModel = async (template: string): Promise<TemplateModel> => {
-  const sql = await initSqlJs({ locateFile });
+  const sql = await loadSqlModule();
   const db = new sql.Database();
   db.run(template);
   const row = readRow(db, "SELECT models FROM col");
@@ -72,7 +67,7 @@ const readModel = async (template: string): Promise<TemplateModel> => {
 
 /** Read the seeded decks, which live in a JSON blob in the `col` row like the models do. */
 const readDecks = async (template: string): Promise<{ readonly mod: number }[]> => {
-  const sql = await initSqlJs({ locateFile });
+  const sql = await loadSqlModule();
   const db = new sql.Database();
   db.run(template);
   const row = readRow(db, "SELECT decks FROM col");
@@ -135,7 +130,7 @@ describe("the default note template", () => {
 
   it("creates the schema the exporter writes to", async () => {
     expect.hasAssertions();
-    const sql = await initSqlJs({ locateFile });
+    const sql = await loadSqlModule();
     const db = new sql.Database();
     db.run(createTemplate());
 

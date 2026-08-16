@@ -190,4 +190,4 @@ Tests read decks back with `node:sqlite` rather than the `sqlite3` package, so
 the assertions see the deck through a different SQLite than the one that wrote
 it. It is also why nothing here needs a native build step. `node:sqlite` returns
 null-prototype rows, which `toStrictEqual` treats as a different type from an
-object literal — `test/anki-apkg-export.test.ts` clones them before asserting.
+object literal — `test/deck-round-trip.test.ts` clones them before asserting.

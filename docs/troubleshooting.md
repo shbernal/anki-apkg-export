@@ -13,7 +13,7 @@ doc_type: "troubleshooting"
 
 ## The golden test fails after a source change
 
-`test/anki-apkg-export.test.ts` asserts byte equality against
+`test/deck-round-trip.test.ts` asserts byte equality against
 `test/fixtures/output.apkg`, so any change to what the exporter or template
 writes fails it by design.
 

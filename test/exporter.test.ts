@@ -1,17 +1,12 @@
-import path from "node:path";
-
-import initSqlJs, { type SqlJsStatic, type SqlValue } from "sql.js";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SqlValue } from "sql.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
-import { readRow, readRows, unzipDeckToBuffers } from "./_helpers.js";
+import { readRow, readRows, unzipDeckToBuffers, useSqlModule } from "./_helpers.js";
 
 const template = createTemplate();
 const now = 1_700_000_000_000;
-const locateFile = (file: string): string =>
-  path.join(import.meta.dirname, "../node_modules/sql.js/dist", file);
-let sqlModule: SqlJsStatic;
 
 /** Every sqlite file opens with this magic string. */
 const SQLITE_HEADER = "SQLite format 3";
@@ -45,17 +40,14 @@ const readCollectionConf = (target: Readonly<Exporter>): unknown =>
   JSON.parse(String(readRow(target.db, "select conf from col").conf));
 
 describe("the exporter internals", () => {
+  const sqlModule = useSqlModule();
   let exporter: Exporter;
-
-  beforeAll(async () => {
-    sqlModule = await initSqlJs({ locateFile });
-  });
 
   beforeEach(() => {
     vi.useFakeTimers({ now, toFake: ["Date"] });
     exporter = new Exporter("testDeckName", {
       template,
-      sql: sqlModule,
+      sql: sqlModule(),
     });
   });
 
@@ -275,16 +267,14 @@ describe("the exporter internals", () => {
 });
 
 describe("the injected clock", () => {
-  beforeAll(async () => {
-    sqlModule = await initSqlJs({ locateFile });
-  });
+  const sqlModule = useSqlModule();
 
   /* No fake timers here on purpose: these assert that nothing in the exporter
      reads the clock once `now` is given, which a frozen `Date` would hide. */
   const buildAt = (injected: number): Exporter =>
     new Exporter("testDeckName", {
       template: createTemplate(undefined, injected),
-      sql: sqlModule,
+      sql: sqlModule(),
       now: injected,
     });
 
@@ -320,16 +310,13 @@ describe("the injected clock", () => {
 });
 
 describe("reading the collection row", () => {
+  const sqlModule = useSqlModule();
   let exporter: Exporter;
-
-  beforeAll(async () => {
-    sqlModule = await initSqlJs({ locateFile });
-  });
 
   beforeEach(() => {
     exporter = new Exporter("testDeckName", {
       template: createTemplate(undefined, now),
-      sql: sqlModule,
+      sql: sqlModule(),
       now,
     });
   });
@@ -360,17 +347,32 @@ describe("reading the collection row", () => {
   });
 });
 
-describe("closing an exporter", () => {
-  let exporter: Exporter;
+describe("a template missing its placeholders", () => {
+  const sqlModule = useSqlModule();
 
-  beforeAll(async () => {
-    sqlModule = await initSqlJs({ locateFile });
+  it("refuses to build rather than writing undefined into the deck", () => {
+    expect.hasAssertions();
+
+    /* The constructor re-keys the seeded deck and note model under this
+       export's own ids, so a template that seeds none leaves it nothing to
+       rename. Appending the UPDATE is how the collection reaches that state:
+       the constructor runs the whole script before it reads anything back. */
+    const emptied = `${createTemplate(undefined, now)}\nUPDATE col SET decks='{}';`;
+
+    expect(
+      () => new Exporter("testDeckName", { template: emptied, sql: sqlModule(), now }),
+    ).toThrow("Cannot take the last item of an empty collection map");
   });
+});
+
+describe("closing an exporter", () => {
+  const sqlModule = useSqlModule();
+  let exporter: Exporter;
 
   beforeEach(() => {
     exporter = new Exporter("testDeckName", {
       template: createTemplate(undefined, now),
-      sql: sqlModule,
+      sql: sqlModule(),
       now,
     });
   });
@@ -428,15 +430,13 @@ describe("closing an exporter", () => {
 });
 
 describe("note guids", () => {
-  beforeAll(async () => {
-    sqlModule = await initSqlJs({ locateFile });
-  });
+  const sqlModule = useSqlModule();
 
   /** The guid of one card, exported alone into a deck built at `injected`. */
   const guidOf = (deckName: string, card: readonly [string, string], injected: number): string => {
     const exporter = new Exporter(deckName, {
       template: createTemplate(undefined, injected),
-      sql: sqlModule,
+      sql: sqlModule(),
       now: injected,
     });
     exporter.addCard(...card);

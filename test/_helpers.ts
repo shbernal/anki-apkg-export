@@ -2,12 +2,51 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { unzipSync } from "fflate";
-import type { Database, SqlValue } from "sql.js";
+import initSqlJs, { type Database, type SqlJsStatic, type SqlValue } from "sql.js";
+import { beforeAll } from "vitest";
 
 interface Card {
   front: string;
   back: string;
 }
+
+/**
+ * The WASM straight out of the local install. Tests that build an `Exporter`
+ * by hand supply their own sql.js, so they deliberately do not go through
+ * `src/index.ts`'s `import.meta.resolve` lookup — that is the entry point's
+ * job, and `test/index.test.ts` is what exercises it.
+ */
+const locateFile = (file: string): string =>
+  path.join(import.meta.dirname, "../node_modules/sql.js/dist", file);
+
+let sqlModulePromise: Promise<SqlJsStatic> | null = null;
+
+/** Initialize sql.js once per test process; the WASM compile is the slow part. */
+export const loadSqlModule = (): Promise<SqlJsStatic> => {
+  sqlModulePromise ??= initSqlJs({ locateFile });
+  return sqlModulePromise;
+};
+
+/**
+ * Register the load for the enclosing `describe` and return a getter for it.
+ * A `beforeAll` is how the await happens, and the getter is what keeps the
+ * module non-optional at every use site.
+ */
+export const useSqlModule = (): (() => SqlJsStatic) => {
+  let sql: SqlJsStatic | undefined;
+
+  beforeAll(async () => {
+    sql = await loadSqlModule();
+  });
+
+  return () => {
+    if (sql === undefined) {
+      throw new Error("sql.js is not loaded: useSqlModule() must be called inside a describe");
+    }
+
+    return sql;
+  };
+};
 
 /**
  * Run a query against a live collection and return its rows as objects.
