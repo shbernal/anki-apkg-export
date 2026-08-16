@@ -138,6 +138,22 @@
       }
     },
     {
+      // `examples/server/server.js` is plain JavaScript that imports the built
+      // `dist/`, so it is in no TypeScript program: `allowJs` is off and a
+      // gitignored build output cannot be a typecheck input. Its `fs`/`path`/
+      // `url` imports therefore resolve to `error`, and every use of them trips
+      // a `no-unsafe-*` rule reporting a fact about the missing program rather
+      // than about the code. Every other rule still applies to the example.
+      "files": ["examples/**"],
+      "rules": {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off"
+      }
+    },
+    {
       // `describe`/`it` callbacks are declarative blocks, not functions with
       // logic, so a suite's length and statement count track how many cases it
       // covers. Splitting a cohesive suite to fit a budget, or dropping the

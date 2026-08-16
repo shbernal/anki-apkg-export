@@ -32,6 +32,13 @@ Before anything release-shaped, also:
 npm pack --dry-run --ignore-scripts
 ```
 
+`typecheck` runs against `tsconfig.json`, whose `include` covers `src/`, `test/`
+**and `vitest.config.ts`**. The config file is in there because a config outside
+the gate is a config whose options nobody checks — `vitest.config.ts` carried a
+`threads` key removed back in Vitest 1, silently ignored for the package's whole
+history. `tsconfig.build.json` narrows `include` back to `src/**/*`, so none of
+this reaches `dist/`.
+
 `pnpm run fixture:regen` rebuilds `test/fixtures/output.apkg` by rerunning the
 golden test with `UPDATE_FIXTURE` set. It is not a standalone script on purpose:
 one would need `dist/`, inverting the gate order above, and would duplicate the
@@ -103,9 +110,18 @@ is:
 | Wrong for this package              | `import/no-nodejs-modules` in a Node library; `import/no-named-export` against a published named surface; `new-cap` against the `AnkiExport` factory                                    |
 | Pointed at the project's convention | `one-var: never`; `no-magic-numbers` ignoring `-1/0/1`; `prefer-readonly-parameter-types` with `treatMethodsAsReadonly` and an `allow` list                                             |
 
-`overrides` scopes two exemptions: `no-magic-numbers` off for `src/template.ts`,
-whose numbers are Anki's own schema values, and the length and statement budgets
-plus `vitest/no-hooks` and `init-declarations` off for `test/**`.
+`overrides` scopes three exemptions: `no-magic-numbers` off for
+`src/template.ts`, whose numbers are Anki's own schema values; the length and
+statement budgets plus `vitest/no-hooks` and `init-declarations` off for
+`test/**`; and the five `no-unsafe-*` rules off for `examples/**`.
+
+That last one is a fifth kind of reason — **the rule has no program to reason
+about**. `examples/server/server.js` is plain JavaScript importing the built
+`dist/`, so it is in no TypeScript program: `allowJs` is off, and a gitignored
+build output cannot be a typecheck input. Its `fs`/`path`/`url` imports resolve
+to `error`, and the `no-unsafe-*` rules then report on the absent program rather
+than on the code. Excluding `examples/` in `tsconfig.json` does not silence
+them; the exemption has to live in `.oxlintrc.json`.
 
 A handful of sites carry `oxlint-disable-next-line` with a reason above it, all
 at genuine boundaries: sql.js rows and `JSON.parse` results that only the caller
