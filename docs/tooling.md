@@ -104,3 +104,19 @@ Converging them would rewrite nearly every line and bury real history in
 - Keep `minimumReleaseAgeStrict: true` in `pnpm-workspace.yaml`.
 - Refresh the four `anki-md-pkgs` packages coherently rather than one in
   isolation.
+
+The runtime dependencies are `sql.js` and `fflate`, and both are load-bearing.
+`fflate` writes the ZIP container that an `.apkg` is; Node ships deflate in
+`node:zlib` but no archive writer. `sql.js` builds the collection in memory and
+hands the bytes back through `db.export()`, which `node:sqlite` cannot match
+until `DatabaseSync.prototype.serialize()` — added in Node 26.1.0. Dropping
+`sql.js` therefore means `engines.node: ">=26.1"`, a breaking change to
+`Exporter`'s `sql` parameter, and a fixture regen, because a different SQLite
+build writes different `collection.anki2` bytes for the same deck. That is a
+major-version task for after Node 26 reaches LTS, not a cleanup.
+
+Tests read decks back with `node:sqlite` rather than the `sqlite3` package, so
+the assertions see the deck through a different SQLite than the one that wrote
+it. It is also why nothing here needs a native build step. `node:sqlite` returns
+null-prototype rows, which `toStrictEqual` treats as a different type from an
+object literal — `test/anki-apkg-export.test.ts` clones them before asserting.

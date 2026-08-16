@@ -1,19 +1,13 @@
 import { promises as fsp } from "fs";
+import { DatabaseSync } from "node:sqlite";
 import os from "os";
 import path from "path";
-import { promisify } from "util";
 
-import sqlite3 from "sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AnkiExport from "../src/index.js";
 import { buildFixtureDeck, FIXTURE_NOW } from "./_fixture-deck.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
-
-interface SqliteDb {
-  all: (query: string, callback: (error: Error | null, rows: readonly unknown[]) => void) => void;
-  close: (callback: (error: Error | null) => void) => void;
-}
 
 const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
 const dest = path.join(tmpDir, "result.apkg");
@@ -21,31 +15,27 @@ const destUnpacked = path.join(tmpDir, "unpacked_result");
 const destUnpackedDb = path.join(destUnpacked, "collection.anki2");
 const fixturePath = path.join(import.meta.dirname, "fixtures/output.apkg");
 const SEPARATOR = "\u001F";
-type SqliteDatabaseConstructor = new (
-  filename: string,
-  mode?: number,
-  callback?: (err?: Error | null) => void,
-) => SqliteDb;
-const SQLiteDatabase: SqliteDatabaseConstructor = sqlite3.Database;
-
-const queryAll = async (
-  db: Readonly<SqliteDb>,
-  query: string,
-): Promise<Record<string, string>[]> => {
-  const rows = await promisify<string, readonly unknown[]>(db.all.bind(db))(query);
-
-  /* The column list is written in the query, so only the caller knows the shape. */
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return rows as Record<string, string>[];
-};
 
 /**
- * Closing happens on the libuv threadpool, and sqlite3's completion callback
- * throws through N-API. Left unawaited, that callback can land after vitest has
- * torn the worker down, aborting the process with a fatal napi_throw.
+ * Reads back a deck the exporter just wrote, through a SQLite build other than
+ * the one that produced it.
+ *
+ * `node:sqlite` returns null-prototype rows, and `toStrictEqual` counts those as
+ * a different type from an object literal, so the rows are cloned into ordinary
+ * objects before they reach an assertion.
  */
-const closeDb = async (db: Readonly<SqliteDb>): Promise<void> => {
-  await promisify(db.close.bind(db))();
+const readRows = (dbPath: string, query: string): Record<string, string>[] => {
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+
+  try {
+    /* The column list is written in the query, so only the caller knows the shape. */
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const rows = db.prepare(query).all() as Record<string, string>[];
+
+    return structuredClone(rows);
+  } finally {
+    db.close();
+  }
 };
 
 /**
@@ -102,15 +92,13 @@ describe("anki-apkg-export", () => {
     await fsp.writeFile(dest, zip);
 
     await unzipDeckToDir(dest, destUnpacked);
-    const db = new SQLiteDatabase(destUnpackedDb);
-    const result = await queryAll(
-      db,
+    const result = readRows(
+      destUnpackedDb,
       `SELECT
         notes.flds as fields,
         notes.sfld as sortField
         from cards JOIN notes where cards.nid = notes.id ORDER BY cards.id`,
     );
-    await closeDb(db);
 
     /* Both sides of a note live in `flds`; `sfld` is a stripped copy of the
        first one, so the round trip has to be read out of `flds`. */
@@ -152,16 +140,14 @@ describe("anki-apkg-export", () => {
     await fsp.writeFile(decFile, zip);
 
     await unzipDeckToDir(decFile, unzippedDeck);
-    const db = new SQLiteDatabase(`${unzippedDeck}/collection.anki2`);
-    const results = await queryAll(
-      db,
+    const results = readRows(
+      `${unzippedDeck}/collection.anki2`,
       `SELECT
         notes.sfld as front,
         notes.flds as back,
         notes.tags as tags
         from cards JOIN notes where cards.nid = notes.id ORDER BY front`,
     );
-    await closeDb(db);
 
     expect(results).toStrictEqual([
       {
