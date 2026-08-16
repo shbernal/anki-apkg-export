@@ -24,8 +24,12 @@ const FIELD_SEPARATOR = "\u001F";
 const CHECKSUM_HEX_DIGITS = 8;
 const CHECKSUM_RADIX = 16;
 
-/** New cards are queued at this position, matching Anki's own default export. */
-const INITIAL_DUE_POSITION = 179;
+/**
+ * Anki hands the first new card position 1 and counts up from there. The
+ * template seeds `col.conf.nextPos` with the same value, and `save` writes the
+ * counter back to it so the two never disagree.
+ */
+const FIRST_NEW_CARD_POSITION = 1;
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -46,6 +50,9 @@ export default class Exporter {
   public readonly separator: string = FIELD_SEPARATOR;
   public readonly deckName: string;
   private readonly createdAt: Date;
+
+  /** The queue position the next new card takes; see `FIRST_NEW_CARD_POSITION`. */
+  private nextPosition: number = FIRST_NEW_CARD_POSITION;
 
   constructor(deckName: string, { template, sql }: Readonly<ExporterOptions>) {
     this.createdAt = new Date(Date.now());
@@ -92,6 +99,21 @@ export default class Exporter {
     });
   }
 
+  /**
+   * Record where the new-card queue has got to. `nextPos` is what Anki reads to
+   * place the next card a user adds, so leaving it at its seeded value would
+   * hand that card a position this deck has already used.
+   */
+  private _storeNextPosition(): void {
+    /* `conf` is a JSON text column, so its decoded shape is only known here. */
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const conf = this._getInitialRowValue("col", "conf") as Record<string, unknown>;
+    conf.nextPos = this.nextPosition;
+    this._update("update col set conf=:conf where id=1", {
+      ":conf": JSON.stringify(conf),
+    });
+  }
+
   /*
    * Zipping is synchronous, but `save` stays async so callers keep awaiting it.
    * `options` is fflate's own bag, forwarded to `zipSync` untouched; its nested
@@ -99,6 +121,7 @@ export default class Exporter {
    */
   // oxlint-disable-next-line typescript/require-await, typescript/prefer-readonly-parameter-types
   async save(options: Readonly<ZipOptions> = {}): Promise<Buffer> {
+    this._storeNextPosition();
     const binaryArray = this.db.export();
     const mediaMap = Object.fromEntries(
       this.media.map((item: Readonly<MediaItem>, idx) => [idx, item.filename]),
@@ -144,6 +167,7 @@ export default class Exporter {
 
     this._insertNote({ back, front, guid: noteGuid, id: noteId, now, tags: normalizedTags });
     this._insertCard(noteId, now);
+    this.nextPosition += 1;
   }
 
   private _insertNote({ back, front, guid, id, now, tags }: Readonly<NoteRow>): void {
@@ -187,7 +211,15 @@ export default class Exporter {
         ":usn": -1,
         ":type": 0,
         ":queue": 0,
-        ":due": INITIAL_DUE_POSITION,
+        /*
+         * For a new card `due` is its position in the new-card queue, so each
+         * one gets the next free slot instead of all of them sharing a single
+         * hardcoded number. This reading only holds because every card written
+         * here is new (`type` and `queue` both 0) — for a review card `due` is
+         * a day counted from `col.crt`, and for a learning card it is a
+         * timestamp.
+         */
+        ":due": this.nextPosition,
         ":ivl": 0,
         ":factor": 0,
         ":reps": 0,

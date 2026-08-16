@@ -40,6 +40,15 @@ const DUPLICATE_ADDS = 2;
 /** Enough repetition that deflate beats stored, so `level: 0` is observable. */
 const PADDING = 500;
 
+/** Fronts for the queue-position test; only how many there are matters. */
+const QUEUED_CARDS = ["front 1", "front 2", "front 3"];
+
+/** Decode the collection's `conf` JSON column straight out of the live db. */
+const readCollectionConf = (target: Readonly<Exporter>): unknown => {
+  const [result] = target.db.exec("select conf from col");
+  return JSON.parse(String(result?.values[0]?.[0]));
+};
+
 /**
  * `_update` is protected, so spying on it needs one cast at this boundary
  * rather than at every call site.
@@ -166,6 +175,33 @@ describe("the exporter internals", () => {
 
     expect(notesCall?.[1][":id"]).toBe(now);
     expect(cardsCall?.[1][":id"]).toBe(now);
+  });
+
+  it("gives each new card the next position in the queue", async () => {
+    expect.hasAssertions();
+    const exporterUpdateSpy = spyOnUpdate(exporter);
+
+    QUEUED_CARDS.forEach((front: string) => {
+      exporter.addCard(front, "back");
+    });
+
+    const positions = exporterUpdateSpy.mock.calls
+      .filter(([query]: readonly [string, unknown]) => query.includes("into cards"))
+      .map(
+        ([, values]: readonly [string, Readonly<Record<string, string | number>>]) =>
+          values[":due"],
+      );
+
+    /* Anki counts new cards up from 1, rather than giving every card the same
+       hardcoded position. */
+    expect(positions).toStrictEqual(QUEUED_CARDS.map((_front: string, index: number) => index + 1));
+
+    /* `nextPos` has to end past the last position handed out, or the next card
+       a user adds in Anki lands on top of one of these. */
+    exporterUpdateSpy.mockRestore();
+    await exporter.save();
+
+    expect(readCollectionConf(exporter)).toMatchObject({ nextPos: QUEUED_CARDS.length + 1 });
   });
 
   it("joins a tag array into Anki's space-delimited form", () => {
