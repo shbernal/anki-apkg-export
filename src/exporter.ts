@@ -67,6 +67,19 @@ export default class Exporter {
   /** The queue position the next new card takes; see `FIRST_NEW_CARD_POSITION`. */
   private nextPosition: number = FIRST_NEW_CARD_POSITION;
 
+  /**
+   * Every note id handed out so far, keyed by guid — the index schema 11 does
+   * not have. `notes.guid` is unindexed in Anki's own schema, so asking sqlite
+   * whether a guid is already present is a full table scan, and doing it once
+   * per card made `addCard` quadratic in deck size. Adding the index instead
+   * would change the emitted bytes and diverge from the schema Anki writes.
+   *
+   * The map is exactly equivalent to that query because this class is the only
+   * writer of `notes` — the template seeds none — and every insert goes through
+   * `_getNoteId` below.
+   */
+  private readonly noteIdsByGuid = new Map<string, number>();
+
   constructor(deckName: string, { template, sql, now = Date.now() }: Readonly<ExporterOptions>) {
     this.now = now;
 
@@ -370,13 +383,15 @@ export default class Exporter {
 
   /** Reuse a duplicate note's id so it is updated in place rather than added. */
   private _getNoteId(guid: string, ts: number): number {
-    const existing = this._getHighestValue(
-      `SELECT id from notes WHERE guid = :guid ORDER BY id DESC LIMIT 1`,
-      "id",
-      { ":guid": guid },
-    );
+    const existing = this.noteIdsByGuid.get(guid);
+    if (existing !== undefined) {
+      return existing;
+    }
 
-    return existing ?? this._getId("notes", "id", ts);
+    const id = this._getId("notes", "id", ts);
+    this.noteIdsByGuid.set(guid, id);
+
+    return id;
   }
 
   /**
