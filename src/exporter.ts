@@ -55,14 +55,21 @@ export default class Exporter {
   private nextPosition: number = FIRST_NEW_CARD_POSITION;
 
   constructor(deckName: string, { template, sql }: Readonly<ExporterOptions>) {
-    this.createdAt = new Date(Date.now());
+    /*
+     * One clock reading serves both the archive timestamp and the id seeds.
+     * Two readings can straddle a millisecond, which would give a deck built
+     * from identical input a different creation date than its own ids — and
+     * this package promises byte-identical archives for identical input.
+     */
+    const now = Date.now();
+    this.createdAt = new Date(now);
+
     const db = new sql.Database();
     db.run(template);
 
     this.db = db;
     this.deckName = deckName;
 
-    const now = Date.now();
     this.topDeckId = this._getId("cards", "did", now);
     this.topModelId = this._getId("notes", "mid", now);
 
