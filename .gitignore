@@ -1,5 +1,9 @@
 /node_modules/
 /dist/
+# Superseded by tools/oracle, which uv runs without a checked-out venv. Ignored
+# so an existing local .oracle/ from before that stays out of the way.
+/.oracle/
+__pycache__/
 *.log
 play.js
 coverage/

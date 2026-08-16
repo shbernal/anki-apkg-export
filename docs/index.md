@@ -74,7 +74,9 @@ pnpm test
 That includes the golden test, which builds a three-card deck with one media
 file under a pinned clock and asserts byte equality against
 `test/fixtures/output.apkg`. Any intended change to the emitted deck means
-regenerating it with `pnpm run fixture:regen` in the same commit.
+regenerating it with `pnpm run fixture:regen` in the same commit, and is worth
+following with `pnpm run oracle:check`, which imports the result into a real
+Anki collection. See [the oracle](../tools/oracle/README.md).
 
 The full gate sequence before anything release-shaped is in
 [tooling](tooling.md).

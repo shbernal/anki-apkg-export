@@ -13,6 +13,7 @@ coding.
 | Changing the public API           | `docs/reference/index.md`       |
 | Lint, format, gates, dependencies | `docs/tooling.md`               |
 | Something imports or builds wrong | `docs/troubleshooting.md`       |
+| Checking against the real Anki    | `tools/oracle/README.md`        |
 
 Update the matching page when behavior changes.
 

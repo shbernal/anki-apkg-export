@@ -1,0 +1,57 @@
+name: Oracle drift
+
+# Anki is the reference implementation `src/text.ts` reimplements and the
+# consumer `src/exporter.ts` writes for. Nothing in the pull-request gates
+# notices when it changes, because they only run JavaScript. This does: monthly,
+# against whatever `anki` is current rather than the pin in tools/oracle, so a
+# change to the HTML stripper or to what the importer accepts shows up here as a
+# failing run instead of as a bug report months later.
+#
+# A failure is a report, not a regression to revert. Read the fixture diff, then
+# decide whether this package should follow Anki.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC on the 1st
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Check fixtures against current Anki
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      # Deliberately unpinned, and deliberately not `uv run`: running the
+      # scripts through this interpreter bypasses their inline pin so they see
+      # the latest release.
+      - name: Install the latest Anki
+        run: |
+          uv venv .oracle-ci
+          uv pip install --python .oracle-ci anki
+          .oracle-ci/bin/python -c "import importlib.metadata as m; print('anki', m.version('anki'))"
+
+      - name: Check the stripped-field fixture
+        run: .oracle-ci/bin/python tools/oracle/gen_stripped_fields.py --check
+
+      - name: Show what changed
+        if: failure()
+        run: |
+          .oracle-ci/bin/python tools/oracle/gen_stripped_fields.py
+          git --no-pager diff -- test/fixtures/anki-stripped-fields.json
+
+      - name: Check the generated deck still imports
+        if: always()
+        run: .oracle-ci/bin/python tools/oracle/check_apkg.py

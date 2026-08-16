@@ -1,1577 +1,1581 @@
-[
- {
-  "input": "test",
-  "sfld": "test",
-  "csum": 2840236005
- },
- {
-  "input": "今日",
-  "sfld": "今日",
-  "csum": 1464653051
- },
- {
-  "input": "",
-  "sfld": "",
-  "csum": 3661210606
- },
- {
-  "input": "   ",
-  "sfld": "   ",
-  "csum": 143634852
- },
- {
-  "input": "plain text here",
-  "sfld": "plain text here",
-  "csum": 115706181
- },
- {
-  "input": "<img src=\"probe.txt\" />",
-  "sfld": " probe.txt ",
-  "csum": 1461045396
- },
- {
-  "input": "with media <img src=\"probe.txt\" />",
-  "sfld": "with media  probe.txt ",
-  "csum": 2235492794
- },
- {
-  "input": "<img src='foo.jpg'><html>",
-  "sfld": " foo.jpg ",
-  "csum": 861030276
- },
- {
-  "input": "<img src=foo.jpg>",
-  "sfld": " foo.jpg ",
-  "csum": 861030276
- },
- {
-  "input": "<img src=foo.jpg >",
-  "sfld": " foo.jpg ",
-  "csum": 861030276
- },
- {
-  "input": "<img src=\"a.png\"><img src=\"b.png\">",
-  "sfld": " a.png  b.png ",
-  "csum": 13360382
- },
- {
-  "input": "<audio src=\"s.mp3\"></audio>",
-  "sfld": " s.mp3 ",
-  "csum": 1291140021
- },
- {
-  "input": "<object data=\"o.swf\">",
-  "sfld": " o.swf ",
-  "csum": 3231323113
- },
- {
-  "input": "<source src=\"v.webm\">",
-  "sfld": " v.webm ",
-  "csum": 940888973
- },
- {
-  "input": "<img alt=\"x\" src=\"c.png\" title=\"y\">",
-  "sfld": " c.png ",
-  "csum": 1443773589
- },
- {
-  "input": "<img src=\"sp ace.png\">",
-  "sfld": " sp ace.png ",
-  "csum": 3252014043
- },
- {
-  "input": "[sound:x.mp3]",
-  "sfld": "[sound:x.mp3]",
-  "csum": 1833942928
- },
- {
-  "input": "before [sound:x.mp3] after",
-  "sfld": "before [sound:x.mp3] after",
-  "csum": 2898778876
- },
- {
-  "input": "&amp;",
-  "sfld": "&",
-  "csum": 2085434232
- },
- {
-  "input": "&nbsp;",
-  "sfld": " ",
-  "csum": 3092826920
- },
- {
-  "input": "&lt;b&gt;",
-  "sfld": "<b>",
-  "csum": 3574796752
- },
- {
-  "input": "&#65;",
-  "sfld": "A",
-  "csum": 1842171106
- },
- {
-  "input": "&#x41;",
-  "sfld": "A",
-  "csum": 1842171106
- },
- {
-  "input": "a & b",
-  "sfld": "a & b",
-  "csum": 2463288064
- },
- {
-  "input": "&amp; & foo",
-  "sfld": "&amp; & foo",
-  "csum": 3155184501
- },
- {
-  "input": "&notarealentity;",
-  "sfld": "&notarealentity;",
-  "csum": 2734415031
- },
- {
-  "input": "Tom &amp; Jerry",
-  "sfld": "Tom & Jerry",
-  "csum": 495331847
- },
- {
-  "input": "&amp;amp;",
-  "sfld": "&amp;",
-  "csum": 1425446817
- },
- {
-  "input": "<!-- comment -->",
-  "sfld": "",
-  "csum": 3661210606
- },
- {
-  "input": "a<!-- c -->b",
-  "sfld": "ab",
-  "csum": 3659751758
- },
- {
-  "input": "so<SCRIPT>t<b>e</b>st</script>me",
-  "sfld": "some",
-  "csum": 3951515666
- },
- {
-  "input": "<style>p{color:red}</style>text",
-  "sfld": "text",
-  "csum": 925802636
- },
- {
-  "input": "t<b>e</b>st",
-  "sfld": "test",
-  "csum": 2840236005
- },
- {
-  "input": "<b>a<i>b</i></b>",
-  "sfld": "ab",
-  "csum": 3659751758
- },
- {
-  "input": "<div>one</div><div>two</div>",
-  "sfld": "onetwo",
-  "csum": 816748361
- },
- {
-  "input": "line<br>break",
-  "sfld": "linebreak",
-  "csum": 2679526681
- },
- {
-  "input": "<html>",
-  "sfld": "",
-  "csum": 3661210606
- },
- {
-  "input": "a\nb",
-  "sfld": "a\nb",
-  "csum": 4241565695
- },
- {
-  "input": "  leading and trailing  ",
-  "sfld": "  leading and trailing  ",
-  "csum": 2560520660
- },
- {
-  "input": "q &amp; a <img src=\"z.png\"> [sound:s.mp3]",
-  "sfld": "q & a  z.png  [sound:s.mp3]",
-  "csum": 2586372751
- },
- {
-  "input": "&AElig;",
-  "sfld": "Æ",
-  "csum": 700564137
- },
- {
-  "input": "&Aacute;",
-  "sfld": "Á",
-  "csum": 2019605313
- },
- {
-  "input": "&Acirc;",
-  "sfld": "Â",
-  "csum": 698322572
- },
- {
-  "input": "&Agrave;",
-  "sfld": "À",
-  "csum": 276008847
- },
- {
-  "input": "&Alpha;",
-  "sfld": "Α",
-  "csum": 1458508037
- },
- {
-  "input": "&Aring;",
-  "sfld": "Å",
-  "csum": 3354325275
- },
- {
-  "input": "&Atilde;",
-  "sfld": "Ã",
-  "csum": 147985466
- },
- {
-  "input": "&Auml;",
-  "sfld": "Ä",
-  "csum": 3083515005
- },
- {
-  "input": "&Beta;",
-  "sfld": "Β",
-  "csum": 3501303811
- },
- {
-  "input": "&Ccedil;",
-  "sfld": "Ç",
-  "csum": 495348575
- },
- {
-  "input": "&Chi;",
-  "sfld": "Χ",
-  "csum": 2358287459
- },
- {
-  "input": "&Dagger;",
-  "sfld": "‡",
-  "csum": 2541550247
- },
- {
-  "input": "&Delta;",
-  "sfld": "Δ",
-  "csum": 2233358746
- },
- {
-  "input": "&ETH;",
-  "sfld": "Ð",
-  "csum": 1230127835
- },
- {
-  "input": "&Eacute;",
-  "sfld": "É",
-  "csum": 240090759
- },
- {
-  "input": "&Ecirc;",
-  "sfld": "Ê",
-  "csum": 4098055733
- },
- {
-  "input": "&Egrave;",
-  "sfld": "È",
-  "csum": 4129352412
- },
- {
-  "input": "&Epsilon;",
-  "sfld": "Ε",
-  "csum": 57607575
- },
- {
-  "input": "&Eta;",
-  "sfld": "Η",
-  "csum": 1610254002
- },
- {
-  "input": "&Euml;",
-  "sfld": "Ë",
-  "csum": 787304945
- },
- {
-  "input": "&Gamma;",
-  "sfld": "Γ",
-  "csum": 2979509307
- },
- {
-  "input": "&Iacute;",
-  "sfld": "Í",
-  "csum": 1448022710
- },
- {
-  "input": "&Icirc;",
-  "sfld": "Î",
-  "csum": 2601752060
- },
- {
-  "input": "&Igrave;",
-  "sfld": "Ì",
-  "csum": 4018446574
- },
- {
-  "input": "&Iota;",
-  "sfld": "Ι",
-  "csum": 2835155021
- },
- {
-  "input": "&Iuml;",
-  "sfld": "Ï",
-  "csum": 2289676420
- },
- {
-  "input": "&Kappa;",
-  "sfld": "Κ",
-  "csum": 1373749053
- },
- {
-  "input": "&Lambda;",
-  "sfld": "Λ",
-  "csum": 1272153470
- },
- {
-  "input": "&Mu;",
-  "sfld": "Μ",
-  "csum": 364360504
- },
- {
-  "input": "&Ntilde;",
-  "sfld": "Ñ",
-  "csum": 2111192455
- },
- {
-  "input": "&Nu;",
-  "sfld": "Ν",
-  "csum": 1290468601
- },
- {
-  "input": "&OElig;",
-  "sfld": "Œ",
-  "csum": 2058930249
- },
- {
-  "input": "&Oacute;",
-  "sfld": "Ó",
-  "csum": 4251343444
- },
- {
-  "input": "&Ocirc;",
-  "sfld": "Ô",
-  "csum": 1113043652
- },
- {
-  "input": "&Ograve;",
-  "sfld": "Ò",
-  "csum": 3136185950
- },
- {
-  "input": "&Omega;",
-  "sfld": "Ω",
-  "csum": 3240605034
- },
- {
-  "input": "&Omicron;",
-  "sfld": "Ο",
-  "csum": 2338780551
- },
- {
-  "input": "&Oslash;",
-  "sfld": "Ø",
-  "csum": 1284872516
- },
- {
-  "input": "&Otilde;",
-  "sfld": "Õ",
-  "csum": 1145625150
- },
- {
-  "input": "&Ouml;",
-  "sfld": "Ö",
-  "csum": 4116483796
- },
- {
-  "input": "&Phi;",
-  "sfld": "Φ",
-  "csum": 1274551636
- },
- {
-  "input": "&Pi;",
-  "sfld": "Π",
-  "csum": 100705557
- },
- {
-  "input": "&Prime;",
-  "sfld": "″",
-  "csum": 2525433053
- },
- {
-  "input": "&Psi;",
-  "sfld": "Ψ",
-  "csum": 3635818792
- },
- {
-  "input": "&Rho;",
-  "sfld": "Ρ",
-  "csum": 2354733118
- },
- {
-  "input": "&Scaron;",
-  "sfld": "Š",
-  "csum": 3544887464
- },
- {
-  "input": "&Sigma;",
-  "sfld": "Σ",
-  "csum": 3434741451
- },
- {
-  "input": "&THORN;",
-  "sfld": "Þ",
-  "csum": 2285214003
- },
- {
-  "input": "&Tau;",
-  "sfld": "Τ",
-  "csum": 1303373245
- },
- {
-  "input": "&Theta;",
-  "sfld": "Θ",
-  "csum": 3540282943
- },
- {
-  "input": "&Uacute;",
-  "sfld": "Ú",
-  "csum": 3191816730
- },
- {
-  "input": "&Ucirc;",
-  "sfld": "Û",
-  "csum": 1353453623
- },
- {
-  "input": "&Ugrave;",
-  "sfld": "Ù",
-  "csum": 2073873008
- },
- {
-  "input": "&Upsilon;",
-  "sfld": "Υ",
-  "csum": 3162630940
- },
- {
-  "input": "&Uuml;",
-  "sfld": "Ü",
-  "csum": 1297608896
- },
- {
-  "input": "&Xi;",
-  "sfld": "Ξ",
-  "csum": 1753407280
- },
- {
-  "input": "&Yacute;",
-  "sfld": "Ý",
-  "csum": 2709633126
- },
- {
-  "input": "&Yuml;",
-  "sfld": "Ÿ",
-  "csum": 4124622955
- },
- {
-  "input": "&Zeta;",
-  "sfld": "Ζ",
-  "csum": 544256485
- },
- {
-  "input": "&aacute;",
-  "sfld": "á",
-  "csum": 731695320
- },
- {
-  "input": "&acirc;",
-  "sfld": "â",
-  "csum": 438952877
- },
- {
-  "input": "&acute;",
-  "sfld": "´",
-  "csum": 2991792159
- },
- {
-  "input": "&aelig;",
-  "sfld": "æ",
-  "csum": 1252116640
- },
- {
-  "input": "&agrave;",
-  "sfld": "à",
-  "csum": 3276740515
- },
- {
-  "input": "&alefsym;",
-  "sfld": "ℵ",
-  "csum": 2586919516
- },
- {
-  "input": "&alpha;",
-  "sfld": "α",
-  "csum": 1857856342
- },
- {
-  "input": "&and;",
-  "sfld": "∧",
-  "csum": 1815097565
- },
- {
-  "input": "&ang;",
-  "sfld": "∠",
-  "csum": 146565116
- },
- {
-  "input": "&aring;",
-  "sfld": "å",
-  "csum": 3484749270
- },
- {
-  "input": "&asymp;",
-  "sfld": "≈",
-  "csum": 2891876390
- },
- {
-  "input": "&atilde;",
-  "sfld": "ã",
-  "csum": 21674627
- },
- {
-  "input": "&auml;",
-  "sfld": "ä",
-  "csum": 2518655535
- },
- {
-  "input": "&bdquo;",
-  "sfld": "„",
-  "csum": 1988553427
- },
- {
-  "input": "&beta;",
-  "sfld": "β",
-  "csum": 632926920
- },
- {
-  "input": "&brvbar;",
-  "sfld": "¦",
-  "csum": 1986442960
- },
- {
-  "input": "&bull;",
-  "sfld": "•",
-  "csum": 3975620586
- },
- {
-  "input": "&cap;",
-  "sfld": "∩",
-  "csum": 1703629662
- },
- {
-  "input": "&ccedil;",
-  "sfld": "ç",
-  "csum": 4263496019
- },
- {
-  "input": "&cedil;",
-  "sfld": "¸",
-  "csum": 1969558951
- },
- {
-  "input": "&cent;",
-  "sfld": "¢",
-  "csum": 974783909
- },
- {
-  "input": "&chi;",
-  "sfld": "χ",
-  "csum": 3703568747
- },
- {
-  "input": "&circ;",
-  "sfld": "ˆ",
-  "csum": 2256475907
- },
- {
-  "input": "&clubs;",
-  "sfld": "♣",
-  "csum": 111398856
- },
- {
-  "input": "&cong;",
-  "sfld": "≅",
-  "csum": 3976219031
- },
- {
-  "input": "&copy;",
-  "sfld": "©",
-  "csum": 4175087959
- },
- {
-  "input": "&crarr;",
-  "sfld": "↵",
-  "csum": 1753136674
- },
- {
-  "input": "&cup;",
-  "sfld": "∪",
-  "csum": 1595349935
- },
- {
-  "input": "&curren;",
-  "sfld": "¤",
-  "csum": 4264797876
- },
- {
-  "input": "&dArr;",
-  "sfld": "⇓",
-  "csum": 246141856
- },
- {
-  "input": "&dagger;",
-  "sfld": "†",
-  "csum": 1534869323
- },
- {
-  "input": "&darr;",
-  "sfld": "↓",
-  "csum": 4232603286
- },
- {
-  "input": "&deg;",
-  "sfld": "°",
-  "csum": 1439744443
- },
- {
-  "input": "&delta;",
-  "sfld": "δ",
-  "csum": 2855746828
- },
- {
-  "input": "&diams;",
-  "sfld": "♦",
-  "csum": 1202661427
- },
- {
-  "input": "&divide;",
-  "sfld": "÷",
-  "csum": 942633766
- },
- {
-  "input": "&eacute;",
-  "sfld": "é",
-  "csum": 3205873265
- },
- {
-  "input": "&ecirc;",
-  "sfld": "ê",
-  "csum": 572878112
- },
- {
-  "input": "&egrave;",
-  "sfld": "è",
-  "csum": 353789666
- },
- {
-  "input": "&empty;",
-  "sfld": "∅",
-  "csum": 516812114
- },
- {
-  "input": "&emsp;",
-  "sfld": " ",
-  "csum": 3626235937
- },
- {
-  "input": "&ensp;",
-  "sfld": " ",
-  "csum": 2891338363
- },
- {
-  "input": "&epsilon;",
-  "sfld": "ε",
-  "csum": 2992146168
- },
- {
-  "input": "&equiv;",
-  "sfld": "≡",
-  "csum": 3235183798
- },
- {
-  "input": "&eta;",
-  "sfld": "η",
-  "csum": 4030137424
- },
- {
-  "input": "&eth;",
-  "sfld": "ð",
-  "csum": 3907261533
- },
- {
-  "input": "&euml;",
-  "sfld": "ë",
-  "csum": 2261716538
- },
- {
-  "input": "&euro;",
-  "sfld": "€",
-  "csum": 2214364794
- },
- {
-  "input": "&exist;",
-  "sfld": "∃",
-  "csum": 611663774
- },
- {
-  "input": "&fnof;",
-  "sfld": "ƒ",
-  "csum": 4086008223
- },
- {
-  "input": "&forall;",
-  "sfld": "∀",
-  "csum": 1365952480
- },
- {
-  "input": "&frac12;",
-  "sfld": "½",
-  "csum": 3929145986
- },
- {
-  "input": "&frac14;",
-  "sfld": "¼",
-  "csum": 3340577161
- },
- {
-  "input": "&frac34;",
-  "sfld": "¾",
-  "csum": 338259180
- },
- {
-  "input": "&frasl;",
-  "sfld": "⁄",
-  "csum": 1510725778
- },
- {
-  "input": "&gamma;",
-  "sfld": "γ",
-  "csum": 728361299
- },
- {
-  "input": "&ge;",
-  "sfld": "≥",
-  "csum": 3706474269
- },
- {
-  "input": "&gt;",
-  "sfld": ">",
-  "csum": 152274366
- },
- {
-  "input": "&hArr;",
-  "sfld": "⇔",
-  "csum": 2422985462
- },
- {
-  "input": "&harr;",
-  "sfld": "↔",
-  "csum": 1377098153
- },
- {
-  "input": "&hearts;",
-  "sfld": "♥",
-  "csum": 3143892758
- },
- {
-  "input": "&hellip;",
-  "sfld": "…",
-  "csum": 3744558615
- },
- {
-  "input": "&iacute;",
-  "sfld": "í",
-  "csum": 643435235
- },
- {
-  "input": "&icirc;",
-  "sfld": "î",
-  "csum": 3458735671
- },
- {
-  "input": "&iexcl;",
-  "sfld": "¡",
-  "csum": 3102467088
- },
- {
-  "input": "&igrave;",
-  "sfld": "ì",
-  "csum": 4174691875
- },
- {
-  "input": "&image;",
-  "sfld": "ℑ",
-  "csum": 2466342904
- },
- {
-  "input": "&infin;",
-  "sfld": "∞",
-  "csum": 955663653
- },
- {
-  "input": "&int;",
-  "sfld": "∫",
-  "csum": 3992815191
- },
- {
-  "input": "&iota;",
-  "sfld": "ι",
-  "csum": 65924679
- },
- {
-  "input": "&iquest;",
-  "sfld": "¿",
-  "csum": 462985844
- },
- {
-  "input": "&isin;",
-  "sfld": "∈",
-  "csum": 578316990
- },
- {
-  "input": "&iuml;",
-  "sfld": "ï",
-  "csum": 3315900796
- },
- {
-  "input": "&kappa;",
-  "sfld": "κ",
-  "csum": 4100062531
- },
- {
-  "input": "&lArr;",
-  "sfld": "⇐",
-  "csum": 469881336
- },
- {
-  "input": "&lambda;",
-  "sfld": "λ",
-  "csum": 2075247243
- },
- {
-  "input": "&lang;",
-  "sfld": "〈",
-  "csum": 3614624476
- },
- {
-  "input": "&laquo;",
-  "sfld": "«",
-  "csum": 2759779489
- },
- {
-  "input": "&larr;",
-  "sfld": "←",
-  "csum": 2172216380
- },
- {
-  "input": "&lceil;",
-  "sfld": "⌈",
-  "csum": 938878256
- },
- {
-  "input": "&ldquo;",
-  "sfld": "“",
-  "csum": 1420395965
- },
- {
-  "input": "&le;",
-  "sfld": "≤",
-  "csum": 3359794979
- },
- {
-  "input": "&lfloor;",
-  "sfld": "⌊",
-  "csum": 3855912456
- },
- {
-  "input": "&lowast;",
-  "sfld": "∗",
-  "csum": 3076694765
- },
- {
-  "input": "&loz;",
-  "sfld": "◊",
-  "csum": 1840264863
- },
- {
-  "input": "&lrm;",
-  "sfld": "‎",
-  "csum": 3731112058
- },
- {
-  "input": "&lsaquo;",
-  "sfld": "‹",
-  "csum": 231536905
- },
- {
-  "input": "&lsquo;",
-  "sfld": "‘",
-  "csum": 3374284568
- },
- {
-  "input": "&lt;",
-  "sfld": "<",
-  "csum": 3302833292
- },
- {
-  "input": "&macr;",
-  "sfld": "¯",
-  "csum": 1987770414
- },
- {
-  "input": "&mdash;",
-  "sfld": "—",
-  "csum": 462649691
- },
- {
-  "input": "&micro;",
-  "sfld": "µ",
-  "csum": 1007454605
- },
- {
-  "input": "&middot;",
-  "sfld": "·",
-  "csum": 534711696
- },
- {
-  "input": "&minus;",
-  "sfld": "−",
-  "csum": 1783524978
- },
- {
-  "input": "&mu;",
-  "sfld": "μ",
-  "csum": 2877087651
- },
- {
-  "input": "&nabla;",
-  "sfld": "∇",
-  "csum": 4252863564
- },
- {
-  "input": "&ndash;",
-  "sfld": "–",
-  "csum": 239500478
- },
- {
-  "input": "&ne;",
-  "sfld": "≠",
-  "csum": 3131690608
- },
- {
-  "input": "&ni;",
-  "sfld": "∋",
-  "csum": 770888209
- },
- {
-  "input": "&not;",
-  "sfld": "¬",
-  "csum": 4111381341
- },
- {
-  "input": "&notin;",
-  "sfld": "∉",
-  "csum": 1411879439
- },
- {
-  "input": "&nsub;",
-  "sfld": "⊄",
-  "csum": 2783114733
- },
- {
-  "input": "&ntilde;",
-  "sfld": "ñ",
-  "csum": 3377188748
- },
- {
-  "input": "&nu;",
-  "sfld": "ν",
-  "csum": 149101472
- },
- {
-  "input": "&oacute;",
-  "sfld": "ó",
-  "csum": 2796279655
- },
- {
-  "input": "&ocirc;",
-  "sfld": "ô",
-  "csum": 1067625110
- },
- {
-  "input": "&oelig;",
-  "sfld": "œ",
-  "csum": 756665238
- },
- {
-  "input": "&ograve;",
-  "sfld": "ò",
-  "csum": 4187916467
- },
- {
-  "input": "&oline;",
-  "sfld": "‾",
-  "csum": 739872817
- },
- {
-  "input": "&omega;",
-  "sfld": "ω",
-  "csum": 1857423890
- },
- {
-  "input": "&omicron;",
-  "sfld": "ο",
-  "csum": 1173421706
- },
- {
-  "input": "&oplus;",
-  "sfld": "⊕",
-  "csum": 1807263494
- },
- {
-  "input": "&or;",
-  "sfld": "∨",
-  "csum": 1489237326
- },
- {
-  "input": "&ordf;",
-  "sfld": "ª",
-  "csum": 944152206
- },
- {
-  "input": "&ordm;",
-  "sfld": "º",
-  "csum": 1753958526
- },
- {
-  "input": "&oslash;",
-  "sfld": "ø",
-  "csum": 2417087881
- },
- {
-  "input": "&otilde;",
-  "sfld": "õ",
-  "csum": 3754690382
- },
- {
-  "input": "&otimes;",
-  "sfld": "⊗",
-  "csum": 4045469259
- },
- {
-  "input": "&ouml;",
-  "sfld": "ö",
-  "csum": 3437690740
- },
- {
-  "input": "&para;",
-  "sfld": "¶",
-  "csum": 2746822040
- },
- {
-  "input": "&part;",
-  "sfld": "∂",
-  "csum": 682924815
- },
- {
-  "input": "&permil;",
-  "sfld": "‰",
-  "csum": 4053686293
- },
- {
-  "input": "&perp;",
-  "sfld": "⊥",
-  "csum": 1304670181
- },
- {
-  "input": "&phi;",
-  "sfld": "φ",
-  "csum": 4163023932
- },
- {
-  "input": "&pi;",
-  "sfld": "π",
-  "csum": 3472980711
- },
- {
-  "input": "&piv;",
-  "sfld": "ϖ",
-  "csum": 3926135094
- },
- {
-  "input": "&plusmn;",
-  "sfld": "±",
-  "csum": 1277196241
- },
- {
-  "input": "&pound;",
-  "sfld": "£",
-  "csum": 201743949
- },
- {
-  "input": "&prime;",
-  "sfld": "′",
-  "csum": 3395783322
- },
- {
-  "input": "&prod;",
-  "sfld": "∏",
-  "csum": 1113788162
- },
- {
-  "input": "&prop;",
-  "sfld": "∝",
-  "csum": 509010292
- },
- {
-  "input": "&psi;",
-  "sfld": "ψ",
-  "csum": 2755218785
- },
- {
-  "input": "&quot;",
-  "sfld": "\"",
-  "csum": 718168769
- },
- {
-  "input": "&rArr;",
-  "sfld": "⇒",
-  "csum": 3714664843
- },
- {
-  "input": "&radic;",
-  "sfld": "√",
-  "csum": 4123764953
- },
- {
-  "input": "&rang;",
-  "sfld": "〉",
-  "csum": 2055173004
- },
- {
-  "input": "&raquo;",
-  "sfld": "»",
-  "csum": 4061152678
- },
- {
-  "input": "&rarr;",
-  "sfld": "→",
-  "csum": 557767973
- },
- {
-  "input": "&rceil;",
-  "sfld": "⌉",
-  "csum": 1780668463
- },
- {
-  "input": "&rdquo;",
-  "sfld": "”",
-  "csum": 156921070
- },
- {
-  "input": "&real;",
-  "sfld": "ℜ",
-  "csum": 2046755567
- },
- {
-  "input": "&reg;",
-  "sfld": "®",
-  "csum": 379399103
- },
- {
-  "input": "&rfloor;",
-  "sfld": "⌋",
-  "csum": 2957390807
- },
- {
-  "input": "&rho;",
-  "sfld": "ρ",
-  "csum": 207250557
- },
- {
-  "input": "&rlm;",
-  "sfld": "‏",
-  "csum": 3623658163
- },
- {
-  "input": "&rsaquo;",
-  "sfld": "›",
-  "csum": 1626127487
- },
- {
-  "input": "&rsquo;",
-  "sfld": "’",
-  "csum": 1067171277
- },
- {
-  "input": "&sbquo;",
-  "sfld": "‚",
-  "csum": 2506706016
- },
- {
-  "input": "&scaron;",
-  "sfld": "š",
-  "csum": 999157363
- },
- {
-  "input": "&sdot;",
-  "sfld": "⋅",
-  "csum": 536715412
- },
- {
-  "input": "&sect;",
-  "sfld": "§",
-  "csum": 3945574980
- },
- {
-  "input": "&shy;",
-  "sfld": "­",
-  "csum": 1803448694
- },
- {
-  "input": "&sigma;",
-  "sfld": "σ",
-  "csum": 898510459
- },
- {
-  "input": "&sigmaf;",
-  "sfld": "ς",
-  "csum": 667007605
- },
- {
-  "input": "&sim;",
-  "sfld": "∼",
-  "csum": 3588763944
- },
- {
-  "input": "&spades;",
-  "sfld": "♠",
-  "csum": 1693256702
- },
- {
-  "input": "&sub;",
-  "sfld": "⊂",
-  "csum": 2419738656
- },
- {
-  "input": "&sube;",
-  "sfld": "⊆",
-  "csum": 292012918
- },
- {
-  "input": "&sum;",
-  "sfld": "∑",
-  "csum": 744765007
- },
- {
-  "input": "&sup;",
-  "sfld": "⊃",
-  "csum": 2843658185
- },
- {
-  "input": "&sup1;",
-  "sfld": "¹",
-  "csum": 2681493441
- },
- {
-  "input": "&sup2;",
-  "sfld": "²",
-  "csum": 3257688891
- },
- {
-  "input": "&sup3;",
-  "sfld": "³",
-  "csum": 403851245
- },
- {
-  "input": "&supe;",
-  "sfld": "⊇",
-  "csum": 283321840
- },
- {
-  "input": "&szlig;",
-  "sfld": "ß",
-  "csum": 11771233
- },
- {
-  "input": "&tau;",
-  "sfld": "τ",
-  "csum": 2392864355
- },
- {
-  "input": "&there4;",
-  "sfld": "∴",
-  "csum": 1124726413
- },
- {
-  "input": "&theta;",
-  "sfld": "θ",
-  "csum": 3617628056
- },
- {
-  "input": "&thetasym;",
-  "sfld": "ϑ",
-  "csum": 2006941592
- },
- {
-  "input": "&thinsp;",
-  "sfld": " ",
-  "csum": 2755224193
- },
- {
-  "input": "&thorn;",
-  "sfld": "þ",
-  "csum": 1477404466
- },
- {
-  "input": "&tilde;",
-  "sfld": "˜",
-  "csum": 1082413115
- },
- {
-  "input": "&times;",
-  "sfld": "×",
-  "csum": 1744544499
- },
- {
-  "input": "&trade;",
-  "sfld": "™",
-  "csum": 1594323416
- },
- {
-  "input": "&uArr;",
-  "sfld": "⇑",
-  "csum": 3852373730
- },
- {
-  "input": "&uacute;",
-  "sfld": "ú",
-  "csum": 1061133598
- },
- {
-  "input": "&uarr;",
-  "sfld": "↑",
-  "csum": 2505441239
- },
- {
-  "input": "&ucirc;",
-  "sfld": "û",
-  "csum": 3594198009
- },
- {
-  "input": "&ugrave;",
-  "sfld": "ù",
-  "csum": 2408239279
- },
- {
-  "input": "&uml;",
-  "sfld": "¨",
-  "csum": 1773968258
- },
- {
-  "input": "&upsih;",
-  "sfld": "ϒ",
-  "csum": 1712994230
- },
- {
-  "input": "&upsilon;",
-  "sfld": "υ",
-  "csum": 1243296660
- },
- {
-  "input": "&uuml;",
-  "sfld": "ü",
-  "csum": 2493995517
- },
- {
-  "input": "&weierp;",
-  "sfld": "℘",
-  "csum": 4287052260
- },
- {
-  "input": "&xi;",
-  "sfld": "ξ",
-  "csum": 571716006
- },
- {
-  "input": "&yacute;",
-  "sfld": "ý",
-  "csum": 687420669
- },
- {
-  "input": "&yen;",
-  "sfld": "¥",
-  "csum": 2419211159
- },
- {
-  "input": "&yuml;",
-  "sfld": "ÿ",
-  "csum": 1930228493
- },
- {
-  "input": "&zeta;",
-  "sfld": "ζ",
-  "csum": 2788483584
- },
- {
-  "input": "&zwj;",
-  "sfld": "‍",
-  "csum": 94277633
- },
- {
-  "input": "&zwnj;",
-  "sfld": "‌",
-  "csum": 3235897656
- },
- {
-  "input": "&#X41;",
-  "sfld": "&#X41;",
-  "csum": 621652861
- },
- {
-  "input": "&#x2E;",
-  "sfld": ".",
-  "csum": 978505336
- },
- {
-  "input": "&#x2e;",
-  "sfld": ".",
-  "csum": 978505336
- },
- {
-  "input": "&#0;",
-  "sfld": "\u0000",
-  "csum": 1537817757
- },
- {
-  "input": "&#xffffff;",
-  "sfld": "&#xffffff;",
-  "csum": 688530308
- },
- {
-  "input": "&#;",
-  "sfld": "&#;",
-  "csum": 58898235
- },
- {
-  "input": "&#",
-  "sfld": "&#",
-  "csum": 2793926443
- },
- {
-  "input": "&#32a;",
-  "sfld": "&#32a;",
-  "csum": 2149909200
- },
- {
-  "input": "&#xfoo;",
-  "sfld": "&#xfoo;",
-  "csum": 3322033027
- },
- {
-  "input": "&#-1;",
-  "sfld": "&#-1;",
-  "csum": 1253797307
- },
- {
-  "input": "&Amp;",
-  "sfld": "&Amp;",
-  "csum": 3754436343
- },
- {
-  "input": "&amp",
-  "sfld": "&amp",
-  "csum": 44116051
- },
- {
-  "input": "&;",
-  "sfld": "&;",
-  "csum": 3086107107
- },
- {
-  "input": "&",
-  "sfld": "&",
-  "csum": 2085434232
- },
- {
-  "input": "&&",
-  "sfld": "&&",
-  "csum": 1131358118
- },
- {
-  "input": "&amp;&amp;",
-  "sfld": "&&",
-  "csum": 1131358118
- },
- {
-  "input": "&amp hej",
-  "sfld": "&amp hej",
-  "csum": 771096841
- },
- {
-  "input": "&#x1F600;",
-  "sfld": "😀",
-  "csum": 2622699144
- },
- {
-  "input": "😀",
-  "sfld": "😀",
-  "csum": 2622699144
- },
- {
-  "input": "&nbsp;&nbsp;",
-  "sfld": "  ",
-  "csum": 160825505
- },
- {
-  "input": "a b",
-  "sfld": "a b",
-  "csum": 2737138946
- },
- {
-  "input": "<img src=\"&amp;.png\">",
-  "sfld": " &.png ",
-  "csum": 182081529
- },
- {
-  "input": "&lt;img src=x&gt;",
-  "sfld": "<img src=x>",
-  "csum": 4096282644
- },
- {
-  "input": "<!-- &amp; -->",
-  "sfld": "",
-  "csum": 3661210606
- },
- {
-  "input": "<b>&amp;</b>",
-  "sfld": "&",
-  "csum": 2085434232
- }
-]
+{
+  "ankiVersion": "26.8.1",
+  "generator": "tools/oracle/gen_stripped_fields.py",
+  "cases": [
+    {
+      "input": "test",
+      "sfld": "test",
+      "csum": 2840236005
+    },
+    {
+      "input": "今日",
+      "sfld": "今日",
+      "csum": 1464653051
+    },
+    {
+      "input": "",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "   ",
+      "sfld": "   ",
+      "csum": 143634852
+    },
+    {
+      "input": "plain text here",
+      "sfld": "plain text here",
+      "csum": 115706181
+    },
+    {
+      "input": "<img src=\"probe.txt\" />",
+      "sfld": " probe.txt ",
+      "csum": 1461045396
+    },
+    {
+      "input": "with media <img src=\"probe.txt\" />",
+      "sfld": "with media  probe.txt ",
+      "csum": 2235492794
+    },
+    {
+      "input": "<img src='foo.jpg'><html>",
+      "sfld": " foo.jpg ",
+      "csum": 861030276
+    },
+    {
+      "input": "<img src=foo.jpg>",
+      "sfld": " foo.jpg ",
+      "csum": 861030276
+    },
+    {
+      "input": "<img src=foo.jpg >",
+      "sfld": " foo.jpg ",
+      "csum": 861030276
+    },
+    {
+      "input": "<img src=\"a.png\"><img src=\"b.png\">",
+      "sfld": " a.png  b.png ",
+      "csum": 13360382
+    },
+    {
+      "input": "<audio src=\"s.mp3\"></audio>",
+      "sfld": " s.mp3 ",
+      "csum": 1291140021
+    },
+    {
+      "input": "<object data=\"o.swf\">",
+      "sfld": " o.swf ",
+      "csum": 3231323113
+    },
+    {
+      "input": "<source src=\"v.webm\">",
+      "sfld": " v.webm ",
+      "csum": 940888973
+    },
+    {
+      "input": "<img alt=\"x\" src=\"c.png\" title=\"y\">",
+      "sfld": " c.png ",
+      "csum": 1443773589
+    },
+    {
+      "input": "<img src=\"sp ace.png\">",
+      "sfld": " sp ace.png ",
+      "csum": 3252014043
+    },
+    {
+      "input": "[sound:x.mp3]",
+      "sfld": "[sound:x.mp3]",
+      "csum": 1833942928
+    },
+    {
+      "input": "before [sound:x.mp3] after",
+      "sfld": "before [sound:x.mp3] after",
+      "csum": 2898778876
+    },
+    {
+      "input": "&amp;",
+      "sfld": "&",
+      "csum": 2085434232
+    },
+    {
+      "input": "&nbsp;",
+      "sfld": " ",
+      "csum": 3092826920
+    },
+    {
+      "input": "&lt;b&gt;",
+      "sfld": "<b>",
+      "csum": 3574796752
+    },
+    {
+      "input": "&#65;",
+      "sfld": "A",
+      "csum": 1842171106
+    },
+    {
+      "input": "&#x41;",
+      "sfld": "A",
+      "csum": 1842171106
+    },
+    {
+      "input": "a & b",
+      "sfld": "a & b",
+      "csum": 2463288064
+    },
+    {
+      "input": "&amp; & foo",
+      "sfld": "&amp; & foo",
+      "csum": 3155184501
+    },
+    {
+      "input": "&notarealentity;",
+      "sfld": "&notarealentity;",
+      "csum": 2734415031
+    },
+    {
+      "input": "Tom &amp; Jerry",
+      "sfld": "Tom & Jerry",
+      "csum": 495331847
+    },
+    {
+      "input": "&amp;amp;",
+      "sfld": "&amp;",
+      "csum": 1425446817
+    },
+    {
+      "input": "<!-- comment -->",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "a<!-- c -->b",
+      "sfld": "ab",
+      "csum": 3659751758
+    },
+    {
+      "input": "so<SCRIPT>t<b>e</b>st</script>me",
+      "sfld": "some",
+      "csum": 3951515666
+    },
+    {
+      "input": "<style>p{color:red}</style>text",
+      "sfld": "text",
+      "csum": 925802636
+    },
+    {
+      "input": "t<b>e</b>st",
+      "sfld": "test",
+      "csum": 2840236005
+    },
+    {
+      "input": "<b>a<i>b</i></b>",
+      "sfld": "ab",
+      "csum": 3659751758
+    },
+    {
+      "input": "<div>one</div><div>two</div>",
+      "sfld": "onetwo",
+      "csum": 816748361
+    },
+    {
+      "input": "line<br>break",
+      "sfld": "linebreak",
+      "csum": 2679526681
+    },
+    {
+      "input": "<html>",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "a\nb",
+      "sfld": "a\nb",
+      "csum": 4241565695
+    },
+    {
+      "input": "  leading and trailing  ",
+      "sfld": "  leading and trailing  ",
+      "csum": 2560520660
+    },
+    {
+      "input": "q &amp; a <img src=\"z.png\"> [sound:s.mp3]",
+      "sfld": "q & a  z.png  [sound:s.mp3]",
+      "csum": 2586372751
+    },
+    {
+      "input": "&AElig;",
+      "sfld": "Æ",
+      "csum": 700564137
+    },
+    {
+      "input": "&Aacute;",
+      "sfld": "Á",
+      "csum": 2019605313
+    },
+    {
+      "input": "&Acirc;",
+      "sfld": "Â",
+      "csum": 698322572
+    },
+    {
+      "input": "&Agrave;",
+      "sfld": "À",
+      "csum": 276008847
+    },
+    {
+      "input": "&Alpha;",
+      "sfld": "Α",
+      "csum": 1458508037
+    },
+    {
+      "input": "&Aring;",
+      "sfld": "Å",
+      "csum": 3354325275
+    },
+    {
+      "input": "&Atilde;",
+      "sfld": "Ã",
+      "csum": 147985466
+    },
+    {
+      "input": "&Auml;",
+      "sfld": "Ä",
+      "csum": 3083515005
+    },
+    {
+      "input": "&Beta;",
+      "sfld": "Β",
+      "csum": 3501303811
+    },
+    {
+      "input": "&Ccedil;",
+      "sfld": "Ç",
+      "csum": 495348575
+    },
+    {
+      "input": "&Chi;",
+      "sfld": "Χ",
+      "csum": 2358287459
+    },
+    {
+      "input": "&Dagger;",
+      "sfld": "‡",
+      "csum": 2541550247
+    },
+    {
+      "input": "&Delta;",
+      "sfld": "Δ",
+      "csum": 2233358746
+    },
+    {
+      "input": "&ETH;",
+      "sfld": "Ð",
+      "csum": 1230127835
+    },
+    {
+      "input": "&Eacute;",
+      "sfld": "É",
+      "csum": 240090759
+    },
+    {
+      "input": "&Ecirc;",
+      "sfld": "Ê",
+      "csum": 4098055733
+    },
+    {
+      "input": "&Egrave;",
+      "sfld": "È",
+      "csum": 4129352412
+    },
+    {
+      "input": "&Epsilon;",
+      "sfld": "Ε",
+      "csum": 57607575
+    },
+    {
+      "input": "&Eta;",
+      "sfld": "Η",
+      "csum": 1610254002
+    },
+    {
+      "input": "&Euml;",
+      "sfld": "Ë",
+      "csum": 787304945
+    },
+    {
+      "input": "&Gamma;",
+      "sfld": "Γ",
+      "csum": 2979509307
+    },
+    {
+      "input": "&Iacute;",
+      "sfld": "Í",
+      "csum": 1448022710
+    },
+    {
+      "input": "&Icirc;",
+      "sfld": "Î",
+      "csum": 2601752060
+    },
+    {
+      "input": "&Igrave;",
+      "sfld": "Ì",
+      "csum": 4018446574
+    },
+    {
+      "input": "&Iota;",
+      "sfld": "Ι",
+      "csum": 2835155021
+    },
+    {
+      "input": "&Iuml;",
+      "sfld": "Ï",
+      "csum": 2289676420
+    },
+    {
+      "input": "&Kappa;",
+      "sfld": "Κ",
+      "csum": 1373749053
+    },
+    {
+      "input": "&Lambda;",
+      "sfld": "Λ",
+      "csum": 1272153470
+    },
+    {
+      "input": "&Mu;",
+      "sfld": "Μ",
+      "csum": 364360504
+    },
+    {
+      "input": "&Ntilde;",
+      "sfld": "Ñ",
+      "csum": 2111192455
+    },
+    {
+      "input": "&Nu;",
+      "sfld": "Ν",
+      "csum": 1290468601
+    },
+    {
+      "input": "&OElig;",
+      "sfld": "Œ",
+      "csum": 2058930249
+    },
+    {
+      "input": "&Oacute;",
+      "sfld": "Ó",
+      "csum": 4251343444
+    },
+    {
+      "input": "&Ocirc;",
+      "sfld": "Ô",
+      "csum": 1113043652
+    },
+    {
+      "input": "&Ograve;",
+      "sfld": "Ò",
+      "csum": 3136185950
+    },
+    {
+      "input": "&Omega;",
+      "sfld": "Ω",
+      "csum": 3240605034
+    },
+    {
+      "input": "&Omicron;",
+      "sfld": "Ο",
+      "csum": 2338780551
+    },
+    {
+      "input": "&Oslash;",
+      "sfld": "Ø",
+      "csum": 1284872516
+    },
+    {
+      "input": "&Otilde;",
+      "sfld": "Õ",
+      "csum": 1145625150
+    },
+    {
+      "input": "&Ouml;",
+      "sfld": "Ö",
+      "csum": 4116483796
+    },
+    {
+      "input": "&Phi;",
+      "sfld": "Φ",
+      "csum": 1274551636
+    },
+    {
+      "input": "&Pi;",
+      "sfld": "Π",
+      "csum": 100705557
+    },
+    {
+      "input": "&Prime;",
+      "sfld": "″",
+      "csum": 2525433053
+    },
+    {
+      "input": "&Psi;",
+      "sfld": "Ψ",
+      "csum": 3635818792
+    },
+    {
+      "input": "&Rho;",
+      "sfld": "Ρ",
+      "csum": 2354733118
+    },
+    {
+      "input": "&Scaron;",
+      "sfld": "Š",
+      "csum": 3544887464
+    },
+    {
+      "input": "&Sigma;",
+      "sfld": "Σ",
+      "csum": 3434741451
+    },
+    {
+      "input": "&THORN;",
+      "sfld": "Þ",
+      "csum": 2285214003
+    },
+    {
+      "input": "&Tau;",
+      "sfld": "Τ",
+      "csum": 1303373245
+    },
+    {
+      "input": "&Theta;",
+      "sfld": "Θ",
+      "csum": 3540282943
+    },
+    {
+      "input": "&Uacute;",
+      "sfld": "Ú",
+      "csum": 3191816730
+    },
+    {
+      "input": "&Ucirc;",
+      "sfld": "Û",
+      "csum": 1353453623
+    },
+    {
+      "input": "&Ugrave;",
+      "sfld": "Ù",
+      "csum": 2073873008
+    },
+    {
+      "input": "&Upsilon;",
+      "sfld": "Υ",
+      "csum": 3162630940
+    },
+    {
+      "input": "&Uuml;",
+      "sfld": "Ü",
+      "csum": 1297608896
+    },
+    {
+      "input": "&Xi;",
+      "sfld": "Ξ",
+      "csum": 1753407280
+    },
+    {
+      "input": "&Yacute;",
+      "sfld": "Ý",
+      "csum": 2709633126
+    },
+    {
+      "input": "&Yuml;",
+      "sfld": "Ÿ",
+      "csum": 4124622955
+    },
+    {
+      "input": "&Zeta;",
+      "sfld": "Ζ",
+      "csum": 544256485
+    },
+    {
+      "input": "&aacute;",
+      "sfld": "á",
+      "csum": 731695320
+    },
+    {
+      "input": "&acirc;",
+      "sfld": "â",
+      "csum": 438952877
+    },
+    {
+      "input": "&acute;",
+      "sfld": "´",
+      "csum": 2991792159
+    },
+    {
+      "input": "&aelig;",
+      "sfld": "æ",
+      "csum": 1252116640
+    },
+    {
+      "input": "&agrave;",
+      "sfld": "à",
+      "csum": 3276740515
+    },
+    {
+      "input": "&alefsym;",
+      "sfld": "ℵ",
+      "csum": 2586919516
+    },
+    {
+      "input": "&alpha;",
+      "sfld": "α",
+      "csum": 1857856342
+    },
+    {
+      "input": "&and;",
+      "sfld": "∧",
+      "csum": 1815097565
+    },
+    {
+      "input": "&ang;",
+      "sfld": "∠",
+      "csum": 146565116
+    },
+    {
+      "input": "&aring;",
+      "sfld": "å",
+      "csum": 3484749270
+    },
+    {
+      "input": "&asymp;",
+      "sfld": "≈",
+      "csum": 2891876390
+    },
+    {
+      "input": "&atilde;",
+      "sfld": "ã",
+      "csum": 21674627
+    },
+    {
+      "input": "&auml;",
+      "sfld": "ä",
+      "csum": 2518655535
+    },
+    {
+      "input": "&bdquo;",
+      "sfld": "„",
+      "csum": 1988553427
+    },
+    {
+      "input": "&beta;",
+      "sfld": "β",
+      "csum": 632926920
+    },
+    {
+      "input": "&brvbar;",
+      "sfld": "¦",
+      "csum": 1986442960
+    },
+    {
+      "input": "&bull;",
+      "sfld": "•",
+      "csum": 3975620586
+    },
+    {
+      "input": "&cap;",
+      "sfld": "∩",
+      "csum": 1703629662
+    },
+    {
+      "input": "&ccedil;",
+      "sfld": "ç",
+      "csum": 4263496019
+    },
+    {
+      "input": "&cedil;",
+      "sfld": "¸",
+      "csum": 1969558951
+    },
+    {
+      "input": "&cent;",
+      "sfld": "¢",
+      "csum": 974783909
+    },
+    {
+      "input": "&chi;",
+      "sfld": "χ",
+      "csum": 3703568747
+    },
+    {
+      "input": "&circ;",
+      "sfld": "ˆ",
+      "csum": 2256475907
+    },
+    {
+      "input": "&clubs;",
+      "sfld": "♣",
+      "csum": 111398856
+    },
+    {
+      "input": "&cong;",
+      "sfld": "≅",
+      "csum": 3976219031
+    },
+    {
+      "input": "&copy;",
+      "sfld": "©",
+      "csum": 4175087959
+    },
+    {
+      "input": "&crarr;",
+      "sfld": "↵",
+      "csum": 1753136674
+    },
+    {
+      "input": "&cup;",
+      "sfld": "∪",
+      "csum": 1595349935
+    },
+    {
+      "input": "&curren;",
+      "sfld": "¤",
+      "csum": 4264797876
+    },
+    {
+      "input": "&dArr;",
+      "sfld": "⇓",
+      "csum": 246141856
+    },
+    {
+      "input": "&dagger;",
+      "sfld": "†",
+      "csum": 1534869323
+    },
+    {
+      "input": "&darr;",
+      "sfld": "↓",
+      "csum": 4232603286
+    },
+    {
+      "input": "&deg;",
+      "sfld": "°",
+      "csum": 1439744443
+    },
+    {
+      "input": "&delta;",
+      "sfld": "δ",
+      "csum": 2855746828
+    },
+    {
+      "input": "&diams;",
+      "sfld": "♦",
+      "csum": 1202661427
+    },
+    {
+      "input": "&divide;",
+      "sfld": "÷",
+      "csum": 942633766
+    },
+    {
+      "input": "&eacute;",
+      "sfld": "é",
+      "csum": 3205873265
+    },
+    {
+      "input": "&ecirc;",
+      "sfld": "ê",
+      "csum": 572878112
+    },
+    {
+      "input": "&egrave;",
+      "sfld": "è",
+      "csum": 353789666
+    },
+    {
+      "input": "&empty;",
+      "sfld": "∅",
+      "csum": 516812114
+    },
+    {
+      "input": "&emsp;",
+      "sfld": " ",
+      "csum": 3626235937
+    },
+    {
+      "input": "&ensp;",
+      "sfld": " ",
+      "csum": 2891338363
+    },
+    {
+      "input": "&epsilon;",
+      "sfld": "ε",
+      "csum": 2992146168
+    },
+    {
+      "input": "&equiv;",
+      "sfld": "≡",
+      "csum": 3235183798
+    },
+    {
+      "input": "&eta;",
+      "sfld": "η",
+      "csum": 4030137424
+    },
+    {
+      "input": "&eth;",
+      "sfld": "ð",
+      "csum": 3907261533
+    },
+    {
+      "input": "&euml;",
+      "sfld": "ë",
+      "csum": 2261716538
+    },
+    {
+      "input": "&euro;",
+      "sfld": "€",
+      "csum": 2214364794
+    },
+    {
+      "input": "&exist;",
+      "sfld": "∃",
+      "csum": 611663774
+    },
+    {
+      "input": "&fnof;",
+      "sfld": "ƒ",
+      "csum": 4086008223
+    },
+    {
+      "input": "&forall;",
+      "sfld": "∀",
+      "csum": 1365952480
+    },
+    {
+      "input": "&frac12;",
+      "sfld": "½",
+      "csum": 3929145986
+    },
+    {
+      "input": "&frac14;",
+      "sfld": "¼",
+      "csum": 3340577161
+    },
+    {
+      "input": "&frac34;",
+      "sfld": "¾",
+      "csum": 338259180
+    },
+    {
+      "input": "&frasl;",
+      "sfld": "⁄",
+      "csum": 1510725778
+    },
+    {
+      "input": "&gamma;",
+      "sfld": "γ",
+      "csum": 728361299
+    },
+    {
+      "input": "&ge;",
+      "sfld": "≥",
+      "csum": 3706474269
+    },
+    {
+      "input": "&gt;",
+      "sfld": ">",
+      "csum": 152274366
+    },
+    {
+      "input": "&hArr;",
+      "sfld": "⇔",
+      "csum": 2422985462
+    },
+    {
+      "input": "&harr;",
+      "sfld": "↔",
+      "csum": 1377098153
+    },
+    {
+      "input": "&hearts;",
+      "sfld": "♥",
+      "csum": 3143892758
+    },
+    {
+      "input": "&hellip;",
+      "sfld": "…",
+      "csum": 3744558615
+    },
+    {
+      "input": "&iacute;",
+      "sfld": "í",
+      "csum": 643435235
+    },
+    {
+      "input": "&icirc;",
+      "sfld": "î",
+      "csum": 3458735671
+    },
+    {
+      "input": "&iexcl;",
+      "sfld": "¡",
+      "csum": 3102467088
+    },
+    {
+      "input": "&igrave;",
+      "sfld": "ì",
+      "csum": 4174691875
+    },
+    {
+      "input": "&image;",
+      "sfld": "ℑ",
+      "csum": 2466342904
+    },
+    {
+      "input": "&infin;",
+      "sfld": "∞",
+      "csum": 955663653
+    },
+    {
+      "input": "&int;",
+      "sfld": "∫",
+      "csum": 3992815191
+    },
+    {
+      "input": "&iota;",
+      "sfld": "ι",
+      "csum": 65924679
+    },
+    {
+      "input": "&iquest;",
+      "sfld": "¿",
+      "csum": 462985844
+    },
+    {
+      "input": "&isin;",
+      "sfld": "∈",
+      "csum": 578316990
+    },
+    {
+      "input": "&iuml;",
+      "sfld": "ï",
+      "csum": 3315900796
+    },
+    {
+      "input": "&kappa;",
+      "sfld": "κ",
+      "csum": 4100062531
+    },
+    {
+      "input": "&lArr;",
+      "sfld": "⇐",
+      "csum": 469881336
+    },
+    {
+      "input": "&lambda;",
+      "sfld": "λ",
+      "csum": 2075247243
+    },
+    {
+      "input": "&lang;",
+      "sfld": "〈",
+      "csum": 3614624476
+    },
+    {
+      "input": "&laquo;",
+      "sfld": "«",
+      "csum": 2759779489
+    },
+    {
+      "input": "&larr;",
+      "sfld": "←",
+      "csum": 2172216380
+    },
+    {
+      "input": "&lceil;",
+      "sfld": "⌈",
+      "csum": 938878256
+    },
+    {
+      "input": "&ldquo;",
+      "sfld": "“",
+      "csum": 1420395965
+    },
+    {
+      "input": "&le;",
+      "sfld": "≤",
+      "csum": 3359794979
+    },
+    {
+      "input": "&lfloor;",
+      "sfld": "⌊",
+      "csum": 3855912456
+    },
+    {
+      "input": "&lowast;",
+      "sfld": "∗",
+      "csum": 3076694765
+    },
+    {
+      "input": "&loz;",
+      "sfld": "◊",
+      "csum": 1840264863
+    },
+    {
+      "input": "&lrm;",
+      "sfld": "‎",
+      "csum": 3731112058
+    },
+    {
+      "input": "&lsaquo;",
+      "sfld": "‹",
+      "csum": 231536905
+    },
+    {
+      "input": "&lsquo;",
+      "sfld": "‘",
+      "csum": 3374284568
+    },
+    {
+      "input": "&lt;",
+      "sfld": "<",
+      "csum": 3302833292
+    },
+    {
+      "input": "&macr;",
+      "sfld": "¯",
+      "csum": 1987770414
+    },
+    {
+      "input": "&mdash;",
+      "sfld": "—",
+      "csum": 462649691
+    },
+    {
+      "input": "&micro;",
+      "sfld": "µ",
+      "csum": 1007454605
+    },
+    {
+      "input": "&middot;",
+      "sfld": "·",
+      "csum": 534711696
+    },
+    {
+      "input": "&minus;",
+      "sfld": "−",
+      "csum": 1783524978
+    },
+    {
+      "input": "&mu;",
+      "sfld": "μ",
+      "csum": 2877087651
+    },
+    {
+      "input": "&nabla;",
+      "sfld": "∇",
+      "csum": 4252863564
+    },
+    {
+      "input": "&ndash;",
+      "sfld": "–",
+      "csum": 239500478
+    },
+    {
+      "input": "&ne;",
+      "sfld": "≠",
+      "csum": 3131690608
+    },
+    {
+      "input": "&ni;",
+      "sfld": "∋",
+      "csum": 770888209
+    },
+    {
+      "input": "&not;",
+      "sfld": "¬",
+      "csum": 4111381341
+    },
+    {
+      "input": "&notin;",
+      "sfld": "∉",
+      "csum": 1411879439
+    },
+    {
+      "input": "&nsub;",
+      "sfld": "⊄",
+      "csum": 2783114733
+    },
+    {
+      "input": "&ntilde;",
+      "sfld": "ñ",
+      "csum": 3377188748
+    },
+    {
+      "input": "&nu;",
+      "sfld": "ν",
+      "csum": 149101472
+    },
+    {
+      "input": "&oacute;",
+      "sfld": "ó",
+      "csum": 2796279655
+    },
+    {
+      "input": "&ocirc;",
+      "sfld": "ô",
+      "csum": 1067625110
+    },
+    {
+      "input": "&oelig;",
+      "sfld": "œ",
+      "csum": 756665238
+    },
+    {
+      "input": "&ograve;",
+      "sfld": "ò",
+      "csum": 4187916467
+    },
+    {
+      "input": "&oline;",
+      "sfld": "‾",
+      "csum": 739872817
+    },
+    {
+      "input": "&omega;",
+      "sfld": "ω",
+      "csum": 1857423890
+    },
+    {
+      "input": "&omicron;",
+      "sfld": "ο",
+      "csum": 1173421706
+    },
+    {
+      "input": "&oplus;",
+      "sfld": "⊕",
+      "csum": 1807263494
+    },
+    {
+      "input": "&or;",
+      "sfld": "∨",
+      "csum": 1489237326
+    },
+    {
+      "input": "&ordf;",
+      "sfld": "ª",
+      "csum": 944152206
+    },
+    {
+      "input": "&ordm;",
+      "sfld": "º",
+      "csum": 1753958526
+    },
+    {
+      "input": "&oslash;",
+      "sfld": "ø",
+      "csum": 2417087881
+    },
+    {
+      "input": "&otilde;",
+      "sfld": "õ",
+      "csum": 3754690382
+    },
+    {
+      "input": "&otimes;",
+      "sfld": "⊗",
+      "csum": 4045469259
+    },
+    {
+      "input": "&ouml;",
+      "sfld": "ö",
+      "csum": 3437690740
+    },
+    {
+      "input": "&para;",
+      "sfld": "¶",
+      "csum": 2746822040
+    },
+    {
+      "input": "&part;",
+      "sfld": "∂",
+      "csum": 682924815
+    },
+    {
+      "input": "&permil;",
+      "sfld": "‰",
+      "csum": 4053686293
+    },
+    {
+      "input": "&perp;",
+      "sfld": "⊥",
+      "csum": 1304670181
+    },
+    {
+      "input": "&phi;",
+      "sfld": "φ",
+      "csum": 4163023932
+    },
+    {
+      "input": "&pi;",
+      "sfld": "π",
+      "csum": 3472980711
+    },
+    {
+      "input": "&piv;",
+      "sfld": "ϖ",
+      "csum": 3926135094
+    },
+    {
+      "input": "&plusmn;",
+      "sfld": "±",
+      "csum": 1277196241
+    },
+    {
+      "input": "&pound;",
+      "sfld": "£",
+      "csum": 201743949
+    },
+    {
+      "input": "&prime;",
+      "sfld": "′",
+      "csum": 3395783322
+    },
+    {
+      "input": "&prod;",
+      "sfld": "∏",
+      "csum": 1113788162
+    },
+    {
+      "input": "&prop;",
+      "sfld": "∝",
+      "csum": 509010292
+    },
+    {
+      "input": "&psi;",
+      "sfld": "ψ",
+      "csum": 2755218785
+    },
+    {
+      "input": "&quot;",
+      "sfld": "\"",
+      "csum": 718168769
+    },
+    {
+      "input": "&rArr;",
+      "sfld": "⇒",
+      "csum": 3714664843
+    },
+    {
+      "input": "&radic;",
+      "sfld": "√",
+      "csum": 4123764953
+    },
+    {
+      "input": "&rang;",
+      "sfld": "〉",
+      "csum": 2055173004
+    },
+    {
+      "input": "&raquo;",
+      "sfld": "»",
+      "csum": 4061152678
+    },
+    {
+      "input": "&rarr;",
+      "sfld": "→",
+      "csum": 557767973
+    },
+    {
+      "input": "&rceil;",
+      "sfld": "⌉",
+      "csum": 1780668463
+    },
+    {
+      "input": "&rdquo;",
+      "sfld": "”",
+      "csum": 156921070
+    },
+    {
+      "input": "&real;",
+      "sfld": "ℜ",
+      "csum": 2046755567
+    },
+    {
+      "input": "&reg;",
+      "sfld": "®",
+      "csum": 379399103
+    },
+    {
+      "input": "&rfloor;",
+      "sfld": "⌋",
+      "csum": 2957390807
+    },
+    {
+      "input": "&rho;",
+      "sfld": "ρ",
+      "csum": 207250557
+    },
+    {
+      "input": "&rlm;",
+      "sfld": "‏",
+      "csum": 3623658163
+    },
+    {
+      "input": "&rsaquo;",
+      "sfld": "›",
+      "csum": 1626127487
+    },
+    {
+      "input": "&rsquo;",
+      "sfld": "’",
+      "csum": 1067171277
+    },
+    {
+      "input": "&sbquo;",
+      "sfld": "‚",
+      "csum": 2506706016
+    },
+    {
+      "input": "&scaron;",
+      "sfld": "š",
+      "csum": 999157363
+    },
+    {
+      "input": "&sdot;",
+      "sfld": "⋅",
+      "csum": 536715412
+    },
+    {
+      "input": "&sect;",
+      "sfld": "§",
+      "csum": 3945574980
+    },
+    {
+      "input": "&shy;",
+      "sfld": "­",
+      "csum": 1803448694
+    },
+    {
+      "input": "&sigma;",
+      "sfld": "σ",
+      "csum": 898510459
+    },
+    {
+      "input": "&sigmaf;",
+      "sfld": "ς",
+      "csum": 667007605
+    },
+    {
+      "input": "&sim;",
+      "sfld": "∼",
+      "csum": 3588763944
+    },
+    {
+      "input": "&spades;",
+      "sfld": "♠",
+      "csum": 1693256702
+    },
+    {
+      "input": "&sub;",
+      "sfld": "⊂",
+      "csum": 2419738656
+    },
+    {
+      "input": "&sube;",
+      "sfld": "⊆",
+      "csum": 292012918
+    },
+    {
+      "input": "&sum;",
+      "sfld": "∑",
+      "csum": 744765007
+    },
+    {
+      "input": "&sup;",
+      "sfld": "⊃",
+      "csum": 2843658185
+    },
+    {
+      "input": "&sup1;",
+      "sfld": "¹",
+      "csum": 2681493441
+    },
+    {
+      "input": "&sup2;",
+      "sfld": "²",
+      "csum": 3257688891
+    },
+    {
+      "input": "&sup3;",
+      "sfld": "³",
+      "csum": 403851245
+    },
+    {
+      "input": "&supe;",
+      "sfld": "⊇",
+      "csum": 283321840
+    },
+    {
+      "input": "&szlig;",
+      "sfld": "ß",
+      "csum": 11771233
+    },
+    {
+      "input": "&tau;",
+      "sfld": "τ",
+      "csum": 2392864355
+    },
+    {
+      "input": "&there4;",
+      "sfld": "∴",
+      "csum": 1124726413
+    },
+    {
+      "input": "&theta;",
+      "sfld": "θ",
+      "csum": 3617628056
+    },
+    {
+      "input": "&thetasym;",
+      "sfld": "ϑ",
+      "csum": 2006941592
+    },
+    {
+      "input": "&thinsp;",
+      "sfld": " ",
+      "csum": 2755224193
+    },
+    {
+      "input": "&thorn;",
+      "sfld": "þ",
+      "csum": 1477404466
+    },
+    {
+      "input": "&tilde;",
+      "sfld": "˜",
+      "csum": 1082413115
+    },
+    {
+      "input": "&times;",
+      "sfld": "×",
+      "csum": 1744544499
+    },
+    {
+      "input": "&trade;",
+      "sfld": "™",
+      "csum": 1594323416
+    },
+    {
+      "input": "&uArr;",
+      "sfld": "⇑",
+      "csum": 3852373730
+    },
+    {
+      "input": "&uacute;",
+      "sfld": "ú",
+      "csum": 1061133598
+    },
+    {
+      "input": "&uarr;",
+      "sfld": "↑",
+      "csum": 2505441239
+    },
+    {
+      "input": "&ucirc;",
+      "sfld": "û",
+      "csum": 3594198009
+    },
+    {
+      "input": "&ugrave;",
+      "sfld": "ù",
+      "csum": 2408239279
+    },
+    {
+      "input": "&uml;",
+      "sfld": "¨",
+      "csum": 1773968258
+    },
+    {
+      "input": "&upsih;",
+      "sfld": "ϒ",
+      "csum": 1712994230
+    },
+    {
+      "input": "&upsilon;",
+      "sfld": "υ",
+      "csum": 1243296660
+    },
+    {
+      "input": "&uuml;",
+      "sfld": "ü",
+      "csum": 2493995517
+    },
+    {
+      "input": "&weierp;",
+      "sfld": "℘",
+      "csum": 4287052260
+    },
+    {
+      "input": "&xi;",
+      "sfld": "ξ",
+      "csum": 571716006
+    },
+    {
+      "input": "&yacute;",
+      "sfld": "ý",
+      "csum": 687420669
+    },
+    {
+      "input": "&yen;",
+      "sfld": "¥",
+      "csum": 2419211159
+    },
+    {
+      "input": "&yuml;",
+      "sfld": "ÿ",
+      "csum": 1930228493
+    },
+    {
+      "input": "&zeta;",
+      "sfld": "ζ",
+      "csum": 2788483584
+    },
+    {
+      "input": "&zwj;",
+      "sfld": "‍",
+      "csum": 94277633
+    },
+    {
+      "input": "&zwnj;",
+      "sfld": "‌",
+      "csum": 3235897656
+    },
+    {
+      "input": "&#X41;",
+      "sfld": "&#X41;",
+      "csum": 621652861
+    },
+    {
+      "input": "&#x2E;",
+      "sfld": ".",
+      "csum": 978505336
+    },
+    {
+      "input": "&#x2e;",
+      "sfld": ".",
+      "csum": 978505336
+    },
+    {
+      "input": "&#0;",
+      "sfld": "\u0000",
+      "csum": 1537817757
+    },
+    {
+      "input": "&#xffffff;",
+      "sfld": "&#xffffff;",
+      "csum": 688530308
+    },
+    {
+      "input": "&#;",
+      "sfld": "&#;",
+      "csum": 58898235
+    },
+    {
+      "input": "&#",
+      "sfld": "&#",
+      "csum": 2793926443
+    },
+    {
+      "input": "&#32a;",
+      "sfld": "&#32a;",
+      "csum": 2149909200
+    },
+    {
+      "input": "&#xfoo;",
+      "sfld": "&#xfoo;",
+      "csum": 3322033027
+    },
+    {
+      "input": "&#-1;",
+      "sfld": "&#-1;",
+      "csum": 1253797307
+    },
+    {
+      "input": "&Amp;",
+      "sfld": "&Amp;",
+      "csum": 3754436343
+    },
+    {
+      "input": "&amp",
+      "sfld": "&amp",
+      "csum": 44116051
+    },
+    {
+      "input": "&;",
+      "sfld": "&;",
+      "csum": 3086107107
+    },
+    {
+      "input": "&",
+      "sfld": "&",
+      "csum": 2085434232
+    },
+    {
+      "input": "&&",
+      "sfld": "&&",
+      "csum": 1131358118
+    },
+    {
+      "input": "&amp;&amp;",
+      "sfld": "&&",
+      "csum": 1131358118
+    },
+    {
+      "input": "&amp hej",
+      "sfld": "&amp hej",
+      "csum": 771096841
+    },
+    {
+      "input": "&#x1F600;",
+      "sfld": "😀",
+      "csum": 2622699144
+    },
+    {
+      "input": "😀",
+      "sfld": "😀",
+      "csum": 2622699144
+    },
+    {
+      "input": "&nbsp;&nbsp;",
+      "sfld": "  ",
+      "csum": 160825505
+    },
+    {
+      "input": "a b",
+      "sfld": "a b",
+      "csum": 2737138946
+    },
+    {
+      "input": "<img src=\"&amp;.png\">",
+      "sfld": " &.png ",
+      "csum": 182081529
+    },
+    {
+      "input": "&lt;img src=x&gt;",
+      "sfld": "<img src=x>",
+      "csum": 4096282644
+    },
+    {
+      "input": "<!-- &amp; -->",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "<b>&amp;</b>",
+      "sfld": "&",
+      "csum": 2085434232
+    }
+  ]
+}

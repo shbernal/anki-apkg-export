@@ -6,6 +6,7 @@ read_when:
   - Running the gates before a commit or release
   - Adding, changing, or removing a lint rule
   - Wondering whether to copy this config to a sibling package
+  - Checking this package against the real Anki library
 doc_type: "guide"
 ---
 
@@ -38,6 +39,32 @@ deck definition that lives once in `test/_fixture-deck.ts`.
 
 Git hooks are lefthook's: pre-commit lints staged files without `--type-aware`
 for speed, pre-push runs the full type-aware lint.
+
+## The Anki Oracle
+
+`tools/oracle/` holds two Python scripts that check this package against the
+real Anki library rather than against our reading of it. They are not part of
+`pnpm test` — they need Python and a wheel off PyPI, which the JavaScript gates
+deliberately do not.
+
+```sh
+pnpm run oracle:fixture   # regenerate test/fixtures/anki-stripped-fields.json
+pnpm run oracle:check     # confirm anki accepts test/fixtures/output.apkg
+```
+
+Both run through `uv`, which resolves the pinned `anki` wheel from inline
+[PEP 723](https://peps.python.org/pep-0723/) metadata; there is no virtualenv to
+create. `tools/oracle/README.md` covers the fallback for machines without uv,
+what each script proves, and where the entity table came from.
+
+Run `oracle:check` alongside `pnpm run fixture:regen` whenever the emitted deck
+changes: the golden test proves the bytes are the ones we meant to write, and
+only the oracle proves Anki will take them.
+
+`.github/workflows/oracle-drift.yml` runs both monthly against the _latest_
+`anki` rather than the pin. That is the only thing watching for Anki changing
+its HTML stripper underneath `src/text.ts`; a failure there is a report to read,
+not a regression to revert.
 
 ## oxlint And oxfmt
 
