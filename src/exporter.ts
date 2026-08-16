@@ -193,7 +193,7 @@ export default class Exporter {
     { tags }: Readonly<{ tags?: string | readonly string[] }> = {},
   ): void {
     const { now } = this;
-    const noteGuid = this._getNoteGuid(this.topDeckId, front, back);
+    const noteGuid = this._getNoteGuid(front, back);
     const noteId = this._getNoteId(noteGuid, now);
 
     this._insertNote({
@@ -379,8 +379,20 @@ export default class Exporter {
     return existing ?? this._getId("notes", "id", ts);
   }
 
-  private _getNoteGuid(topDeckId: number, front: string, back: string): string {
-    return createHash("sha1").update(`${topDeckId}${front}${back}`).digest("hex");
+  /**
+   * Anki matches notes on `guid` at import, so this is what decides whether
+   * re-exporting a deck updates its notes or duplicates them. It hashes the
+   * deck *name* and the two fields, and nothing else: hashing the deck id
+   * instead — a timestamp — gave the same card a new guid on every export, so
+   * every re-import added a second copy.
+   *
+   * The name stays in because dropping it would make identical content in two
+   * different decks one note as far as Anki is concerned. The cost of keeping
+   * it is that renaming a deck orphans its notes, which is the smaller of the
+   * two surprises.
+   */
+  private _getNoteGuid(front: string, back: string): string {
+    return createHash("sha1").update(`${this.deckName}${front}${back}`).digest("hex");
   }
 
   /** Reuse the card already attached to this note, for the same reason. */

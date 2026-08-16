@@ -31,6 +31,9 @@ const SECOND_SHIFT = 1;
 /** Row ids are epoch milliseconds; `mod` columns are epoch seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
+/** A gap large enough that no clock reading could be mistaken for another. */
+const MILLISECONDS_PER_DAY = 86_400_000;
+
 /** Enough repetition that deflate beats stored, so `level: 0` is observable. */
 const PADDING = 500;
 
@@ -313,5 +316,55 @@ describe("the injected clock", () => {
     const [firstSave, secondSave] = [await save(), await save()];
 
     expect(firstSave.equals(secondSave)).toBe(true);
+  });
+});
+
+describe("note guids", () => {
+  beforeAll(async () => {
+    sqlModule = await initSqlJs({ locateFile });
+  });
+
+  /** The guid of one card, exported alone into a deck built at `injected`. */
+  const guidOf = (deckName: string, card: readonly [string, string], injected: number): string => {
+    const exporter = new Exporter(deckName, {
+      template: createTemplate(undefined, injected),
+      sql: sqlModule,
+      now: injected,
+    });
+    exporter.addCard(...card);
+
+    return String(readRow(exporter.db, "select guid from notes").guid);
+  };
+
+  const CARD: readonly [string, string] = ["Test Front", "Test back"];
+
+  /** Any later instant; it only has to differ from `now`. */
+  const LATER = now + MILLISECONDS_PER_DAY;
+
+  it("gives a card the same guid however long after the first export", () => {
+    expect.hasAssertions();
+
+    /* Anki matches notes on guid at import. A guid derived from the deck id —
+       a timestamp — changed on every export, so re-importing a deck added a
+       second copy of every note instead of updating the ones already there. */
+    expect(guidOf("testDeckName", CARD, now)).toBe(guidOf("testDeckName", CARD, LATER));
+  });
+
+  it("keeps the same content in a differently named deck distinct", () => {
+    expect.hasAssertions();
+
+    /* The deck name is in the hash so that two decks sharing a card are two
+       notes to Anki, not one that follows whichever deck imported last. */
+    expect(guidOf("one", CARD, now)).not.toBe(guidOf("another", CARD, now));
+  });
+
+  it("gives an edited card a new guid", () => {
+    expect.hasAssertions();
+
+    /* Follows from deriving the guid from content, and is the price of it:
+       editing a card's text imports as a new note rather than an update. */
+    expect(guidOf("testDeckName", CARD, now)).not.toBe(
+      guidOf("testDeckName", ["Test Front", "Edited back"], now),
+    );
   });
 });

@@ -95,6 +95,11 @@ their spaces replaced with underscores, since Anki separates tags by spaces.
 
 Cards are numbered in the new-card queue in call order, starting at 1.
 
+Adding the same front and back twice writes one note, and re-exporting a deck
+produces the same note identities as last time, so re-importing it updates
+rather than duplicates. Editing a card's text is a new note — see
+[note identity](deck-format.md#note-identity).
+
 ## `addMedia(filename, data)`
 
 ```ts

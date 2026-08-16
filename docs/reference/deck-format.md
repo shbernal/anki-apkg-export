@@ -59,8 +59,9 @@ there is cosmetic in the collection but still means the file disagrees with Anki
   `html_to_text_line`, which the note path does not use.
 - **`csum`** is the first four bytes of `sha1(sfld)` read big endian — the
   _stripped first field_, never the joined field list.
-- **`guid`** is sha1 hex of `deckId + front + back`. See
-  [known non-conformance](#known-non-conformance).
+- **`guid`** is sha1 hex of `deckName + front + back`, concatenated with no
+  separator. See [note identity](#note-identity) for what that buys and costs,
+  and [known non-conformance](#known-non-conformance) for its shape.
 - **`usn`** is `-1`, and `flags` and `data` are empty.
 
 Which field sorts is chosen by the notetype's `sortf`, pinned to `0` here. If
@@ -78,6 +79,32 @@ the last position used, and a card the user adds later does not reuse one.
 That reading of `due` only holds for new cards. For a review card `due` is a day
 counted from `col.crt`; for a learning card it is a timestamp.
 
+## Note Identity
+
+Anki matches notes on `guid` at import: a guid it already has updates that note,
+a guid it does not have adds one. Everything below follows from that.
+
+The guid is `sha1(deckName + front + back)`, so **the same card exported twice is
+the same note to Anki**, and re-importing a regenerated deck leaves the
+collection at the same note count rather than doubling it. Verified against Anki
+26.8.1: importing two decks of identical content built hours apart reports
+`new=0` on the second and leaves the note count unchanged.
+
+Three consequences, all of them structural rather than fixable:
+
+- **Editing a card's text makes a new note.** Content is the identity, so an
+  edited card has a different guid and imports alongside the original instead of
+  replacing it. Anki's own note ids do not have this problem because they are
+  assigned once and stored; this package holds no state between runs and has
+  nothing else to derive identity from.
+- **Renaming a deck orphans its notes.** The name is in the hash, so every note
+  in the renamed deck is new. This is the deliberate trade: dropping the name
+  would make identical content in two different decks a single note, and one
+  deck's copy would then follow the other's edits.
+- **Decks written before 5.1.0 do not match ones written after.** That release
+  removed the deck id from the hash. A user re-exporting an existing deck across
+  that boundary gets one round of duplicates, once.
+
 ## Deliberate Deviations
 
 **`col.crt` uses the 04:00 UTC rollover where Anki uses 04:00 local.** Anki's
@@ -91,11 +118,10 @@ emits neither.
 
 **`guid` shape.** Anki uses base91 of a random 64-bit int, roughly 10
 characters; this writes 40-char sha1 hex. Anki treats `guid` as opaque text, so
-this imports correctly, but two consequences follow. It is non-conformant in
-shape, and being derived from the timestamp-based deck id, re-exporting the same
-deck later produces _different_ guids — so Anki sees new notes rather than
-updates to existing ones. Changing it is a design decision about re-export
-identity, not a defect fix.
+this imports correctly and the shape is the only non-conformance — what the hash
+is taken over is covered under [note identity](#note-identity). A random guid
+would match Anki's shape but would defeat that entirely, since this package
+keeps no state between runs to remember it by.
 
 ## Out Of Scope
 
