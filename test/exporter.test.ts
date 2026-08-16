@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
-import { unzipDeckToBuffers } from "./_helpers.js";
+import { readRow, readRows, unzipDeckToBuffers } from "./_helpers.js";
 
 const template = createTemplate();
 const now = 1_700_000_000_000;
@@ -38,28 +38,8 @@ const PADDING = 500;
 const QUEUED_CARDS = ["front 1", "front 2", "front 3"];
 
 /** Decode the collection's `conf` JSON column straight out of the live db. */
-const readCollectionConf = (target: Readonly<Exporter>): unknown => {
-  const [result] = target.db.exec("select conf from col");
-  return JSON.parse(String(result?.values[0]?.[0]));
-};
-
-/**
- * Read a query back as row objects. These tests assert on the rows the exporter
- * actually wrote rather than on the calls it made to write them, so that they
- * pin the deck's contents and not the method that happens to produce it.
- */
-const readRows = (target: Readonly<Exporter>, query: string): Record<string, SqlValue>[] => {
-  /* `exec` returns one result set per statement, and every query here is a
-     single statement — so no result set at all means no matching rows. */
-  const [result] = target.db.exec(query);
-  const columns = result?.columns ?? [];
-
-  return (result?.values ?? []).map((row: readonly SqlValue[]) =>
-    Object.fromEntries(
-      columns.map((column: string, index: number) => [column, row[index] ?? null]),
-    ),
-  );
-};
+const readCollectionConf = (target: Readonly<Exporter>): unknown =>
+  JSON.parse(String(readRow(target.db, "select conf from col").conf));
 
 describe("the exporter internals", () => {
   let exporter: Exporter;
@@ -142,8 +122,8 @@ describe("the exporter internals", () => {
 
     exporter.addCard(front, back);
 
-    const notes = readRows(exporter, "select * from notes");
-    const cards = readRows(exporter, "select * from cards");
+    const notes = readRows(exporter.db, "select * from notes");
+    const cards = readRows(exporter.db, "select * from cards");
 
     expect(notes).toHaveLength(1);
     expect(cards).toHaveLength(1);
@@ -168,8 +148,8 @@ describe("the exporter internals", () => {
        the import path corrects it — unlike `sfld` and `csum`. */
     const expected = { id: now, mod: Math.floor(now / MILLISECONDS_PER_SECOND) };
 
-    expect(readRows(exporter, "select id, mod from notes")).toStrictEqual([expected]);
-    expect(readRows(exporter, "select id, mod from cards")).toStrictEqual([expected]);
+    expect(readRows(exporter.db, "select id, mod from notes")).toStrictEqual([expected]);
+    expect(readRows(exporter.db, "select id, mod from cards")).toStrictEqual([expected]);
   });
 
   it("gives each new card the next position in the queue", async () => {
@@ -181,7 +161,7 @@ describe("the exporter internals", () => {
 
     /* Ordering by id is insertion order: the clock is frozen, so each card
        claims the previous id plus one. */
-    const positions = readRows(exporter, "select due from cards order by id").map(
+    const positions = readRows(exporter.db, "select due from cards order by id").map(
       (row: Readonly<Record<string, SqlValue>>) => row.due,
     );
 
@@ -204,7 +184,7 @@ describe("the exporter internals", () => {
 
     exporter.addCard(front, back, { tags });
 
-    const notes = readRows(exporter, "select * from notes");
+    const notes = readRows(exporter.db, "select * from notes");
 
     expect(notes).toHaveLength(1);
     expect(notes[0]).toMatchObject({
@@ -229,8 +209,8 @@ describe("the exporter internals", () => {
 
     exporter.addCard(front, back, { tags });
 
-    const notes = readRows(exporter, "select * from notes");
-    const cards = readRows(exporter, "select * from cards");
+    const notes = readRows(exporter.db, "select * from notes");
+    const cards = readRows(exporter.db, "select * from cards");
 
     expect(notes).toHaveLength(1);
     expect(notes[0]).toMatchObject({
@@ -253,8 +233,8 @@ describe("the exporter internals", () => {
     exporter.addCard(front, back);
     exporter.addCard(front, back);
 
-    const notes = readRows(exporter, "select * from notes");
-    const cards = readRows(exporter, "select * from cards");
+    const notes = readRows(exporter.db, "select * from notes");
+    const cards = readRows(exporter.db, "select * from cards");
 
     /* The whole claim of "in place": adding the same card twice leaves one note
        and one card behind, not two. */
@@ -279,14 +259,14 @@ describe("the exporter internals", () => {
       exporter.addCard(`${front} ${index}`, `${back} ${index}`);
     }
 
-    const noteIdsResult = exporter.db.exec("SELECT id FROM notes ORDER BY id DESC");
-    expect(noteIdsResult).toStrictEqual([
-      {
-        columns: ["id"],
-        values: Array.from({ length: numberOfCards }, (_unused, index) => [now + index]).sort(
-          (left: readonly number[], right: readonly number[]) => right[0] - left[0],
-        ),
-      },
-    ]);
+    const noteIds = readRows(exporter.db, "SELECT id FROM notes ORDER BY id DESC").map(
+      (row: Readonly<Record<string, SqlValue>>) => row.id,
+    );
+
+    /* The clock is frozen, so every card asks for the same millisecond and each
+       one has to step past the id already taken. */
+    expect(noteIds).toStrictEqual(
+      Array.from({ length: numberOfCards }, (_unused, index) => now + numberOfCards - 1 - index),
+    );
   });
 });

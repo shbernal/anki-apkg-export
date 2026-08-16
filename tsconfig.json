@@ -9,6 +9,7 @@
     "sourceMap": true,
     "strict": true,
     "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
     "exactOptionalPropertyTypes": true,
     "esModuleInterop": true,

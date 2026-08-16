@@ -104,7 +104,10 @@ describe("anki-apkg-export", () => {
        first one, so the round trip has to be read out of `flds`. */
     const normalizedResult = result
       .map(({ fields }: Readonly<Record<string, string>>) => {
-        const [front, back] = fields.split(SEPARATOR);
+        /* `flds` always holds both sides joined by the separator, so the split
+           has exactly two parts; the defaults keep that promise typed rather
+           than letting an `undefined` reach an assertion. */
+        const [front = "", back = ""] = String(fields).split(SEPARATOR);
         return { front, back };
       })
       .sort((left: Readonly<{ front: string }>, right: Readonly<{ front: string }>) =>
