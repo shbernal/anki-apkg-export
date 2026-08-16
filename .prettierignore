@@ -1,8 +1,0 @@
-dist/
-node_modules/
-coverage/
-
-pnpm-lock.yaml
-
-test/fixtures/
-examples/assets/
