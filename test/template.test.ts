@@ -14,10 +14,14 @@ interface TemplateModel {
   tmpls: { qfmt: string; afmt: string }[];
   tags: string[];
   vers: unknown[];
+  mod: number;
 }
 
 /** 2016-12-25T12:00:00Z, well after that day's 04:00 rollover. */
 const NOON_UTC = 1_482_667_200_000;
+
+/** `NOON_UTC` in seconds: the width deck and note-model `mod` use. */
+const NOON_UTC_SECONDS = 1_482_667_200;
 
 /** 2016-12-25T04:00:00Z in seconds, the boundary `NOON_UTC` falls after. */
 const NOON_UTC_ROLLOVER = 1_482_638_400;
@@ -62,6 +66,20 @@ const readModel = async (template: string): Promise<TemplateModel> => {
   return model;
 };
 
+/** Read the seeded decks, which live in a JSON blob in the `col` row like the models do. */
+const readDecks = async (template: string): Promise<{ readonly mod: number }[]> => {
+  const sql = await initSqlJs({ locateFile });
+  const db = new sql.Database();
+  db.run(template);
+  const [result] = db.exec("SELECT decks FROM col");
+  db.close();
+
+  /* `decks` is a JSON text column, so its decoded shape is only known here. */
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  const decks = JSON.parse(String(result.values[0][0])) as Record<string, { readonly mod: number }>;
+  return Object.values(decks);
+};
+
 describe("the default note template", () => {
   it("applies the default question, answer and css formats", async () => {
     expect.hasAssertions();
@@ -75,7 +93,14 @@ describe("the default note template", () => {
 
   it("treats an empty options object like no options", () => {
     expect.hasAssertions();
-    expect(createTemplate({})).toBe(createTemplate());
+
+    /* The clock has to be pinned: the two calls stamp their own build time, so
+       straddling a millisecond boundary would fail this on timing, not options. */
+    vi.useFakeTimers({ now: NOON_UTC, toFake: ["Date"] });
+    const [empty, absent] = [createTemplate({}), createTemplate()];
+    vi.useRealTimers();
+
+    expect(empty).toBe(absent);
   });
 
   it("applies overrides", async () => {
@@ -147,6 +172,19 @@ describe("the default note template", () => {
     vi.useRealTimers();
 
     expect(col.crt).toBe(EARLY_UTC_ROLLOVER);
+  });
+
+  it("stamps every deck and the note model with the build time as well", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ now: NOON_UTC, toFake: ["Date"] });
+    const decks = await readDecks(createTemplate());
+    const model = await readModel(createTemplate());
+    vi.useRealTimers();
+
+    /* These are seconds, not the milliseconds `col.mod` uses. They were frozen
+       at July 2015, which dated a brand-new deck two years before its notes. */
+    expect(decks.map((deck) => deck.mod)).toStrictEqual([NOON_UTC_SECONDS, NOON_UTC_SECONDS]);
+    expect(model.mod).toBe(NOON_UTC_SECONDS);
   });
 
   it("leaves the note model without the placeholder tag or the misspelled key", async () => {

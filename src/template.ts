@@ -5,9 +5,10 @@ export interface TemplateOptions {
 }
 
 /*
- * The four objects below are Anki's own collection defaults. They are
- * JSON.stringify'd into the generated collection.anki2 verbatim, so their keys
- * and key order are emitted output rather than formatting.
+ * The values below are Anki's own collection defaults. They are JSON.stringify'd
+ * into the generated collection.anki2 verbatim, so their keys and key order are
+ * emitted output rather than formatting. The ones carrying a `mod` are built per
+ * export rather than frozen, since that field is a real modification time.
  */
 
 const CONF = {
@@ -52,7 +53,8 @@ const NOTE_FIELDS = [
 const LATEX_PRE =
   "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n";
 
-const DECKS = {
+/** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
+const buildDecks = (mod: number) => ({
   1: {
     desc: "",
     name: "Default",
@@ -67,7 +69,7 @@ const DECKS = {
     revToday: [0, 0],
     lrnToday: [0, 0],
     id: 1,
-    mod: 1_435_645_724,
+    mod,
   },
   1_435_588_830_424: {
     desc: "",
@@ -84,9 +86,9 @@ const DECKS = {
     revToday: [0, 0],
     lrnToday: [0, 0],
     id: 1_435_588_830_424,
-    mod: 1_435_588_830,
+    mod,
   },
-};
+});
 
 const DCONF = {
   1: {
@@ -126,8 +128,14 @@ const DCONF = {
   },
 };
 
-/** The note model is the only default that varies with the caller's overrides. */
-const buildModels = ({ questionFormat, answerFormat, css }: Required<TemplateOptions>) => ({
+/**
+ * The note model is the only default that varies with the caller's overrides.
+ * Its `mod` is in seconds, matching the deck's rather than `col.mod`.
+ */
+const buildModels = (
+  mod: number,
+  { questionFormat, answerFormat, css }: Required<TemplateOptions>,
+) => ({
   1_388_596_687_391: {
     /* A dead schema-11 key Anki still writes; it was misspelled `veArs` here. */
     vers: [],
@@ -154,7 +162,7 @@ const buildModels = ({ questionFormat, answerFormat, css }: Required<TemplateOpt
     type: 0,
     id: 1_388_596_687_391,
     css,
-    mod: 1_435_645_658,
+    mod,
   },
 });
 
@@ -271,12 +279,15 @@ export default function createTemplate({
   answerFormat = '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
   css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\nbackground-color: white;\n}\n",
 }: Readonly<TemplateOptions> = {}): string {
-  const models = buildModels({ questionFormat, answerFormat, css });
-
-  /* `crt` is in seconds; `mod` and `scm` are in milliseconds, as Anki writes
-     them. Both are the moment this collection was built rather than the 2015
-     timestamps this template used to carry. */
+  /* `crt` is in seconds; `col.mod` and `col.scm` are in milliseconds, as Anki
+     writes them. All of them are the moment this collection was built rather
+     than the 2014/2015 timestamps this template used to carry. The deck and
+     note-model `mod` fields are seconds, and get the same instant. */
   const now = Date.now();
+  const nowSeconds = Math.floor(now / MILLISECONDS_PER_SECOND);
+
+  const decks = buildDecks(nowSeconds);
+  const models = buildModels(nowSeconds, { questionFormat, answerFormat, css });
 
   return `
     PRAGMA foreign_keys=OFF;
@@ -292,7 +303,7 @@ export default function createTemplate({
       0,
       '${JSON.stringify(CONF)}',
       '${JSON.stringify(models)}',
-      '${JSON.stringify(DECKS)}',
+      '${JSON.stringify(decks)}',
       '${JSON.stringify(DCONF)}',
       '{}'
     );${NOTE_TABLES}${INDEXES}
