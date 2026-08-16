@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
-import { readFileSync } from "fs";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 

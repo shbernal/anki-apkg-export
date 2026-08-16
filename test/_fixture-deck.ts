@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 /**
  * The one definition of the deck frozen in test/fixtures/output.apkg.

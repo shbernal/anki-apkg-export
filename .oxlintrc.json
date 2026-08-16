@@ -20,6 +20,12 @@
     "import/extensions": ["error", "ignorePackages", { "ts": "never" }],
     "no-console": "off",
 
+    // Not in any of the five categories above, so it has to be named to have
+    // any effect. This is a Node-only library and `node:` says so at the import
+    // rather than in prose; without the rule the two spellings drifted apart
+    // across src and test.
+    "unicorn/prefer-node-protocol": "error",
+
     // `sortImports` in .oxfmtrc.json already orders imports, and oxfmt rewrites
     // on every commit. Leaving this on means the formatter and the linter each
     // impose a different order and fight over the same lines.

@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 import initSqlJs, { type SqlValue } from "sql.js";
 import { describe, expect, it, vi } from "vitest";

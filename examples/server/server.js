@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /* Installed as a dependency this would be: import AnkiExport from 'anki-apkg-export'; */
 import AnkiExport from "../../dist/index.js";

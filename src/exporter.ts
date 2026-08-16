@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 
 import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
 import type { Database, SqlJsStatic, SqlValue } from "sql.js";

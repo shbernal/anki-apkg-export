@@ -84,6 +84,10 @@ that split is intentional rather than drift.
 - `.oxlintrc.json` enables all five categories: `correctness`, `suspicious`,
   `perf`, `pedantic`, and `style`. That is a higher bar than the other three
   packages' `recommendedTypeChecked` + `stylisticTypeChecked`.
+- Categories are not everything: `unicorn/prefer-node-protocol` belongs to none
+  of the five and is switched on by name. If a convention seems to hold by habit
+  rather than by a gate, check whether the rule exists but is uncategorized
+  before assuming oxlint lacks it.
 - `lint` passes `--type-aware`, which needs the `oxlint-tsgolint`
   devDependency. Without it the type-aware rules silently do not run.
 - oxfmt uses its own defaults — `printWidth` 100, `sortPackageJson` — plus
