@@ -3,7 +3,14 @@
 [![weekly downloads](https://img.shields.io/npm/dw/%40shbernal%2Fanki-apkg-export.svg?label=npm%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/anki-apkg-export)
 [![total downloads](https://img.shields.io/npm/dt/%40shbernal%2Fanki-apkg-export.svg?label=npm%20total%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/anki-apkg-export)
 
-Server-side ESM module for generating Anki `.apkg` decks.
+Build Anki `.apkg` decks from Node.js. Hand it a deck name, cards as HTML, and
+whatever images or audio those cards reference, and it hands back the bytes of a
+file Anki imports.
+
+It is the piece you want when the cards already exist somewhere else: a
+database, a set of notes, a scraped corpus, the output of another tool. Nothing
+has to go through the Anki desktop app. If what you have is Markdown, `mdanki`
+wraps this package and does that part for you.
 
 ## Requirements
 
@@ -35,10 +42,24 @@ apkg.addCard('card #3 with image <img src="anki.png" />', "card #3 back");
 fs.writeFileSync("./output.apkg", await apkg.save());
 ```
 
+### API
+
+| Call                                    | What it does                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| `AnkiExport(name, template?, options?)` | Opens a deck. `template` overrides the card layout, `options.now` pins the clock. |
+| `addCard(front, back, { tags })`        | Writes one note and one card. Both fields are HTML.                               |
+| `addMedia(filename, data)`              | Buffers a file that card HTML references by that name.                            |
+| `save(zipOptions?)`                     | Returns the `.apkg` as a `Buffer`. Callable more than once.                       |
+| `close()`                               | Frees the sql.js database. `using apkg = await AnkiExport(…)` does it for you.    |
+
+Only a process that builds deck after deck needs `close()`; a one-shot script
+can ignore it. Full signatures and defaults are in
+[docs/reference](docs/reference/index.md).
+
 ### Template customization
 
-`AnkiExport(name, templateOverrides?)` accepts `questionFormat`, `answerFormat`,
-and `css`:
+The second argument overrides the note template, one field at a time. Anything
+left out keeps Anki's own default.
 
 ```ts
 const apkg = await AnkiExport("customized", {
@@ -58,27 +79,19 @@ from any process, on any machine:
 const apkg = await AnkiExport("deck-name", undefined, { now: 1_700_000_000_000 });
 ```
 
-### API
-
-- `AnkiExport(name: string, template?: TemplateOptions, options?: { now?: number })`
-- `addCard(front: string, back: string, options?: { tags?: string | readonly string[] })`
-- `addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string)`
-- `save(options?: ZipOptions): Promise<Buffer>`
-- `close()` — releases the sql.js database; also wired to `Symbol.dispose`, so
-  `using apkg = await AnkiExport(…)` does it for you. Only a process that builds
-  many decks needs it; a one-shot script can ignore it.
-
-Full signatures and defaults: [docs/reference](docs/reference/index.md).
+A build that caches or diffs its decks wants this.
 
 ## Generated decks
 
-Decks are written at **schema 11** (package version Legacy1), which every
-current Anki release imports, with rows written the way Anki writes them for the
-same content. Identical input and clock produce byte-identical archives; see
-[reproducible builds](#reproducible-builds) for what pins the clock.
+Decks are written at schema 11, package version Legacy1, which every current
+Anki release imports. Rows are written the way Anki writes them for the same
+content, so a deck from here agrees with one Anki would have produced. Notes are
+matched on content, so re-importing a regenerated deck updates the collection
+instead of doubling it.
 
 The field-by-field contract, the deliberate deviations, and the known
-non-conformances are in [docs/reference/deck-format](docs/reference/deck-format.md).
+non-conformances are in
+[docs/reference/deck-format](docs/reference/deck-format.md).
 
 ## Documentation
 
@@ -87,16 +100,7 @@ non-conformances are in [docs/reference/deck-format](docs/reference/deck-format.
 - [Reference](docs/reference/index.md) and [deck format](docs/reference/deck-format.md)
 - [Tooling](docs/tooling.md) and [troubleshooting](docs/troubleshooting.md)
 - [Changelog](CHANGELOG.md)
-
-## Development
-
-```sh
-pnpm install
-pnpm run format:check && pnpm run typecheck && pnpm run lint && pnpm test && pnpm run build
-```
-
-See [docs/tooling](docs/tooling.md) for the full gate sequence and the lint
-setup.
+- [Contributing](CONTRIBUTING.md)
 
 ## Examples
 
