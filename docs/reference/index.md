@@ -1,7 +1,7 @@
 ---
 doc-schema-version: 1
 title: "Reference"
-summary: "The exported API surface: the factory, the exporter methods, and the template override fields."
+summary: "The exported API: the factory, the exporter methods, and the template override fields."
 read_when:
   - Looking up an exported signature or option
   - Checking what counts as a breaking change
@@ -18,13 +18,13 @@ decision, not incidental cleanup.
 
 `@shbernal/anki-apkg-export` is ESM-only and requires Node.js >= 24.
 
-| Export                   | Kind           | Notes                                            |
-| ------------------------ | -------------- | ------------------------------------------------ |
-| `default` — `AnkiExport` | async function | The factory. Resolves to an `Exporter`.          |
-| `Exporter`               | class          | For callers supplying their own sql.js instance. |
-| `TemplateOptions`        | type           | The override bag accepted by the factory.        |
-| `ExportOptions`          | type           | The second bag: `now`.                           |
-| `ZipOptions`             | type           | Re-exported from fflate, for `save`.             |
+| Export            | Kind           | Notes                                                       |
+| ----------------- | -------------- | ----------------------------------------------------------- |
+| `AnkiExport`      | async function | The default export. The factory; resolves to an `Exporter`. |
+| `Exporter`        | class          | For callers supplying their own sql.js instance.            |
+| `TemplateOptions` | type           | The override bag accepted by the factory.                   |
+| `ExportOptions`   | type           | The second bag, holding `now`.                              |
+| `ZipOptions`      | type           | Re-exported from fflate, for `save`.                        |
 
 ## `AnkiExport(deckName, template?, options?)`
 
@@ -53,8 +53,8 @@ deck reads: the collection's `crt`, `mod`, and `scm`, every row's `id` and
 
 Without it, saving the same input twice in one process still produces identical
 bytes, because the reading is taken once per exporter. Passing it extends that
-across processes and machines — same input plus same clock, same bytes — which
-is what a build that diffs or caches its decks needs.
+across processes and machines: same input plus same clock, same bytes. That is
+what a build that diffs or caches its decks needs.
 
 ```ts
 const apkg = await AnkiExport("reproducible", undefined, { now: 1_700_000_000_000 });
@@ -87,8 +87,8 @@ addCard(front: string, back: string, options?: { tags?: string | readonly string
 ```
 
 Writes one note and one card. Both fields are HTML; whatever is passed is
-stored verbatim in `flds`, and the first field additionally drives `sfld` and
-`csum` after stripping — see [deck format](deck-format.md).
+stored verbatim in `flds`, and the first field also drives `sfld` and `csum`
+after stripping. See [deck format](deck-format.md).
 
 `tags` accepts either a preformatted string or an array. Array entries have
 their spaces replaced with underscores, since Anki separates tags by spaces.
@@ -97,7 +97,7 @@ Cards are numbered in the new-card queue in call order, starting at 1.
 
 Adding the same front and back twice writes one note, and re-exporting a deck
 produces the same note identities as last time, so re-importing it updates
-rather than duplicates. Editing a card's text is a new note — see
+rather than duplicates. Editing a card's text is a new note. See
 [note identity](deck-format.md#note-identity).
 
 ## `addMedia(filename, data)`
@@ -117,7 +117,7 @@ save(options?: ZipOptions): Promise<Buffer>;
 ```
 
 Returns the `.apkg` as a Node `Buffer`. `options` is fflate's own bag, forwarded
-to `zipSync` untouched — `{ level: 0 }` stores uncompressed, for example.
+to `zipSync` untouched. `{ level: 0 }` stores uncompressed, for example.
 
 Async for call-site compatibility; the zipping itself is synchronous.
 
@@ -132,14 +132,14 @@ close(): void;
 [Symbol.dispose](): void;
 ```
 
-Releases the sql.js database. Idempotent — calling it twice is a no-op, not a
-double free — and final: `addCard`, `addMedia`, and `save` all throw afterwards,
-naming the method rather than faulting inside WASM. A deck already returned by
-`save` is unaffected; those are plain bytes.
+Releases the sql.js database. Idempotent, so calling it twice is a no-op rather
+than a double free. It is also final: `addCard`, `addMedia`, and `save` all
+throw afterwards, naming the method rather than faulting inside WASM. A deck
+already returned by `save` is unaffected; those are plain bytes.
 
 sql.js allocates the collection inside a WASM heap that is created once per
 process and never shrinks, so dropping the last reference to an exporter and
-forcing a collection reclaims nothing — only closing the handle does. Measured
+forcing a collection reclaims nothing. Only closing the handle does. Measured
 over ten rounds of building 2,000 cards and discarding the exporter,
 `process.memoryUsage().external` climbs 30 → 41 MB without `close()` and holds
 flat at 31 MB with it.
@@ -171,5 +171,5 @@ new Exporter(
 
 The class behind the factory, exported for callers that already have a sql.js
 instance. `template` is the SQL script `createTemplate` produces, and `now` is
-the same clock value that built it — pass one to both or neither. Public
+the same clock value that built it. Pass one to both or neither. Public
 readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.

@@ -38,7 +38,7 @@ separate ones.
 Checks:
 
 - In tests, pin the clock: `vi.useFakeTimers({ now, toFake: ["Date"] })`.
-- Across machines, differing bytes for the same pinned clock is a real bug —
+- Across machines, differing bytes for the same pinned clock is a real bug;
   something is reading a local rather than UTC clock.
 
 Fix:
@@ -67,7 +67,7 @@ Checks:
 Fix:
 
 - Add the failing case to the fixture from a real Anki collection, then correct
-  the port. Do not adjust the port to match intuition — order of operations in
+  the port. Do not adjust the port to match intuition. Order of operations in
   it is load bearing.
 
 ## A media file does not appear on a card

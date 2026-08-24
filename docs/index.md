@@ -14,7 +14,7 @@ doc_type: "overview"
 A library that builds Anki `.apkg` deck packages from JavaScript and TypeScript.
 Published to npm as `@shbernal/anki-apkg-export`.
 
-## What This Project Does
+## What this project does
 
 It takes a deck name, some cards, and optionally some media files, and returns
 the bytes of an `.apkg` archive. Internally that means seeding an in-memory
@@ -53,7 +53,7 @@ fs.writeFileSync("./output.apkg", await apkg.save());
 Requires Node.js >= 24 and ESM. The full signature list is in the
 [reference](reference/index.md).
 
-## Main Workflows
+## Main workflows
 
 | Question                                                     | Page                                    |
 | ------------------------------------------------------------ | --------------------------------------- |

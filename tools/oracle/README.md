@@ -1,10 +1,10 @@
-# The Anki Oracle
+# The Anki oracle
 
 Two checks that run this package's output past the real Anki library instead of
 past our own understanding of it. Neither is part of `pnpm test`: they need
 Python and a wheel off PyPI, which the JavaScript gates deliberately do not.
 
-## Running Them
+## Running them
 
 Both scripts carry [PEP 723](https://peps.python.org/pep-0723/) inline metadata,
 so [uv](https://docs.astral.sh/uv/) resolves and caches the pinned `anki` wheel
@@ -22,22 +22,22 @@ uv run tools/oracle/gen_stripped_fields.py
 uv run tools/oracle/check_apkg.py [path/to/deck.apkg]
 ```
 
-Without uv, any environment with the pinned `anki` installed works — the scripts
-are ordinary Python and the inline metadata is a comment to everything else:
+Without uv, any environment with the pinned `anki` installed works. The scripts
+are ordinary Python, and the inline metadata is a comment to everything else:
 
 ```sh
 python -m venv .oracle && .oracle/bin/pip install anki==26.8.1
 .oracle/bin/python tools/oracle/gen_stripped_fields.py
 ```
 
-## What Each One Proves
+## What each one proves
 
 `gen_stripped_fields.py` writes every case in `corpus.py` into the first field of
 a note in a genuine collection and reads back the `sfld` and `csum` Anki
 computed, committing them as `test/fixtures/anki-stripped-fields.json`. That
 fixture is the entire basis for trusting `src/text.ts`, which reimplements
 Anki's HTML stripper. A failure in `test/text.test.ts` means this package drifted
-from Anki — it is not a fixture to refresh until the diff has been read.
+from Anki. It is not a fixture to refresh until the diff has been read.
 
 `check_apkg.py` imports a generated deck into a fresh collection, then runs the
 same "Check Database" and media checks the desktop app runs. The unit tests read
@@ -45,7 +45,7 @@ decks back with `node:sqlite` and prove the bytes are the ones we meant to write
 only this proves Anki will take them. Run it after any change to the emitted
 deck, alongside `pnpm run fixture:regen`.
 
-## Pins And Provenance
+## Pins and provenance
 
 `anki` is pinned exactly, in each script's inline metadata, and the version that
 actually produced the fixture is recorded in the fixture itself. The two pins are
@@ -62,7 +62,7 @@ Anki reaches through `decode_entities` in `rslib/src/text.rs`. It is a
 compile-time Rust constant and cannot be read back out of the installed wheel,
 so it is committed here rather than derived at run time.
 
-## Changing The Corpus
+## Changing the corpus
 
 Add cases to `corpus.py` freely and regenerate in the same commit: the new
 expectations come from Anki, not from us. Removing a case silently drops

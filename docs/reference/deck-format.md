@@ -1,6 +1,6 @@
 ---
 doc-schema-version: 1
-title: "Deck Format"
+title: "Deck format"
 summary: "What the generated schema-11 deck contains field by field, where it deliberately deviates from Anki, and what remains non-conformant."
 read_when:
   - Changing anything the exporter or template writes into the collection
@@ -9,7 +9,7 @@ read_when:
 doc_type: "reference"
 ---
 
-# Deck Format
+# Deck format
 
 Decks are written at **schema 11**, package version **Legacy1**, which every
 current Anki release imports.
@@ -19,7 +19,7 @@ Anki writes them for the same content, so an exported deck agrees with the one
 the reference implementation would have produced. The values below were
 measured against Anki 26.8.1.
 
-## Archive Layout
+## Archive layout
 
 | Entry              | Contents                                                  |
 | ------------------ | --------------------------------------------------------- |
@@ -30,7 +30,7 @@ measured against Anki 26.8.1.
 Every entry's timestamp is pinned to UTC, so the same input compresses to the
 same bytes on any machine.
 
-## Timestamp Widths
+## Timestamp widths
 
 Getting these confused is the defect class this format is most prone to, because
 Anki keeps whatever an imported row carries. A millisecond value read as seconds
@@ -54,10 +54,10 @@ there is cosmetic in the collection but still means the file disagrees with Anki
 - **`flds`** is `front + U+001F + back`, verbatim, including any HTML.
 - **`sfld`** is the first field with its HTML stripped by the port in
   `src/text.ts`. Media filenames survive, padded with a space each side, so
-  `a <img src="b.png">` sorts as `a  b.png ` — two spaces before the filename,
-  one after. The result is deliberately not trimmed; Anki trims only in
+  `a <img src="b.png">` sorts as `a  b.png `, two spaces before the filename
+  and one after. The result is deliberately not trimmed; Anki trims only in
   `html_to_text_line`, which the note path does not use.
-- **`csum`** is the first four bytes of `sha1(sfld)` read big endian — the
+- **`csum`** is the first four bytes of `sha1(sfld)` read big endian, over the
   _stripped first field_, never the joined field list.
 - **`guid`** is sha1 hex of `deckName + front + back`, concatenated with no
   separator. See [note identity](#note-identity) for what that buys and costs,
@@ -79,7 +79,7 @@ the last position used, and a card the user adds later does not reuse one.
 That reading of `due` only holds for new cards. For a review card `due` is a day
 counted from `col.crt`; for a learning card it is a timestamp.
 
-## Note Identity
+## Note identity
 
 Anki matches notes on `guid` at import: a guid it already has updates that note,
 a guid it does not have adds one. Everything below follows from that.
@@ -105,7 +105,7 @@ Three consequences, all of them structural rather than fixable:
   removed the deck id from the hash. A user re-exporting an existing deck across
   that boundary gets one round of duplicates, once.
 
-## Deliberate Deviations
+## Deliberate deviations
 
 **`col.crt` uses the 04:00 UTC rollover where Anki uses 04:00 local.** Anki's
 default rollover hour is 4, applied to the local clock. Deriving `crt` locally
@@ -114,23 +114,23 @@ which is exactly what the archive's UTC timestamp pinning exists to prevent.
 `crt` only converts day numbers for review and learning cards, and this package
 emits neither.
 
-## Known Non-Conformance
+## Known non-conformance
 
 **`guid` shape.** Anki uses base91 of a random 64-bit int, roughly 10
 characters; this writes 40-char sha1 hex. Anki treats `guid` as opaque text, so
-this imports correctly and the shape is the only non-conformance — what the hash
+this imports correctly and the shape is the only non-conformance; what the hash
 is taken over is covered under [note identity](#note-identity). A random guid
 would match Anki's shape but would defeat that entirely, since this package
 keeps no state between runs to remember it by.
 
-## Out Of Scope
+## Out of scope
 
 - **Schema 18 / package version v3.** Not planned here; Legacy1 is what this
   package targets.
 - **More than one notetype or template.** Product scope, not a limitation to fix
   incidentally.
 
-## Changing Any Of This
+## Changing any of this
 
 The golden test in `test/deck-round-trip.test.ts` asserts byte equality against
 `test/fixtures/output.apkg` under a pinned clock, so every change above
