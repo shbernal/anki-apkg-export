@@ -1,8 +1,8 @@
-# Local Agent Guide
+# Local agent guide
 
-## Read The Docs First
+## Read the docs first
 
-`docs/` holds the detail that used to live in this file. Each page opens with
+`docs/` holds the detail this file used to carry. Each page opens with
 frontmatter carrying `read_when` hints; read the pages matching the task before
 coding.
 
@@ -17,7 +17,7 @@ coding.
 
 Update the matching page when behavior changes.
 
-## Repository Context
+## Repository context
 
 - `anki-apkg-export` lives alongside other Anki-related packages under
   `anki-md-pkgs`; treat `mdanki`, `ankimd`, and `pdfanki` as related but separate
@@ -27,7 +27,7 @@ Update the matching page when behavior changes.
 - keep it usable as a standalone library, not only as a piece of `mdanki` or
   `pdfanki`
 
-## Project Scope
+## Project scope
 
 - generates Anki `.apkg` deck packages from JavaScript and TypeScript
 - published to npm as `@shbernal/anki-apkg-export`, ESM-only, Node.js >= 24
@@ -36,18 +36,17 @@ Update the matching page when behavior changes.
   `src/index.ts` the entry point
 - there is no CLI; the package is a library
 
-## Public API Guardrails
+## Public API guardrails
 
-- the public surface is `AnkiExport(name, templateOverrides?, { now }?)`
-  returning `addCard`, `addMedia`, `save`, and `close`
-- treat that surface as published API: changing it needs a deliberate semver
-  decision, not incidental cleanup
+- the published API is `AnkiExport(name, templateOverrides?, { now }?)` returning
+  `addCard`, `addMedia`, `save`, and `close`
+- changing it needs a deliberate semver decision, not incidental cleanup
 - keep `exports`, `files`, and `dist` shape intact unless the change is the point
   of the task
 - template overrides are `questionFormat`, `answerFormat`, and `css`; keep
   defaults working when adding options
 
-## Validation Workflow
+## Validation workflow
 
 ```sh
 pnpm install --frozen-lockfile
@@ -62,7 +61,7 @@ npm pack --dry-run --ignore-scripts   # before anything release-shaped
 Any change to the emitted deck also needs `pnpm run fixture:regen` **in the same
 commit**. See `docs/tooling.md` for why the order matters.
 
-## Release Workflow
+## Release workflow
 
 - publishing runs through `.github/workflows/publish.yml` with npm trusted
   publishing and provenance
