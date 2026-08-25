@@ -341,6 +341,37 @@ describe("the exporter internals", () => {
     ]);
   });
 
+  it("stores no tags at all for an empty tag array", () => {
+    expect.hasAssertions();
+
+    exporter.addCard("Test Front", "Test back", { tags: [] });
+
+    /* What Anki writes for an untagged note, and what `mdanki` asks for on
+       every card it exports without tags. */
+    expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags: "" });
+  });
+
+  it("drops array entries that hold no tag", () => {
+    expect.hasAssertions();
+
+    exporter.addCard("Test Front", "Test back", { tags: ["", "  ", "real"] });
+
+    expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags: " real " });
+  });
+
+  it("writes the same tags for an empty array as for no options", () => {
+    expect.hasAssertions();
+
+    exporter.addCard("Empty array", "back", { tags: [] });
+    exporter.addCard("No options", "back");
+
+    const written = readRows(exporter.db, "select tags from notes").map(
+      (note: Readonly<Record<string, SqlValue>>) => note.tags,
+    );
+
+    expect(written).toStrictEqual(["", ""]);
+  });
+
   it("passes a tag string through untouched", () => {
     expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;

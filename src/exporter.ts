@@ -482,8 +482,8 @@ interface CollectionJson {
  * Put `addCard`'s `tags` option into the single space-delimited string Anki
  * stores. A preformatted string passes through untouched; an array is joined
  * with each entry's spaces underscored, since a space would otherwise split one
- * tag into several. The result is padded at both ends, which is what lets an
- * Anki search for `" tag "` match the first and last tags too.
+ * tag into several. A result with tags in it is padded at both ends, which is
+ * what lets an Anki search for `" tag "` match the first and last tags too.
  */
 const normalizeTags = (tags?: string | readonly string[]): string => {
   if (typeof tags === "string") {
@@ -496,7 +496,17 @@ const normalizeTags = (tags?: string | readonly string[]): string => {
     return "";
   }
 
-  return ` ${tags.map((tag: string) => tag.replaceAll(" ", "_")).join(" ")} `;
+  /* An entry with no tag in it would contribute only a doubled separator, and
+     an array of nothing but those is a note with no tags — which Anki stores
+     as the empty string rather than as the pair of pad spaces. */
+  const named = tags
+    .filter((tag: string) => tag.trim() !== "")
+    .map((tag: string) => tag.replaceAll(" ", "_"));
+  if (named.length === 0) {
+    return "";
+  }
+
+  return ` ${named.join(" ")} `;
 };
 
 /**
