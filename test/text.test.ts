@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import NAMED_ENTITIES from "../src/html-entities.js";
 import stripHtmlPreservingMediaFilenames from "../src/text.js";
 
 interface StrippedFieldCase {
@@ -19,6 +20,12 @@ interface StrippedFieldFixture {
 
 /** `csum` is the first four bytes of the sha1, read big endian. */
 const CHECKSUM_HEX_DIGITS = 8;
+
+/** The HTML 4 set the `htmlescape` crate carries, which is what Anki decodes. */
+const NAMED_ENTITY_COUNT = 252;
+
+/** Names that a lookup through `Object.prototype` would answer for. */
+const INHERITED_NAMES = ["constructor", "__proto__", "toString", "hasOwnProperty"];
 
 /** Guards against the fixture being silently emptied or truncated. */
 const MINIMUM_CASES = 300;
@@ -96,4 +103,22 @@ describe("html stripping", () => {
       expect(fieldChecksum(stripped)).toBe(csum);
     },
   );
+});
+
+describe("the named entity table", () => {
+  it("carries the whole HTML 4 set and nothing beyond it", () => {
+    expect.hasAssertions();
+
+    /* The count Anki's decoder works from; HTML 5's set is 2231 names. */
+    expect(NAMED_ENTITIES.size).toBe(NAMED_ENTITY_COUNT);
+  });
+
+  it.each(INHERITED_NAMES)("leaves &%s; undecoded", (name: string) => {
+    expect.hasAssertions();
+
+    /* Why the table is a Map: a bare object literal would resolve these
+       through `Object.prototype` and decode them into something. Anki has no
+       reason to emit them, so the corpus does not cover them. */
+    expect(stripHtmlPreservingMediaFilenames(`&${name};`)).toBe(`&${name};`);
+  });
 });

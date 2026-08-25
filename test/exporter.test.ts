@@ -291,6 +291,29 @@ describe("the exporter internals", () => {
     expect(readCollectionConf(exporter)).toMatchObject({ nextPos: QUEUED_CARDS.length + 1 });
   });
 
+  it("adds a card without querying the collection", () => {
+    expect.hasAssertions();
+
+    /* Every statement this class issues goes through one of these three. */
+    const runSpy = vi.spyOn(exporter.db, "run");
+    const execSpy = vi.spyOn(exporter.db, "exec");
+    const prepareSpy = vi.spyOn(exporter.db, "prepare");
+
+    exporter.addCard("front 1", "back");
+    exporter.addCard("front 2", "back");
+    exporter.addCard("front 1", "back");
+
+    const statements = [...runSpy.mock.calls, ...execSpy.mock.calls, ...prepareSpy.mock.calls].map(
+      ([sql]: readonly unknown[]) => String(sql).trimStart().toLowerCase(),
+    );
+
+    /* The guid map answers what a `select` would, which is what keeps `addCard`
+       flat rather than quadratic in the size of the deck. The day a duplicate
+       check comes back, this is what reports it. */
+    expect(statements.length).toBeGreaterThan(0);
+    expect(statements.filter((sql: string) => sql.startsWith("select"))).toStrictEqual([]);
+  });
+
   it("refuses a card whose first field strips to nothing", () => {
     expect.hasAssertions();
 
