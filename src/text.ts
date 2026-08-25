@@ -43,29 +43,24 @@ const MAX_U32 = 0xff_ff_ff_ff;
 
 const NON_BREAKING_SPACE = "\u00A0";
 
-const DIGIT = /^\d$/u;
-const HEX_DIGIT = /^[\da-f]$/iu;
-
-/** The two states that accumulate digits, and what each one accepts. */
-const NUMERIC_STATES = {
-  dec: { radix: DECIMAL_RADIX, digit: DIGIT },
-  hex: { radix: HEX_RADIX, digit: HEX_DIGIT },
-} as const;
-
-type NumericState = keyof typeof NUMERIC_STATES;
-type DecodeState = "entity" | "named" | "normal" | "numeric" | NumericState;
+/**
+ * An entity reference: everything between `&` and the first `;`. One pattern
+ * covers both spellings, because the crate reads them the same way — a
+ * `#`-prefixed body whose digits are not digits is not a name either, so
+ * `&#41abc;` and `&#X41;` fail as names rather than as numbers. No `i` flag:
+ * the named table is case sensitive, so `&Amp;` is not `&amp;`.
+ */
+const REFERENCE = /&(?<body>[^;]*);/gu;
 
 /**
- * One character's worth of progress: the text to append, the partial reference
- * carried forward, and the state to continue in. Handlers return this rather
- * than mutating a shared cursor, so none of them can reach past its own
- * transition.
+ * The two numeric spellings, hex first so its `#x` is tried before the bare
+ * `#`. Both digit patterns accept the empty string, so `&#;` and `&#x;` reach
+ * `numericEntity`'s own rejection rather than being turned away here.
  */
-interface Step {
-  readonly emit: string;
-  readonly buf: string;
-  readonly state: DecodeState;
-}
+const NUMERIC_FORMS = [
+  { prefix: "#x", radix: HEX_RADIX, digits: /^[\da-f]*$/iu },
+  { prefix: "#", radix: DECIMAL_RADIX, digits: /^\d*$/u },
+] as const;
 
 /** `&#41;` / `&#x29;`, with the failure cases `char::from_u32` reports. */
 const numericEntity = (digits: string, radix: number): string | null => {
@@ -84,109 +79,23 @@ const numericEntity = (digits: string, radix: number): string | null => {
   return String.fromCodePoint(value);
 };
 
-const stepNormal = (ch: string): Step => {
-  if (ch === "&") {
-    return { emit: "", buf: "", state: "entity" };
-  }
+/** One reference's body, or null where the crate reports an error. */
+const decodeReference = (body: string): string | null => {
+  for (const { prefix, radix, digits } of NUMERIC_FORMS) {
+    if (body.startsWith(prefix)) {
+      const value = body.slice(prefix.length);
+      if (!digits.test(value)) {
+        return null;
+      }
 
-  return { emit: ch, buf: "", state: "normal" };
-};
-
-const stepEntity = (ch: string): Step | null => {
-  if (ch === "#") {
-    return { emit: "", buf: "", state: "numeric" };
-  }
-  // `&;` names nothing.
-  if (ch === ";") {
-    return null;
-  }
-
-  return { emit: "", buf: ch, state: "named" };
-};
-
-const stepNamed = (buf: string, ch: string): Step | null => {
-  if (ch !== ";") {
-    return { emit: "", buf: buf + ch, state: "named" };
-  }
-
-  const named = NAMED_ENTITIES.get(buf);
-  if (named === undefined) {
-    return null;
-  }
-
-  return { emit: named, buf: "", state: "normal" };
-};
-
-const stepNumeric = (ch: string): Step | null => {
-  if (DIGIT.test(ch)) {
-    return { emit: "", buf: ch, state: "dec" };
-  }
-  // Only a lowercase `x` opens a hex escape, so `&#X41;` is malformed.
-  if (ch === "x") {
-    return { emit: "", buf: "", state: "hex" };
-  }
-
-  return null;
-};
-
-const stepDigits = (state: NumericState, buf: string, ch: string): Step | null => {
-  const { radix, digit } = NUMERIC_STATES[state];
-
-  if (ch === ";") {
-    const decoded = numericEntity(buf, radix);
-    if (decoded === null) {
-      return null;
+      return numericEntity(value, radix);
     }
-
-    return { emit: decoded, buf: "", state: "normal" };
-  }
-  if (digit.test(ch)) {
-    return { emit: "", buf: buf + ch, state };
   }
 
-  return null;
-};
-
-const advance = (state: DecodeState, buf: string, ch: string): Step | null => {
-  if (state === "normal") {
-    return stepNormal(ch);
-  }
-  if (state === "entity") {
-    return stepEntity(ch);
-  }
-  if (state === "named") {
-    return stepNamed(buf, ch);
-  }
-  if (state === "numeric") {
-    return stepNumeric(ch);
-  }
-
-  return stepDigits(state, buf, ch);
-};
-
-/** Where the decoder ended up: the text it built, and the state it stopped in. */
-interface DecodeResult {
-  readonly text: string;
-  readonly state: DecodeState;
-}
-
-/** Drive the machine over every character, or give up at the first bad one. */
-const run = (html: string): DecodeResult | null => {
-  let text = "";
-  let buf = "";
-  let state: DecodeState = "normal";
-
-  for (const ch of html) {
-    const step = advance(state, buf, ch);
-    if (step === null) {
-      return null;
-    }
-
-    text += step.emit;
-    ({ buf, state } = step);
-  }
-
-  return { text, state };
+  /* `&;` names nothing, and neither does anything the table does not hold.
+     `&#X41;` arrives here too: only a lowercase `x` opens a hex escape, so it
+     is looked up as a name and fails as one. */
+  return NAMED_ENTITIES.get(body) ?? null;
 };
 
 /**
@@ -198,14 +107,29 @@ const run = (html: string): DecodeResult | null => {
  * Returns null wherever the crate returns an error.
  */
 const decodeHtml = (html: string): string | null => {
-  const result = run(html);
-
-  // Stopping mid-reference is an error too, not literal text.
-  if (result === null || result.state !== "normal") {
+  /* An `&` outside every reference is one that never reached its `;`, which is
+     an error rather than literal text. Measured on the input with the
+     references removed, since `&amp;` decodes to an `&` that is not one. */
+  if (html.replaceAll(REFERENCE, "").includes("&")) {
     return null;
   }
 
-  return result.text;
+  let malformed = false;
+  const decoded = html.replaceAll(REFERENCE, (reference: string, body: string): string => {
+    const value = decodeReference(body);
+    if (value === null) {
+      malformed = true;
+      return reference;
+    }
+
+    return value;
+  });
+
+  if (malformed) {
+    return null;
+  }
+
+  return decoded;
 };
 
 /**
@@ -214,8 +138,8 @@ const decodeHtml = (html: string): string | null => {
  * literal U+00A0 that was never written as `&nbsp;` is left alone.
  */
 const decodeEntities = (html: string): string => {
-  /* Also keeps the per-character decoder off the path taken by the fields
-     that hold no `&` at all, which is nearly all of them. */
+  /* Also keeps the decoder's three scans off the path taken by the fields that
+     hold no `&` at all, which is nearly all of them. */
   if (!html.includes("&")) {
     return html;
   }
