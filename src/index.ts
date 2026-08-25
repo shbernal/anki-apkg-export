@@ -13,9 +13,16 @@ import createTemplate, { type TemplateOptions } from "./template.js";
  * `import.meta.resolve` is the ESM way to ask; this previously synthesized a
  * CJS `require` to do the same job, from before that existed.
  */
+let sqlJsDist: string | null = null;
+
 const locateFile = (file: string): string => {
-  const wasmPath = fileURLToPath(import.meta.resolve("sql.js/dist/sql-wasm.wasm"));
-  return path.join(path.dirname(wasmPath), file);
+  /* Resolved on the first call rather than at import time: the resolution is
+     constant for the life of the process, but doing it at module scope would
+     turn a missing sql.js install into a failure to import this package at
+     all, instead of one at the first `AnkiExport()`. */
+  sqlJsDist ??= path.dirname(fileURLToPath(import.meta.resolve("sql.js/dist/sql-wasm.wasm")));
+
+  return path.join(sqlJsDist, file);
 };
 
 /**
