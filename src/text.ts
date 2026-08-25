@@ -38,9 +38,6 @@ const MAX_CODE_POINT = 0x10_ff_ff;
 const FIRST_SURROGATE = 0xd8_00;
 const LAST_SURROGATE = 0xdf_ff;
 
-/** `u32::from_str_radix` fails rather than wrapping, so oversized escapes error. */
-const MAX_U32 = 0xff_ff_ff_ff;
-
 const NON_BREAKING_SPACE = "\u00A0";
 
 /**
@@ -68,8 +65,12 @@ const numericEntity = (digits: string, radix: number): string | null => {
     return null;
   }
 
+  /* The crate reads the digits with `u32::from_str_radix`, which errors rather
+     than wrapping on anything wider than a u32. Nothing that large survives
+     `char::from_u32` either, so the code point bound is the only one that
+     ever decides. */
   const value = Number.parseInt(digits, radix);
-  if (value > MAX_U32 || value > MAX_CODE_POINT) {
+  if (value > MAX_CODE_POINT) {
     return null;
   }
   if (value >= FIRST_SURROGATE && value <= LAST_SURROGATE) {
