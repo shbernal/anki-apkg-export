@@ -59,9 +59,13 @@ there is cosmetic in the collection but still means the file disagrees with Anki
   `html_to_text_line`, which the note path does not use.
 - **`csum`** is the first four bytes of `sha1(sfld)` read big endian, over the
   _stripped first field_, never the joined field list.
-- **`guid`** is sha1 hex of `deckName + front + back`, concatenated with no
-  separator. See [note identity](#note-identity) for what that buys and costs,
+- **`guid`** is sha1 hex of the deck name, the front and the back joined by
+  `U+001F`. See [note identity](#note-identity) for what that buys and costs,
   and [known non-conformance](#known-non-conformance) for its shape.
+- **`tags`** is the tag list space-delimited and padded with a space at each
+  end, so an Anki search for `" tag "` matches the first and last tags too. A
+  note with no tags stores `""`, which is what `addCard` writes both when no
+  options are passed and when the array it is given holds nothing usable.
 - **`usn`** is `-1`, and `flags` and `data` are empty.
 
 Which field sorts is chosen by the notetype's `sortf`, pinned to `0` here. If
@@ -93,11 +97,19 @@ counted from `col.crt`; for a learning card it is a timestamp.
 Anki matches notes on `guid` at import: a guid it already has updates that note,
 a guid it does not have adds one. Everything below follows from that.
 
-The guid is `sha1(deckName + front + back)`, so **the same card exported twice is
+The guid is `sha1` over the deck name, the front and the back, joined by the
+`U+001F` that separates fields in `flds`, so **the same card exported twice is
 the same note to Anki**, and re-importing a regenerated deck leaves the
 collection at the same note count rather than doubling it. Verified against Anki
 26.8.1: importing two decks of identical content built hours apart reports
-`new=0` on the second and leaves the note count unchanged.
+`new=0` on the second and leaves the note count unchanged, and
+`tools/oracle/check_apkg.py` re-checks the second half of that on every run.
+
+The separator is what makes the three parts recoverable from the hash's input:
+concatenated, a deck named `ab` with front `c` hashed identically to a deck
+named `a` with front `bc`, and two notes sharing a guid are one note to Anki.
+`U+001F` is the character no field can legitimately carry, since Anki splits
+`flds` on it.
 
 Three consequences, all of them structural rather than fixable:
 
@@ -110,9 +122,11 @@ Three consequences, all of them structural rather than fixable:
   in the renamed deck is new. This is the deliberate trade: dropping the name
   would make identical content in two different decks a single note, and one
   deck's copy would then follow the other's edits.
-- **Decks written before 5.1.0 do not match ones written after.** That release
-  removed the deck id from the hash. A user re-exporting an existing deck across
-  that boundary gets one round of duplicates, once.
+- **Decks written before 5.1.0, or before 6.0.0, do not match ones written
+  after.** 5.1.0 removed the deck id from the hash; 6.0.0 separated the three
+  remaining parts with `U+001F`. A user re-exporting an existing deck across
+  either boundary gets one round of duplicates, once. The 6.0.0 form is
+  unambiguous by construction, so there is no third boundary to come.
 
 ## Deliberate deviations
 

@@ -100,6 +100,10 @@ empty; Anki only requires the first field.
 
 `tags` accepts either a preformatted string or an array. Array entries have
 their spaces replaced with underscores, since Anki separates tags by spaces.
+Entries that are empty or nothing but whitespace are dropped, and an array that
+holds only those — `[]` included — writes no tags at all, which is what Anki
+stores for an untagged note. A string is passed through untouched: a caller who
+hands one over owns its shape.
 
 Cards are numbered in the new-card queue in call order, starting at 1. A
 repeated card keeps the position it was first given rather than taking a
@@ -120,6 +124,11 @@ Buffers a media file. `filename` is what card HTML references, e.g.
 `<img src="anki.png">`. Nothing is written until `save`, and no check is made
 that any card actually references the file.
 
+Throws if `filename` is empty or nothing but whitespace: the entry would ship in
+the manifest under a name no importer can act on. Nothing else about the name is
+checked, and deliberately so — entries are stored under their index rather than
+their name, so a deck can carry filenames a ZIP or a filesystem would refuse.
+
 Calling it twice with one filename replaces the buffered bytes and keeps the
 file at the index it was first given; only the later payload ships. Filenames
 are compared verbatim, so `a.png` and `A.png` are two files.
@@ -132,6 +141,12 @@ save(options?: ZipOptions): Promise<Buffer>;
 
 Returns the `.apkg` as a Node `Buffer`. `options` is fflate's own bag, forwarded
 to `zipSync` untouched. `{ level: 0 }` stores uncompressed, for example.
+
+`mtime` is the one key that also reaches the entries. Left out, every entry is
+stamped with the deck's build instant pinned to UTC, which is what makes an
+archive reproducible on machines in different timezones. Passed in, the value is
+forwarded verbatim — fflate accepts a `Date`, a number or a string — and keeping
+the archive reproducible becomes the caller's business.
 
 Async for call-site compatibility; the zipping itself is synchronous.
 

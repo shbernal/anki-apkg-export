@@ -63,12 +63,38 @@ Checks:
   each side.
 - Entity decoding is all-or-nothing: one bare `&` anywhere leaves the entire
   string undecoded. That is Anki's behavior, not a bug here.
+- A media tag with an unterminated attribute value really does give up a
+  filename from inside it: `<img alt="x src=y.png>` strips to `y.png`, and
+  `<img alt=" src=fake.png " src="real.png">` reports `fake.png` rather than
+  `real.png`. Anki reads the attribute run as quoted segments or single
+  characters and takes the first `src=` it reaches either way. Also Anki's
+  behavior, and pinned by the corpus.
 
 Fix:
 
 - Add the failing case to the fixture from a real Anki collection, then correct
   the port. Do not adjust the port to match intuition. Order of operations in
   it is load bearing.
+
+## A deck built with 5.x re-imports as duplicates
+
+Expected, once. 6.0.0 changed how the note guid is derived — the deck name and
+the two fields are now joined by `U+001F` instead of concatenated — so every
+note a 5.x build emitted has a new guid. Anki matches on the guid, so the first
+re-import after upgrading lands each note beside its old copy instead of
+updating it.
+
+Checks:
+
+- It is one round only. Decks exported by 6.0.0 and later match each other, and
+  the new form is unambiguous by construction, so there is no third boundary
+  coming. 5.1.0 was the first, for the same reason.
+
+Fix:
+
+- Delete the old notes, or accept the duplicates and carry on. There is nothing
+  to configure: a guid is either derived the old way or the new one, and this
+  package keeps no state between runs to migrate from.
 
 ## A media file does not appear on a card
 
