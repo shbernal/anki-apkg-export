@@ -11,8 +11,9 @@ so [uv](https://docs.astral.sh/uv/) resolves and caches the pinned `anki` wheel
 on first run. There is no virtualenv to create and nothing to activate.
 
 ```sh
-pnpm run oracle:fixture   # regenerate test/fixtures/anki-stripped-fields.json
-pnpm run oracle:check     # confirm anki accepts test/fixtures/output.apkg
+pnpm run oracle:fixture         # regenerate test/fixtures/anki-stripped-fields.json
+pnpm run oracle:fixture:check   # report whether that fixture is current, writing nothing
+pnpm run oracle:check           # confirm anki accepts test/fixtures/output.apkg
 ```
 
 Or call them directly, which is the same thing:
@@ -44,6 +45,13 @@ same "Check Database" and media checks the desktop app runs. The unit tests read
 decks back with `node:sqlite` and prove the bytes are the ones we meant to write;
 only this proves Anki will take them. Run it after any change to the emitted
 deck, alongside `pnpm run fixture:regen`.
+
+It then imports the same package a second time and requires that Anki report no
+new notes and leave the note count alone. That is the half of the note guid's
+promise Anki owns: notes are matched on their guid, so a deck arriving in a
+collection that already holds it updates rather than duplicates. The other half,
+that two builds of identical content carry the same guids, is a property of this
+package and is pinned in `test/exporter.test.ts`.
 
 ## Pins and provenance
 

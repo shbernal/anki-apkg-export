@@ -55,8 +55,9 @@ real Anki library rather than against our reading of it. They are not part of
 gates deliberately do not.
 
 ```sh
-pnpm run oracle:fixture   # regenerate test/fixtures/anki-stripped-fields.json
-pnpm run oracle:check     # confirm anki accepts test/fixtures/output.apkg
+pnpm run oracle:fixture         # regenerate test/fixtures/anki-stripped-fields.json
+pnpm run oracle:fixture:check   # report whether that fixture is current, writing nothing
+pnpm run oracle:check           # confirm anki accepts test/fixtures/output.apkg
 ```
 
 Both run through `uv`, which resolves the pinned `anki` wheel from inline

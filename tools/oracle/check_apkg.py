@@ -11,6 +11,11 @@ Anki will take them. This does: it imports the package into a genuine
 collection, then runs the same "Check Database" and media checks the desktop app
 runs, and fails on anything they report.
 
+It then imports the same package a second time, which is how the note guid's
+promise is checked rather than asserted: re-importing a deck built from
+identical content has to update the notes already there instead of adding a
+second copy of every one of them.
+
     uv run tools/oracle/check_apkg.py                    # test/fixtures/output.apkg
     uv run tools/oracle/check_apkg.py path/to/deck.apkg
 
@@ -35,6 +40,7 @@ from anki.collection import Collection  # noqa: E402
 from anki.import_export_pb2 import (  # noqa: E402
     ImportAnkiPackageOptions,
     ImportAnkiPackageRequest,
+    ImportResponse,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -64,24 +70,66 @@ def describe(col: Collection) -> None:
         print(f"    card {card_id}: due={due} type={card_type} queue={queue}")
 
 
+def import_package(col: Collection, package: Path) -> ImportResponse.Log:
+    """Import the package into `col` the way the desktop app would."""
+    request = ImportAnkiPackageRequest(
+        package_path=str(package),
+        options=ImportAnkiPackageOptions(
+            merge_notetypes=False,
+            # Both on, so the scheduling and deck-config values the exporter
+            # writes are exercised rather than discarded on the way in.
+            with_scheduling=True,
+            with_deck_configs=True,
+        ),
+    )
+    return col.import_anki_package(request).log
+
+
+def check_reimport(col: Collection, package: Path) -> list[str]:
+    """Import the same package again and hold it to what the guid promises.
+
+    Anki matches notes on their guid, so a deck landing in a collection that
+    already holds it has to update those notes rather than add a second copy of
+    every one. That is the half of the promise Anki owns, and the half only a
+    real import can answer.
+
+    The other half -- that two builds of identical content carry the same guids
+    in the first place -- belongs to `test/exporter.test.ts`, since it is a
+    property of this package rather than of Anki. Importing one file twice
+    cannot see it: both imports read the same guids out of the same bytes.
+    """
+    notes_before = len(col.find_notes(""))
+    try:
+        log = import_package(col, package)
+    except Exception as error:  # noqa: BLE001 - any failure here is the finding
+        return [f"second import raised {type(error).__name__}: {error}"]
+
+    notes_after = len(col.find_notes(""))
+    print("second import of the same package")
+    print("  new       :", len(log.new))
+    print("  updated   :", len(log.updated))
+    print("  duplicate :", len(log.duplicate))
+    print("  notes     :", f"{notes_before} -> {notes_after}")
+
+    problems: list[str] = []
+    if log.new:
+        problems.append(
+            f"second import reported {len(log.new)} new note(s): "
+            "the same content produced different guids"
+        )
+    if notes_after != notes_before:
+        problems.append(f"second import changed the note count: {notes_before} -> {notes_after}")
+    return problems
+
+
 def check(package: Path) -> list[str]:
     """Import the package and return the problems found, empty when clean."""
     problems: list[str] = []
     tmp = Path(tempfile.mkdtemp())
     col = Collection(str(tmp / "collection.anki2"))
     try:
-        request = ImportAnkiPackageRequest(
-            package_path=str(package),
-            options=ImportAnkiPackageOptions(
-                merge_notetypes=False,
-                # Both on, so the scheduling and deck-config values the exporter
-                # writes are exercised rather than discarded on the way in.
-                with_scheduling=True,
-                with_deck_configs=True,
-            ),
-        )
         try:
-            log = col.import_anki_package(request).log
+            log = import_package(col, package)
         except Exception as error:  # noqa: BLE001 - any failure here is the finding
             return [f"import raised {type(error).__name__}: {error}"]
 
@@ -111,6 +159,11 @@ def check(package: Path) -> list[str]:
         print("missing media :", list(missing))
         if missing:
             problems.append(f"{len(missing)} referenced media file(s) missing")
+
+        # Everything above reports on the first import; this adds an assertion
+        # to the same collection rather than starting a second scenario.
+        print()
+        problems += check_reimport(col, package)
 
         return problems
     finally:
