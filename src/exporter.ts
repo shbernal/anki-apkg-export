@@ -268,8 +268,23 @@ export default class Exporter {
     );
   }
 
+  /**
+   * Buffer one media file under the name card HTML references it by.
+   *
+   * A name that is empty, or nothing but whitespace, is refused for the reason
+   * `addCard` refuses a first field that strips to nothing: the entry would
+   * ship in the manifest and no importer could act on it. Nothing else about
+   * the name is checked, since entries are stored under their index precisely
+   * so a deck can carry filenames a ZIP or a filesystem would refuse.
+   */
   addMedia(filename: string, data: MediaItem["data"]): void {
     this._assertOpen("addMedia");
+    if (filename.trim() === "") {
+      throw new Error(
+        "Cannot add media with an empty filename: card HTML has no name to reference it by",
+      );
+    }
+
     this.media.set(filename, data);
   }
 

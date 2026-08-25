@@ -136,6 +136,24 @@ describe("the exporter internals", () => {
     expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png", 1: "A.png" });
   });
 
+  it("refuses media with an empty filename", async () => {
+    expect.hasAssertions();
+
+    /* The same line `addCard` holds for a first field that strips to nothing:
+       a manifest entry named "" is one no importer can act on. */
+    expect(() => {
+      exporter.addMedia("", Buffer.from("one"));
+    }).toThrow("Cannot add media with an empty filename");
+    expect(() => {
+      exporter.addMedia("   ", Buffer.from("two"));
+    }).toThrow("Cannot add media with an empty filename");
+
+    const files = unzipDeckToBuffers(await exporter.save());
+
+    expect([...files.keys()].sort()).toStrictEqual(["collection.anki2", "media"]);
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({});
+  });
+
   it("stamps entries with the creation date in UTC", async () => {
     expect.hasAssertions();
     exporter.addMedia("1.jpg", Buffer.from("one"));
