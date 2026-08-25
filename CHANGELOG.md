@@ -3,6 +3,72 @@
 Notable changes per release. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
+## 5.2.0
+
+A quoting defect that made ordinary CSS unusable, three cases where a deck came
+out subtly wrong, and a failed sql.js load that used to stick for the life of
+the process. The public surface is unchanged and so are the bytes written for
+input that was already valid — but `addCard` now rejects one input it used to
+accept, and `addMedia` resolves a repeated filename differently.
+
+### Fixed
+
+- **Template overrides containing `'` build a deck.** The four JSON columns in
+  the `col` row were interpolated into single-quoted SQL literals with
+  `JSON.stringify`, which escapes `"` but not `'`. A quoted font stack —
+  `css: ".card { font-family: 'Arial'; }"` — or an apostrophe in a question
+  format threw `near "Arial": syntax error` instead. Overrides are now stored
+  verbatim, quotes included, and a value that could have closed the literal and
+  appended its own statement no longer can.
+- **`addCard` refuses a first field that strips to nothing.** `""`, whitespace
+  and `<br>` all produced a note Anki's importer buckets as `empty_first_field`
+  and drops, so the deck silently came out short. It throws now, before any row
+  is written. A front that is only a media reference is still fine:
+  `<img src="a.png">` strips to its filename. **If you pass empty fronts today,
+  this is an error where it used to be a silently incomplete deck.**
+- **A repeated card no longer skips a new-card queue position.** The counter
+  advanced per `addCard` call rather than per note, so adding the same card
+  twice left position 1 held by nothing and pointed `col.conf.nextPos` past a
+  slot no card occupies. Positions are claimed per note guid now, so the queue
+  is contiguous and `nextPos` counts cards.
+- **A repeated `addMedia` filename replaces the earlier bytes** instead of
+  shipping both under the same name. Anki wrote the first entry into its media
+  folder and immediately overwrote it with the second, so the archive carried a
+  payload no importer would keep. Last write wins, and the file keeps the index
+  it was first given. **If you relied on both entries shipping, only the later
+  one does now.**
+- **A failed sql.js load no longer sticks.** The memoized module was the
+  promise, so a rejection was cached alongside a success and every later
+  `AnkiExport` call in the process rethrew the first error. A transient failure
+  now clears the memo and the next call retries.
+
+### Added
+
+- **`NOTICE` ships with the package.** npm auto-includes `README`, `LICENSE` and
+  `package.json` but not `NOTICE`, which is where this fork's attribution to
+  ewnd9's `anki-apkg-export` lives.
+- **Published source maps carry their sources.** `dist/*.js.map` shipped while
+  `src/` did not, so every map pointed at a path no consumer has.
+
+### Internal
+
+- The HTML entity decoder is a single pass over the references rather than a
+  ~140-line character-at-a-time state machine. Failure semantics are unchanged
+  down to the odd-looking ones, verified against the 318 oracle-generated cases
+  and by comparing both implementations over 200,000 generated inputs.
+- `addCard` runs no `SELECT` at all. Row ids and queue positions are handed out
+  by the exporter, so the per-card lookups asked the collection for values it
+  already knew.
+- CI runs the built package through the Node example, so a build that emits
+  something unimportable no longer passes every gate.
+
+### Downstream
+
+None. `test/fixtures/output.apkg` is byte-identical to 5.1.0's, so no fixture
+regeneration is needed in `mdanki` or `pdfanki`.
+
+**Full changelog**: https://github.com/shbernal/anki-apkg-export/compare/v5.1.0...v5.2.0
+
 ## 5.1.0
 
 Note identity, an explicit release path for the database, and a fix for
