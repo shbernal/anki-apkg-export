@@ -31,13 +31,28 @@ const EARLY_UTC_ROLLOVER = 1_482_552_000;
 /** This package emits schema 11 / package version Legacy1 only. */
 const SCHEMA_VERSION = 11;
 
-/** Read the scalar `col` columns the collection is stamped with. */
-const readCol = async (template: string): Promise<Record<string, number>> => {
+/**
+ * The template is one big SQL script, so running it through sql.js is the only
+ * honest way to assert on what reaches the collection. Every reader below is
+ * the same four steps — open, run, read the one `col` row, close — differing
+ * only in which columns it asks for.
+ */
+const readCollection = async (
+  template: string,
+  columns: string,
+): Promise<Record<string, SqlValue>> => {
   const sql = await loadSqlModule();
   const db = new sql.Database();
   db.run(template);
-  const col = readRow(db, "SELECT crt, mod, scm, ver FROM col");
+  const row = readRow(db, `SELECT ${columns} FROM col`);
   db.close();
+
+  return row;
+};
+
+/** Read the scalar `col` columns the collection is stamped with. */
+const readCol = async (template: string): Promise<Record<string, number>> => {
+  const col = await readCollection(template, "crt, mod, scm, ver");
 
   return {
     crt: Number(col.crt),
@@ -47,17 +62,9 @@ const readCol = async (template: string): Promise<Record<string, number>> => {
   };
 };
 
-/**
- * The template is one big SQL script; the note model lives in a JSON blob in
- * the `col` row. Running it through sql.js is the only honest way to assert on
- * what actually reaches the collection.
- */
+/** The note model, which lives in a JSON blob in the `col` row. */
 const readModel = async (template: string): Promise<TemplateModel> => {
-  const sql = await loadSqlModule();
-  const db = new sql.Database();
-  db.run(template);
-  const row = readRow(db, "SELECT models FROM col");
-  db.close();
+  const row = await readCollection(template, "models");
 
   /* `models` is a JSON text column, so its decoded shape is only known here. */
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -65,13 +72,9 @@ const readModel = async (template: string): Promise<TemplateModel> => {
   return first(Object.values(models), "note model");
 };
 
-/** Read the seeded decks, which live in a JSON blob in the `col` row like the models do. */
+/** The seeded decks, in a JSON blob of their own like the models. */
 const readDecks = async (template: string): Promise<{ readonly mod: number }[]> => {
-  const sql = await loadSqlModule();
-  const db = new sql.Database();
-  db.run(template);
-  const row = readRow(db, "SELECT decks FROM col");
-  db.close();
+  const row = await readCollection(template, "decks");
 
   /* `decks` is a JSON text column, so its decoded shape is only known here. */
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

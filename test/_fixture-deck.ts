@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 
+import type Exporter from "../src/exporter.js";
+
 /**
  * The one definition of the deck frozen in test/fixtures/output.apkg.
  *
@@ -31,15 +33,8 @@ export const FIXTURE_CARDS: readonly Readonly<FixtureCard>[] = [
 export const readFixture = (name: string): Buffer =>
   readFileSync(new URL(`fixtures/${name}`, import.meta.url));
 
-/** The subset of the exporter this module needs, so it works against src or dist. */
-interface FixtureDeck {
-  addCard: (front: string, back: string, options?: Readonly<{ tags?: readonly string[] }>) => void;
-  addMedia: (filename: string, data: Buffer) => void;
-  save: () => Promise<Buffer>;
-}
-
 export const buildFixtureDeck = async (
-  create: (deckName: string) => Promise<FixtureDeck>,
+  create: (deckName: string) => Promise<Exporter>,
 ): Promise<Buffer> => {
   const apkg = await create(FIXTURE_DECK_NAME);
   apkg.addMedia(FIXTURE_MEDIA_NAME, readFixture(FIXTURE_MEDIA_NAME));

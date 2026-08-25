@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AnkiExport from "../src/index.js";
-import { buildFixtureDeck, FIXTURE_NOW } from "./_fixture-deck.js";
+import { buildFixtureDeck, FIXTURE_CARDS, FIXTURE_NOW } from "./_fixture-deck.js";
 import { addCards, unzipDeckToDir } from "./_helpers.js";
 
 const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
@@ -21,11 +21,14 @@ interface Card {
   back: string;
 }
 
-const CARDS: readonly Readonly<Card>[] = [
-  { front: "card #1 front", back: "card #1 back" },
-  { front: "card #2 front", back: "card #2 back" },
-  { front: 'card #3 with image <img src="anki.png" />', back: "card #3 back" },
-];
+/**
+ * The fixture deck's cards without their tags. This suite adds `TAGGED` below
+ * for the `tags` column, so restating the fronts and backs here would give the
+ * golden fixture and the test guarding it two definitions that can drift.
+ */
+const CARDS: readonly Readonly<Card>[] = FIXTURE_CARDS.map(
+  ({ front, back }: Readonly<{ front: string; back: string }>) => ({ front, back }),
+);
 
 /**
  * One tagged card, so the round trip covers the `tags` column too. How the tag
