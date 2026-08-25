@@ -3,17 +3,20 @@ import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
 export type { ZipOptions } from "fflate";
 
 /**
- * One buffered media file: the name card HTML references it by, and its bytes.
- * A Node `Buffer` is a `Uint8Array`, so it is accepted by that member rather
- * than needing one of its own.
+ * Everything `addMedia` takes as a file's bytes. A Node `Buffer` is a
+ * `Uint8Array`, so it is covered by that member rather than needing one of its
+ * own.
  */
+export type MediaData = string | ArrayBuffer | Uint8Array;
+
+/** One buffered media file: the name card HTML references it by, and its bytes. */
 export interface MediaItem {
   filename: string;
-  data: string | ArrayBuffer | Uint8Array;
+  data: MediaData;
 }
 
 /** Accept everything `addMedia` documents, hand fflate the one thing it takes. */
-const toBytes = (data: MediaItem["data"]): Uint8Array => {
+const toBytes = (data: MediaData): Uint8Array => {
   if (typeof data === "string") {
     return strToU8(data);
   }

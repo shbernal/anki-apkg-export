@@ -25,6 +25,7 @@ decision, not incidental cleanup.
 | `TemplateOptions` | type           | The override bag accepted by the factory.                   |
 | `ExportOptions`   | type           | The second bag, holding `now`.                              |
 | `ZipOptions`      | type           | Re-exported from fflate, for `save`.                        |
+| `MediaData`       | type           | The bytes `addMedia` accepts.                               |
 
 ## `AnkiExport(deckName, template?, options?)`
 
@@ -117,10 +118,14 @@ rather than duplicates. Editing a card's text is a new note. See
 ## `addMedia(filename, data)`
 
 ```ts
-addMedia(filename: string, data: Buffer | Uint8Array | ArrayBuffer | string): void;
+type MediaData = string | ArrayBuffer | Uint8Array;
+
+addMedia(filename: string, data: MediaData): void;
 ```
 
-Buffers a media file. `filename` is what card HTML references, e.g.
+Buffers a media file. `MediaData` is exported for callers that need to name the
+type of a variable holding those bytes; a Node `Buffer` is a `Uint8Array`, so it
+is accepted without a member of its own. `filename` is what card HTML references, e.g.
 `<img src="anki.png">`. Nothing is written until `save`, and no check is made
 that any card actually references the file.
 

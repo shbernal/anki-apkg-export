@@ -28,6 +28,14 @@ plus a stripper that could be made to hang on a hundred bytes.
   the name is checked, and deliberately so: entries are stored under their index
   precisely so a deck can carry filenames a ZIP or a filesystem would refuse.
 
+### Added
+
+- **`MediaData`, the type `addMedia` takes.** The union was declared in
+  `src/archive.ts` and reachable only through a deep relative import that
+  `exports` does not publish, so a caller holding media bytes in a variable had
+  no name for them. It is on the entry point now. Type-only: the accepted values
+  are unchanged.
+
 ### Fixed
 
 - **An empty tag array writes no tags.** The joined array was padded at both

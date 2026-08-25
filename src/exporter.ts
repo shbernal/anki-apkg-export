@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Database, SqlJsStatic } from "sql.js";
 
-import { type MediaItem, packageDeck, type ZipOptions } from "./archive.js";
+import { type MediaData, packageDeck, type ZipOptions } from "./archive.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
 
 interface ExporterOptions {
@@ -48,7 +48,7 @@ export default class Exporter {
    * Filenames are compared verbatim: Anki treats them as opaque text, so
    * nothing here folds case or touches path separators.
    */
-  private readonly media = new Map<string, MediaItem["data"]>();
+  private readonly media = new Map<string, MediaData>();
   public readonly topDeckId: number;
   public readonly topModelId: number;
   public readonly separator: string = FIELD_SEPARATOR;
@@ -264,7 +264,7 @@ export default class Exporter {
     return packageDeck(
       {
         collection: this.db.export(),
-        media: [...this.media].map(([filename, data]: readonly [string, MediaItem["data"]]) => ({
+        media: [...this.media].map(([filename, data]: readonly [string, MediaData]) => ({
           filename,
           data,
         })),
@@ -283,7 +283,7 @@ export default class Exporter {
    * the name is checked, since entries are stored under their index precisely
    * so a deck can carry filenames a ZIP or a filesystem would refuse.
    */
-  addMedia(filename: string, data: MediaItem["data"]): void {
+  addMedia(filename: string, data: MediaData): void {
     this._assertOpen("addMedia");
     if (filename.trim() === "") {
       throw new Error(

@@ -49,7 +49,7 @@ const getSqlModule = (): Promise<SqlJsStatic> => {
   return sqlModulePromise;
 };
 
-export type { ZipOptions } from "./archive.js";
+export type { MediaData, ZipOptions } from "./archive.js";
 export { default as Exporter } from "./exporter.js";
 export type { TemplateOptions } from "./template.js";
 
