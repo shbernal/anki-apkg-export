@@ -86,6 +86,47 @@ describe("the exporter internals", () => {
     expect(files.get("1")?.toString()).toBe("two");
   });
 
+  it("lets a repeated media filename replace its earlier bytes", async () => {
+    expect.hasAssertions();
+
+    exporter.addMedia("a.png", Buffer.from("one"));
+    exporter.addMedia("a.png", Buffer.from("two"));
+    const files = unzipDeckToBuffers(await exporter.save());
+
+    /* Both entries used to ship. Anki writes entry 0 into its media folder and
+       then overwrites it with entry 1, so the first payload was dead weight. */
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png" });
+    expect(files.get("0")?.toString()).toBe("two");
+    expect([...files.keys()]).not.toContain("1");
+  });
+
+  it("keeps a replaced file at the index it was first given", async () => {
+    expect.hasAssertions();
+
+    exporter.addMedia("a.png", Buffer.from("one"));
+    exporter.addMedia("b.png", Buffer.from("two"));
+    exporter.addMedia("a.png", Buffer.from("three"));
+    const files = unzipDeckToBuffers(await exporter.save());
+
+    /* The manifest is index-keyed, so a replacement must not renumber what
+       comes after it. */
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png", 1: "b.png" });
+    expect(files.get("0")?.toString()).toBe("three");
+    expect(files.get("1")?.toString()).toBe("two");
+  });
+
+  it("treats filenames differing only in case as two files", async () => {
+    expect.hasAssertions();
+
+    exporter.addMedia("a.png", Buffer.from("one"));
+    exporter.addMedia("A.png", Buffer.from("two"));
+    const files = unzipDeckToBuffers(await exporter.save());
+
+    /* Anki reads a media filename as opaque text; folding case here would
+       silently merge two files a caller asked for separately. */
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png", 1: "A.png" });
+  });
+
   it("stamps entries with the creation date in UTC", async () => {
     expect.hasAssertions();
     exporter.addMedia("1.jpg", Buffer.from("one"));

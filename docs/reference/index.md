@@ -120,6 +120,10 @@ Buffers a media file. `filename` is what card HTML references, e.g.
 `<img src="anki.png">`. Nothing is written until `save`, and no check is made
 that any card actually references the file.
 
+Calling it twice with one filename replaces the buffered bytes and keeps the
+file at the index it was first given; only the later payload ships. Filenames
+are compared verbatim, so `a.png` and `A.png` are two files.
+
 ## `save(options?)`
 
 ```ts

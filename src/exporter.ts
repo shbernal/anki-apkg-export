@@ -41,7 +41,16 @@ const toModified = (timestampMs: number): number =>
 
 export default class Exporter {
   public readonly db: Database;
-  private readonly media: MediaItem[] = [];
+  /**
+   * Buffered media, keyed by filename so a repeated one replaces its bytes
+   * instead of shipping a second entry the importer would overwrite. A Map
+   * keeps insertion order and leaves an existing key where it is, which is what
+   * holds the index-keyed manifest stable across a replacement.
+   *
+   * Filenames are compared verbatim: Anki treats them as opaque text, so
+   * nothing here folds case or touches path separators.
+   */
+  private readonly media = new Map<string, MediaItem["data"]>();
   public readonly topDeckId: number;
   public readonly topModelId: number;
   public readonly separator: string = FIELD_SEPARATOR;
@@ -235,14 +244,21 @@ export default class Exporter {
     /* The archive is stamped with the same instant the rows are, so identical
        input yields an identical file. */
     return packageDeck(
-      { collection: this.db.export(), media: this.media, createdAt: new Date(this.now) },
+      {
+        collection: this.db.export(),
+        media: [...this.media].map(([filename, data]: readonly [string, MediaItem["data"]]) => ({
+          filename,
+          data,
+        })),
+        createdAt: new Date(this.now),
+      },
       options,
     );
   }
 
   addMedia(filename: string, data: MediaItem["data"]): void {
     this._assertOpen("addMedia");
-    this.media.push({ filename, data });
+    this.media.set(filename, data);
   }
 
   addCard(
