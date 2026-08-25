@@ -8,4 +8,8 @@ __pycache__/
 play.js
 coverage/
 
+# Where examples/node/build-deck.js writes when run from the repo root. Anchored
+# so it cannot also hide the tracked fixture at test/fixtures/output.apkg.
+/output.apkg
+
 .codex
