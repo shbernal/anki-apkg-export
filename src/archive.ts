@@ -2,10 +2,14 @@ import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
 
 export type { ZipOptions } from "fflate";
 
-/** One buffered media file: the name card HTML references it by, and its bytes. */
+/**
+ * One buffered media file: the name card HTML references it by, and its bytes.
+ * A Node `Buffer` is a `Uint8Array`, so it is accepted by that member rather
+ * than needing one of its own.
+ */
 export interface MediaItem {
   filename: string;
-  data: string | ArrayBuffer | Uint8Array | Buffer;
+  data: string | ArrayBuffer | Uint8Array;
 }
 
 /** Accept everything `addMedia` documents, hand fflate the one thing it takes. */
@@ -78,5 +82,7 @@ export const packageDeck = (
     files[String(idx)] = entry(toBytes(item.data));
   });
 
-  return Buffer.from(zipSync(files, { mtime, ...options }));
+  /* Only `options`: every entry carries its own stamp, and fflate applies an
+     archive-level one to entries without one. */
+  return Buffer.from(zipSync(files, options));
 };
