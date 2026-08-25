@@ -1,0 +1,6 @@
+# The golden deck and the images the media tests pack are compared byte for
+# byte. Marking them binary keeps any future eol or diff setting from
+# rewriting bytes the fixture test depends on.
+test/fixtures/output.apkg binary
+test/fixtures/anki.png binary
+examples/assets/anki.png binary
