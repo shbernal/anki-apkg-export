@@ -178,6 +178,7 @@
       // temp directories, would make these tests worse rather than smaller.
       "files": ["test/**"],
       "rules": {
+        "max-lines": "off",
         "max-lines-per-function": "off",
         "max-statements": "off",
         "vitest/max-expects": "off",
