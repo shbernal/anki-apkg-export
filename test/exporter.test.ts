@@ -277,6 +277,20 @@ describe("the exporter internals", () => {
     });
   });
 
+  it("points the collection's selection at this export's deck and notetype", () => {
+    expect.hasAssertions();
+    const { topDeckId, topModelId } = exporter;
+
+    /* The template seeds all three with values that name something other than
+       what this file was built to deliver: notetype `0` is in no file at all,
+       and deck `1` is the empty "Default" the template also carries. */
+    expect(readCollectionConf(exporter)).toMatchObject({
+      curDeck: topDeckId,
+      activeDecks: [topDeckId],
+      curModel: topModelId,
+    });
+  });
+
   it("writes ids in milliseconds and mod times in seconds", () => {
     expect.hasAssertions();
 

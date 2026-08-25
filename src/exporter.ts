@@ -170,6 +170,15 @@ export default class Exporter {
     deck.id = this.topDeckId;
     decks[String(this.topDeckId)] = deck;
     this._writeJsonColumn("decks", decks);
+
+    /* `curDeck` is the deck Anki selects and `activeDecks` the set it studies.
+       Both are seeded with the "Default" deck this template also carries, so
+       neither dangles the way `curModel` did — but they name a deck that holds
+       nothing rather than the one this file was built to deliver, which is not
+       what Anki would have written for the same content. Repointed for the
+       reason `curModel` is: the template cannot know the id. */
+    this._updateConf("curDeck", this.topDeckId);
+    this._updateConf("activeDecks", [this.topDeckId]);
   }
 
   /** Point the collection's last note model at this export's name, deck and id. */
@@ -234,7 +243,7 @@ export default class Exporter {
   }
 
   /** Set one key of the collection's `conf` JSON column. */
-  private _updateConf(key: string, value: number): void {
+  private _updateConf(key: string, value: number | readonly number[]): void {
     const conf = this._readJsonColumn("conf");
     conf[key] = value;
     this._writeJsonColumn("conf", conf);

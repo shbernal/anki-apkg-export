@@ -14,11 +14,14 @@ export interface TemplateOptions {
 const CONF = {
   nextPos: 1,
   estTimes: true,
+  /* Repointed at this export's deck, like `curDeck` below. */
   activeDecks: [1],
   sortType: "noteFld",
   timeLim: 0,
   sortBackwards: false,
   addToCur: true,
+  /* Replaced with this export's deck id once the exporter has one; the seeded
+     value names the empty "Default" deck this template also carries. */
   curDeck: 1,
   newBury: true,
   newSpread: 0,

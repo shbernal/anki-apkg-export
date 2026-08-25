@@ -46,6 +46,13 @@ plus a stripper that could be made to hang on a hundred bytes.
   identical and the same input strips in under a millisecond. Anki's behaviour
   is unchanged and the oracle corpus is still what adjudicates it — 18 cases
   covering unbalanced quotes and hidden `>` were added to it first.
+- **The collection selects the exported deck.** `col.conf.curModel` was
+  repointed at this export's notetype because the seeded value names one that is
+  in no file at all, but `curDeck` and `activeDecks` were left at the empty
+  "Default" deck the template also carries. All three name this export now. An
+  importing user sees no difference — Anki resolves both against the collection
+  the deck lands in — but a `collection.anki2` opened directly no longer starts
+  on a deck holding none of the cards. **The emitted bytes change.**
 - **`mtime` passed to `save` reaches the archive.** Every entry was stamped with
   the build instant and the caller's bag was applied at the archive level, where
   fflate lets the per-entry value win, so `save({ mtime })` returned the same

@@ -92,6 +92,26 @@ and `nextPos` counts cards rather than calls.
 That reading of `due` only holds for new cards. For a review card `due` is a day
 counted from `col.crt`; for a learning card it is a timestamp.
 
+## Collection configuration
+
+`col.conf` is Anki's own default block, with four keys rewritten to name what
+this file actually holds, since the template cannot know the ids. The first
+three are set at construction, `nextPos` on every `save`:
+
+| Key           | Seeded | Written                               |
+| ------------- | ------ | ------------------------------------- |
+| `curModel`    | `0`    | this export's notetype id             |
+| `curDeck`     | `1`    | this export's deck id                 |
+| `activeDecks` | `[1]`  | a one-element list holding that id    |
+| `nextPos`     | `1`    | one past the last position handed out |
+
+The seeded `curModel` names a notetype that is in no file at all; the seeded
+`curDeck` and `activeDecks` name the "Default" deck this template does carry,
+but which holds none of the exported cards. Neither reaches an importing user —
+Anki resolves both against the collection the deck lands in — so this is about
+the file agreeing with itself for anything that opens `collection.anki2`
+directly.
+
 ## Note identity
 
 Anki matches notes on `guid` at import: a guid it already has updates that note,
