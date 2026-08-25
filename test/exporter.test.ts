@@ -29,6 +29,9 @@ const SECOND_SHIFT = 1;
 /** Row ids are epoch milliseconds; `mod` columns are epoch seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
+/** 1990-01-01 UTC: far from the suite's clock, and inside the DOS 1980-2099 range. */
+const OVERRIDE_MTIME_MS = 631_152_000_000;
+
 /** A gap large enough that no clock reading could be mistaken for another. */
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -174,6 +177,23 @@ describe("the exporter internals", () => {
       0;
 
     expect(archive.readUInt32LE(MTIME_OFFSET)).toBe(expected);
+  });
+
+  it("stamps entries with a caller's own mtime instead", async () => {
+    expect.hasAssertions();
+    exporter.addMedia("1.jpg", Buffer.from("one"));
+
+    /* `docs/reference/index.md` promises the option bag reaches `zipSync`
+       untouched, and `mtime` used to be the one key that did not: every entry
+       carried the build instant, so this returned the same bytes as `save()`. */
+    const mtime = new Date(OVERRIDE_MTIME_MS);
+    const stamped = await exporter.save({ mtime });
+    const again = await exporter.save({ mtime });
+    const later = await exporter.save({ mtime: new Date(now) });
+
+    expect(stamped.equals(again)).toBe(true);
+    expect(stamped.equals(later)).toBe(false);
+    expect(stamped.readUInt32LE(MTIME_OFFSET)).not.toBe(later.readUInt32LE(MTIME_OFFSET));
   });
 
   it("accepts fflate zip options", async () => {

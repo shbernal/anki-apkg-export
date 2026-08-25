@@ -40,7 +40,8 @@ interface DeckPackage {
   /** The exported `collection.anki2` bytes. */
   collection: Uint8Array;
   media: readonly Readonly<MediaItem>[];
-  /** The instant the deck was built; every entry is stamped with it. */
+  /** The instant the deck was built; every entry is stamped with it, unless
+      the caller's own `mtime` says otherwise. */
   createdAt: Date;
 }
 
@@ -62,7 +63,11 @@ export const packageDeck = (
     media.map((item: Readonly<MediaItem>, idx) => [idx, item.filename]),
   );
 
-  const mtime = toArchiveClock(createdAt);
+  /* A caller's own `mtime` is forwarded verbatim rather than pinned: fflate
+     takes a `Date`, a number or a string, and reinterpreting any of them as UTC
+     would be second-guessing an explicit instruction. The pinned build instant
+     stays the default, and with it the reproducibility that rests on it. */
+  const mtime = options.mtime ?? toArchiveClock(createdAt);
   const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
   const files: Zippable = {

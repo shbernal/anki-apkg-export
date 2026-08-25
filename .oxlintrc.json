@@ -77,9 +77,10 @@
     // Sorting either one alphabetically changes bytes or breaks that pairing.
     "sort-keys": "off",
 
-    // Contradicts `vitest/prefer-strict-boolean-matchers`, which is also on and
-    // wants `toBe(true)` back. The assertion in question compares two buffers,
-    // where the strict matcher is the one worth keeping.
+    // Both contradict `vitest/prefer-strict-boolean-matchers`, which is also on
+    // and wants `toBe(true)`/`toBe(false)` back. The assertions in question
+    // compare two buffers, where the strict matcher is the one worth keeping.
+    "vitest/prefer-to-be-falsy": "off",
     "vitest/prefer-to-be-truthy": "off",
 
     // Contradicts `vitest/prefer-called-times`, which is also on and rewrites
