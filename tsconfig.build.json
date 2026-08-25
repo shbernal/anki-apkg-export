@@ -2,7 +2,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",
-    "noEmit": false
+    "noEmit": false,
+
+    // The maps ship but `src/` does not, so their `sources` paths resolve to
+    // nothing on a consumer's disk. Embedding the sources is what makes them
+    // worth publishing. Only here: tsconfig.json is the no-emit gate config
+    // and produces no maps to fix.
+    "inlineSources": true
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "test/**/*"]
