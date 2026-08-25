@@ -50,6 +50,13 @@ accept, and `addMedia` resolves a repeated filename differently.
 - **Published source maps carry their sources.** `dist/*.js.map` shipped while
   `src/` did not, so every map pointed at a path no consumer has.
 
+### Changed
+
+- **`package.json` no longer carries `main`.** The package has been ESM-only on
+  Node >= 24 since 4.0.4, where `exports` is the only entry point a resolver
+  consults, so `main: dist/index.js` was a second answer to a question `exports`
+  already answered. Nothing resolves differently.
+
 ### Internal
 
 - The HTML entity decoder is a single pass over the references rather than a
