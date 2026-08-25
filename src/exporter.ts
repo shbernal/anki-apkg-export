@@ -426,9 +426,18 @@ export default class Exporter {
    * different decks one note as far as Anki is concerned. The cost of keeping
    * it is that renaming a deck orphans its notes, which is the smaller of the
    * two surprises.
+   *
+   * The three are joined with `FIELD_SEPARATOR` rather than concatenated, so
+   * that only one triple can produce a given hash: glued together, deck `"ab"`
+   * with front `"c"` hashed the same as deck `"a"` with front `"bc"`, and two
+   * notes sharing a guid are one note to Anki. `U+001F` is what makes the
+   * encoding unambiguous by construction, since it is the character Anki splits
+   * `flds` on and therefore the one no field can legitimately carry.
    */
   private _getNoteGuid(front: string, back: string): string {
-    return createHash("sha1").update(`${this.deckName}${front}${back}`).digest("hex");
+    return createHash("sha1")
+      .update([this.deckName, front, back].join(FIELD_SEPARATOR))
+      .digest("hex");
   }
 }
 

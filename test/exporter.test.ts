@@ -666,6 +666,15 @@ describe("note guids", () => {
     expect(guidOf("one", CARD, now)).not.toBe(guidOf("another", CARD, now));
   });
 
+  it("keeps two different cards distinct when their text runs together", () => {
+    expect.hasAssertions();
+
+    /* The guid has to identify the whole triple, so a deck name and a front
+       that differ only in where the boundary between them falls are two notes.
+       Written around that guarantee rather than around how it is encoded. */
+    expect(guidOf("ab", ["c", "Test back"], now)).not.toBe(guidOf("a", ["bc", "Test back"], now));
+  });
+
   it("gives an edited card a new guid", () => {
     expect.hasAssertions();
 
