@@ -207,6 +207,30 @@ describe("the exporter internals", () => {
     expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(PADDING));
   });
 
+  it("saves a deck with no cards at all", async () => {
+    expect.hasAssertions();
+    const files = unzipDeckToBuffers(await exporter.save());
+
+    /* An empty deck is a deck: the collection and the manifest still ship, and
+       the new-card queue has handed nothing out. */
+    expect([...files.keys()].sort()).toStrictEqual(["collection.anki2", "media"]);
+    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({});
+    expect(readCollectionConf(exporter)).toMatchObject({ nextPos: 1 });
+  });
+
+  it("carries media added between two saves in the second archive only", async () => {
+    expect.hasAssertions();
+    exporter.addCard("Test Front", "Test back");
+
+    const before = unzipDeckToBuffers(await exporter.save());
+    exporter.addMedia("late.png", Buffer.from("bytes"));
+    const after = unzipDeckToBuffers(await exporter.save());
+
+    expect(JSON.parse(before.get("media")!.toString())).toStrictEqual({});
+    expect(JSON.parse(after.get("media")!.toString())).toStrictEqual({ 0: "late.png" });
+    expect(after.get("0")?.toString()).toBe("bytes");
+  });
+
   it("keeps building after a save", async () => {
     expect.hasAssertions();
 
@@ -480,6 +504,20 @@ describe("the exporter internals", () => {
       did: topDeckId,
       nid: notes[0]?.id,
     });
+  });
+
+  it("lets a repeat retag the note it updates", () => {
+    expect.hasAssertions();
+    const [front, back] = ["Test Front", "Test back"];
+
+    exporter.addCard(front, back, { tags: ["first"] });
+    exporter.addCard(front, back, { tags: ["second", "third"] });
+
+    const notes = readRows(exporter.db, "select tags from notes");
+
+    /* One note, rewritten: the row is replaced rather than merged, so the last
+       call's tags are the note's tags. */
+    expect(notes).toStrictEqual([{ tags: " second third " }]);
   });
 
   it("keeps the queue contiguous when a card repeats", async () => {
