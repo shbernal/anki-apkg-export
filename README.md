@@ -104,7 +104,7 @@ non-conformances are in
 
 ## Examples
 
-- Server example: `examples/server/server.js`
+- Building a deck from Node: `examples/node/build-deck.js`
 
 ## References
 

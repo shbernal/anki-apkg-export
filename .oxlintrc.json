@@ -155,7 +155,7 @@
       }
     },
     {
-      // `examples/server/server.js` is plain JavaScript that imports the built
+      // `examples/node/build-deck.js` is plain JavaScript that imports the built
       // `dist/`, so it is in no TypeScript program: `allowJs` is off and a
       // gitignored build output cannot be a typecheck input. Its `fs`/`path`/
       // `url` imports therefore resolve to `error`, and every use of them trips

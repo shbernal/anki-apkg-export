@@ -144,7 +144,7 @@ statement budgets plus `vitest/no-hooks` and `init-declarations` off for
 `test/**`; and the five `no-unsafe-*` rules off for `examples/**`.
 
 That last one is a fifth kind of reason: **the rule has no program to reason
-about**. `examples/server/server.js` is plain JavaScript importing the built
+about**. `examples/node/build-deck.js` is plain JavaScript importing the built
 `dist/`, so it is in no TypeScript program. `allowJs` is off, and a gitignored
 build output cannot be a typecheck input. Its `fs`/`path`/`url` imports resolve
 to `error`, and the `no-unsafe-*` rules then report on the absent program rather
