@@ -18,6 +18,7 @@
   },
   "files": [
     "CHANGELOG.md",
+    "NOTICE",
     "dist"
   ],
   "type": "module",
