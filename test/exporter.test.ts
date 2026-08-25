@@ -5,8 +5,11 @@ import Exporter from "../src/exporter.js";
 import createTemplate from "../src/template.js";
 import { readRow, readRows, unzipDeckToBuffers, useSqlModule } from "./_helpers.js";
 
-const template = createTemplate();
 const now = 1_700_000_000_000;
+
+/* Stamped with the instant the suite pins its fake timers to, so the collection
+   row and the rows written into it agree on when the deck was built. */
+const template = createTemplate(undefined, now);
 
 /** Every sqlite file opens with this magic string. */
 const SQLITE_HEADER = "SQLite format 3";
