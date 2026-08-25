@@ -16,13 +16,166 @@ import NAMED_ENTITIES from "./html-entities.js";
  */
 
 /**
- * The start of an img/audio/video/object/source tag, up to its `src`/`data`
- * attribute, whose filename is captured double quoted, single quoted or bare.
- * Transcribed from `HTML_MEDIA_TAGS` in rslib/src/text.rs, which is written in
- * the regex crate's extended mode with its comments inline.
+ * `HTML_MEDIA_TAGS` in rslib/src/text.rs, which is written in the regex crate's
+ * extended mode with its comments inline, split into the tag opening and the
+ * `src`/`data` value that closes it. What rslib writes between them,
+ * `(?:[^>]|"[^"]+?"|'[^']+?')+?`, is walked by `findMediaValue` rather than
+ * matched, for the reasons given there.
  */
-const HTML_MEDIA_TAGS =
-  /<\b(?:img|audio|video|object|source)\b(?:[^>]|"[^"]+?"|'[^']+?')+?\b(?:src|data)\b=(?:"(?<doubleQuoted>[^"]+?)"[^>]*>|'(?<singleQuoted>[^']+?)'[^>]*>|(?<bare>[^ >]+?)(?: [^>]*>|>))/gisu;
+const MEDIA_TAG_START = /<\b(?:img|audio|video|object|source)\b/giu;
+
+/**
+ * The `src`/`data` attribute and everything after it, whose filename is
+ * captured double quoted, single quoted or bare. Sticky rather than global: it
+ * is tried at one position at a time, and which positions those are is what the
+ * walk decides.
+ */
+const MEDIA_TAG_VALUE =
+  /\b(?:src|data)\b=(?:"(?<doubleQuoted>[^"]+?)"[^>]*>|'(?<singleQuoted>[^']+?)'[^>]*>|(?<bare>[^ >]+?)(?: [^>]*>|>))/iuy;
+
+/** A media tag's filename, and the offset just past the tag it closes. */
+interface MediaValue {
+  filename: string;
+  end: number;
+}
+
+/** One found tag: where it opens, where it ends, and the filename it carries. */
+interface MediaTag extends MediaValue {
+  start: number;
+}
+
+/** A segment is at least `"x"`, so its closing quote is never nearer than this. */
+const CLOSING_QUOTE_OFFSET = 2;
+
+/** The value alternation, anchored at `at`. Exactly one group ever matches. */
+const mediaValueAt = (html: string, at: number): MediaValue | null => {
+  MEDIA_TAG_VALUE.lastIndex = at;
+  const match = MEDIA_TAG_VALUE.exec(html);
+  if (match === null) {
+    return null;
+  }
+
+  const groups = match.groups ?? {};
+  return {
+    filename: `${groups.doubleQuoted ?? ""}${groups.singleQuoted ?? ""}${groups.bare ?? ""}`,
+    end: at + match[0].length,
+  };
+};
+
+/** Just past the `"[^"]+?"` segment opening at `at`, or -1 if none opens there. */
+const quotedSegmentEnd = (html: string, at: number, quote: string): number => {
+  /* `[^"]+?` needs a character of its own, so `""` opens no segment. */
+  if (html[at + 1] === quote) {
+    return -1;
+  }
+
+  const close = html.indexOf(quote, at + CLOSING_QUOTE_OFFSET);
+  if (close === -1) {
+    return -1;
+  }
+
+  return close + 1;
+};
+
+/**
+ * The positions one step of the attribute run reaches from `at`, ordered so
+ * that popping the last one first takes the branch a lazy quantifier prefers.
+ */
+const stepsFrom = (html: string, at: number): number[] => {
+  const char = html[at];
+
+  /* A `>` no quoted segment spans is where the run has to stop. */
+  if (char === undefined || char === ">") {
+    return [];
+  }
+
+  if (char !== '"' && char !== "'") {
+    return [at + 1];
+  }
+
+  const segment = quotedSegmentEnd(html, at, char);
+  if (segment === -1) {
+    return [at + 1];
+  }
+
+  /* The quote can be spent either way, and `[^>]` is the earlier branch. */
+  return [segment, at + 1];
+};
+
+/**
+ * Walk the attribute run forward from `from`, and return the first `src`/`data`
+ * value it reaches.
+ *
+ * A backtracking engine reads rslib's `(?:[^>]|"[^"]+?"|'[^']+?')+?`
+ * exponentially: `[^>]` matches a quote as well, so every quoted segment can be
+ * consumed two ways, and a tag with no value in it explores every combination —
+ * forty seconds on a hundred bytes. Anki does not pay that, because the regex
+ * crate simulates an automaton rather than backtracking.
+ *
+ * Every branch of the alternation moves forward, so what it is ambiguous about
+ * is the route to a position rather than the set of positions it can reach.
+ * Trying each position once, in the order a backtracking engine would reach it,
+ * gives that engine's answer while visiting n positions instead of 2^n routes.
+ * The order matters as much as the set: it is what decides which of several
+ * `src=` a tag reports, and the crate decides that the same way.
+ *
+ * That order is the lazy quantifier's. End the run as early as possible, and
+ * where a quote could be either branch, spend it as a single character before
+ * spending it as a segment. It is why `<img alt=" src=fake.png " src="real.png">`
+ * reports `fake.png`, the filename inside the unbalanced value, as Anki does.
+ */
+const findMediaValue = (html: string, from: number): MediaValue | null => {
+  /* `from` starts visited because the run has to take a step before the value
+     can follow it, and every step moves forward, so nothing returns to it. */
+  const visited = new Set([from]);
+  const pending = stepsFrom(html, from);
+
+  for (let at = pending.pop(); at !== undefined; at = pending.pop()) {
+    if (!visited.has(at)) {
+      visited.add(at);
+      const value = mediaValueAt(html, at);
+      if (value !== null) {
+        return value;
+      }
+
+      pending.push(...stepsFrom(html, at));
+    }
+  }
+
+  return null;
+};
+
+/** Every media tag in `html`, in the order a global replace would match them. */
+const mediaTags = (html: string): MediaTag[] => {
+  MEDIA_TAG_START.lastIndex = 0;
+  const found: MediaTag[] = [];
+
+  for (let tag = MEDIA_TAG_START.exec(html); tag !== null; tag = MEDIA_TAG_START.exec(html)) {
+    const value = findMediaValue(html, MEDIA_TAG_START.lastIndex);
+    if (value === null) {
+      /* Nothing in this one, but the next tag may still open inside it. */
+      MEDIA_TAG_START.lastIndex = tag.index + 1;
+    } else {
+      found.push({ start: tag.index, ...value });
+      MEDIA_TAG_START.lastIndex = value.end;
+    }
+  }
+
+  return found;
+};
+
+/** Each media tag replaced by its filename, padded with a space on each side. */
+const replaceMediaTags = (html: string): string => {
+  let out = "";
+  let copied = 0;
+
+  for (const { start, end, filename } of mediaTags(html)) {
+    out += `${html.slice(copied, start)} ${filename} `;
+    copied = end;
+  }
+
+  return out + html.slice(copied);
+};
 
 /**
  * Comment, style and script blocks together with their contents, then any
@@ -164,5 +317,5 @@ const stripHtml = (html: string): string => decodeEntities(html.replaceAll(HTML,
  * trims only in `html_to_text_line`, which the note path does not use.
  */
 export default function stripHtmlPreservingMediaFilenames(html: string): string {
-  return stripHtml(html.replaceAll(HTML_MEDIA_TAGS, " $<doubleQuoted>$<singleQuoted>$<bare> "));
+  return stripHtml(replaceMediaTags(html));
 }
