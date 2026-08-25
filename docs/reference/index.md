@@ -80,6 +80,8 @@ const apkg = await AnkiExport("customized", {
 
 Passing `{}` is equivalent to passing nothing.
 
+Overrides are stored verbatim, quotes included; nothing needs escaping caller-side.
+
 ## `addCard(front, back, options?)`
 
 ```ts

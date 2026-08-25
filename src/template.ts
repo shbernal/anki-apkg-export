@@ -275,6 +275,14 @@ const dayRollover = (nowMs: number): number => {
 };
 
 /**
+ * SQLite's own escape: a literal quote is written twice inside a quoted
+ * string. The four JSON columns below carry caller input — `css`,
+ * `questionFormat` and `answerFormat` all reach `models` — so an apostrophe in
+ * any of them would otherwise close the literal and change the statement.
+ */
+const sqlString = (value: unknown): string => `'${JSON.stringify(value).replaceAll("'", "''")}'`;
+
+/**
  * Build the SQL script for an empty collection. `now` is the epoch-millisecond
  * instant to stamp it with; the exporter passes its own single clock reading so
  * the collection and the rows written into it agree on when the deck was built.
@@ -308,10 +316,10 @@ export default function createTemplate(
       0,
       0,
       0,
-      '${JSON.stringify(CONF)}',
-      '${JSON.stringify(models)}',
-      '${JSON.stringify(decks)}',
-      '${JSON.stringify(DCONF)}',
+      ${sqlString(CONF)},
+      ${sqlString(models)},
+      ${sqlString(decks)},
+      ${sqlString(DCONF)},
       '{}'
     );${NOTE_TABLES}${INDEXES}
     COMMIT;

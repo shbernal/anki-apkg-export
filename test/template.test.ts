@@ -128,6 +128,41 @@ describe("the default note template", () => {
     expect(tmpl.afmt).toBe('{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}');
   });
 
+  it("keeps a single quote in an override verbatim", async () => {
+    expect.hasAssertions();
+    const model = await readModel(createTemplate({ css: ".card { font-family: 'Arial'; }" }));
+
+    /* Reaching this assertion at all means the SQL parsed: an unescaped quote
+       closes the `models` literal and `db.run` throws instead. */
+    expect(model.css).toBe(".card { font-family: 'Arial'; }");
+  });
+
+  it("keeps an apostrophe in the question format verbatim", async () => {
+    expect.hasAssertions();
+    const model = await readModel(createTemplate({ questionFormat: "What's {{Front}}?" }));
+    const tmpl = first(model.tmpls, "card template");
+
+    expect(tmpl.qfmt).toBe("What's {{Front}}?");
+  });
+
+  it("stores an override that closes the literal as text rather than running it", async () => {
+    expect.hasAssertions();
+    const css = "x'); CREATE TABLE injected(x); --";
+    const sql = await loadSqlModule();
+    const db = new sql.Database();
+    db.run(createTemplate({ css }));
+
+    const tables = readRows(db, "SELECT name FROM sqlite_master WHERE type='table'").map(
+      (row: Readonly<Record<string, SqlValue>>) => String(row.name),
+    );
+    db.close();
+
+    const model = await readModel(createTemplate({ css }));
+
+    expect(tables).not.toContain("injected");
+    expect(model.css).toBe(css);
+  });
+
   it("creates the schema the exporter writes to", async () => {
     expect.hasAssertions();
     const sql = await loadSqlModule();
