@@ -108,4 +108,6 @@ non-conformances are in
 
 ## References
 
-- [APKG format documentation](http://decks.wikia.com/wiki/Anki_APKG_format_documentation)
+- [`rslib/src/text.rs`](https://github.com/ankitects/anki/blob/main/rslib/src/text.rs) —
+  Anki's own HTML stripper, which `src/text.ts` ports
+- [APKG format documentation](https://decks.fandom.com/wiki/Anki_APKG_format_documentation)
