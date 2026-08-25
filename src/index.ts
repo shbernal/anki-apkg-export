@@ -18,9 +18,27 @@ const locateFile = (file: string): string => {
   return path.join(path.dirname(wasmPath), file);
 };
 
+/**
+ * The WASM compile is the expensive part of building a deck, so it happens once
+ * per process and every later call awaits the same module.
+ */
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
+
+const loadSqlModule = async (): Promise<SqlJsStatic> => {
+  try {
+    return await initSqlJs({ locateFile });
+  } catch (error) {
+    /* Memoizing the promise memoizes a rejection too, which would make one
+       transient failure — an exhausted file handle, a compile that lost a race
+       with a teardown — the permanent answer for the rest of the process.
+       Clear the memo so the next caller retries, and still reject this one. */
+    sqlModulePromise = null;
+    throw error;
+  }
+};
+
 const getSqlModule = (): Promise<SqlJsStatic> => {
-  sqlModulePromise ??= initSqlJs({ locateFile });
+  sqlModulePromise ??= loadSqlModule();
   return sqlModulePromise;
 };
 
