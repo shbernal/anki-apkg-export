@@ -86,27 +86,31 @@ exporter refuses every operation by name rather than faulting inside WASM.
 - **The collection is not queried for anything the exporter already knows.**
   `notes.guid` is unindexed in schema 11, so the duplicate check `addCard` does
   per card was a full table scan, and `addCard` was quadratic in deck size:
-  24,000 cards took 16s, at 666µs each and climbing. It now consults a
-  `Map<guid, noteId>` the exporter maintains, which is exactly equivalent
-  because this class is the only writer of `notes` and the template seeds none.
-  Same work, 102µs per card and flat.
+  24,000 cards took 16s, at 666µs each and climbing. It now consults a map the
+  exporter maintains, which is exactly equivalent because this class is the only
+  writer of `notes` and `cards` and the template seeds neither. Same work, 102µs
+  per card and flat.
 
   Adding `CREATE INDEX ix_notes_guid` would have fixed the scan too, and is
   wrong: the index would be written into the emitted file, which is meant to
-  match what Anki itself writes for the same content. The remaining per-card
-  queries are all primary-key or `ix_cards_nid` paths and cost nothing.
+  match what Anki itself writes for the same content.
 
-- **`mod` columns never route through `_getId`.** That helper exists to claim a
-  unique identity by stepping past the highest existing value; uniqueness is
-  meaningless for a modification time. `_getId` is for `id`-like columns only.
+  The same reasoning retired the rest of the per-card reads. Row ids and queue
+  positions are handed out by the exporter, so what a `SELECT ... ORDER BY id
+DESC` would report is already in that map; `addCard` now runs no `SELECT` at
+  all. This is one mechanism fewer rather than a speed-up — those queries were
+  primary-key paths and cost nothing.
+
+- **`mod` columns are not identities.** Row `id`s are claimed to be unique;
+  uniqueness is meaningless for a modification time, so `mod` is written
+  straight from the build instant and never counted up from.
 
 - **Every prepared statement must be freed, by the code that prepared it.**
   sql.js registers each statement on the `Database` and finalizes it only on
   `stmt.free()` or `db.close()`, inside a WASM heap that is created once per
   process and never shrinks. Writes go through `db.run`, which frees internally;
-  the two readers that must prepare by hand, `_readJsonColumn` and
-  `_getHighestValue`, free in a `finally`. A new `this.db.prepare(...)` outside
-  those is a leak. Note that `db.export()` frees every live statement as a side
+  the one reader that must prepare by hand, `_readJsonColumn`, frees in a
+  `finally`. A new `this.db.prepare(...)` outside it is a leak. Note that `db.export()` frees every live statement as a side
   effect, so measuring after `save()` will not show one.
 
   `close()` now backstops this, but it is a backstop and not the owner: it runs

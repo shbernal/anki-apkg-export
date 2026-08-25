@@ -66,8 +66,13 @@ export default class Exporter {
    */
   private readonly now: number;
 
+  /** How many distinct note guids have been allocated so far. */
+  private noteCount = 0;
+
   /** The queue position the next new card takes; see `FIRST_NEW_CARD_POSITION`. */
-  private nextPosition: number = FIRST_NEW_CARD_POSITION;
+  private get nextPosition(): number {
+    return FIRST_NEW_CARD_POSITION + this.noteCount;
+  }
 
   /**
    * Every note handed out so far, keyed by guid — the index schema 11 does not
@@ -77,8 +82,14 @@ export default class Exporter {
    * would change the emitted bytes and diverge from the schema Anki writes.
    *
    * The map is exactly equivalent to that query because this class is the only
-   * writer of `notes` — the template seeds none — and every insert goes through
-   * `_getNoteSlot` below.
+   * writer of `notes` and `cards` — the template seeds neither — and every
+   * insert goes through `_getNoteSlot` below. The ids and the queue position it
+   * holds are tracked for the same reason: what a `SELECT ... ORDER BY id DESC`
+   * would report is already known here.
+   *
+   * `db` is public, so a caller *can* insert rows this class does not know
+   * about. That was true when the guid map landed and is accepted on the same
+   * terms: a collection written to from outside is not one this class built.
    */
   private readonly notesByGuid = new Map<string, NoteSlot>();
 
@@ -94,8 +105,11 @@ export default class Exporter {
     this.db = db;
     this.deckName = deckName;
 
-    this.topDeckId = this._getId("cards", "did", now);
-    this.topModelId = this._getId("notes", "mid", now);
+    /* The template seeds no `cards` and no `notes` rows, so there is nothing to
+       step past: the deck and the notetype take the build instant itself, and
+       so does the first row of either table. */
+    this.topDeckId = now;
+    this.topModelId = now;
 
     this._renameTopDeck();
     this._renameTopModel();
@@ -287,7 +301,7 @@ export default class Exporter {
     }
 
     const noteGuid = this._getNoteGuid(front, back);
-    const note = this._getNoteSlot(noteGuid, now);
+    const note = this._getNoteSlot(noteGuid);
 
     this._insertNote({
       back,
@@ -327,11 +341,11 @@ export default class Exporter {
     );
   }
 
-  private _insertCard({ id: noteId, position }: Readonly<NoteSlot>, now: number): void {
+  private _insertCard({ id: noteId, cardId, position }: Readonly<NoteSlot>, now: number): void {
     this.db.run(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
       {
-        ":id": this._getCardId(noteId, now),
+        ":id": cardId,
         ":nid": noteId,
         ":did": this.topDeckId,
         ":ord": 0,
@@ -376,64 +390,26 @@ export default class Exporter {
   }
 
   /**
-   * Read one numeric column out of the first row a `ORDER BY ... DESC LIMIT 1`
-   * query returns, or `undefined` when it matches nothing. Every id lookup
-   * below is that shape, so this is the one place a statement is prepared and
-   * freed for them.
+   * The row ids and queue position for a note guid, allocating all three the
+   * first time that guid is seen. A repeat reuses them, so its rows are updated
+   * in place rather than added, and it keeps the position it was first given
+   * instead of consuming a second one and leaving a hole in the queue.
    */
-  private _getHighestValue(
-    query: string,
-    column: string,
-    params: Readonly<Record<string, string | number>>,
-  ): number | undefined {
-    const stmt = this.db.prepare(query);
-
-    try {
-      /* The column is chosen by the caller, so sql.js cannot type the row for us. */
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      const rowObj = stmt.getAsObject(params) as Record<string, number | undefined>;
-
-      return rowObj[column];
-    } finally {
-      stmt.free();
-    }
-  }
-
-  /**
-   * Claim an unused millisecond timestamp for an identity column, stepping past
-   * the highest existing value so two rows created in the same millisecond do
-   * not collide. Only for id-like columns: `mod` is a plain modification time
-   * where being unique means nothing, so it does not come through here.
-   */
-  private _getId(table: string, col: string, ts: number): number {
-    const highest = this._getHighestValue(
-      `SELECT ${col} from ${table} WHERE ${col} >= :ts ORDER BY ${col} DESC LIMIT 1`,
-      col,
-      { ":ts": ts },
-    );
-
-    /* Explicitly against `undefined`: these columns hold timestamps, but 0 is a
-       value the query can return and truthiness would read it as "no row". */
-    if (highest === undefined) {
-      return ts;
-    }
-    return highest + 1;
-  }
-
-  /**
-   * The id and queue position for a note guid, allocating both the first time
-   * that guid is seen. A repeat reuses them, so its rows are updated in place
-   * rather than added, and it keeps the position it was first given instead of
-   * consuming a second one and leaving a hole in the queue.
-   */
-  private _getNoteSlot(guid: string, ts: number): NoteSlot {
+  private _getNoteSlot(guid: string): NoteSlot {
     const existing = this.notesByGuid.get(guid);
     if (existing !== undefined) {
       return existing;
     }
 
-    const slot: NoteSlot = { id: this._getId("notes", "id", ts), position: this.nextPosition };
-    this.nextPosition += 1;
+    /* Row ids are epoch milliseconds and have to be unique, so a deck built
+       inside a single millisecond — every deck, in practice — counts up from
+       the build instant instead of colliding on it. The note and its card
+       share the id because both tables start there and exactly one card is
+       written per note; a notetype generating two would need its own counter. */
+    const rowId = this.now + this.noteCount;
+    const slot: NoteSlot = { id: rowId, cardId: rowId, position: this.nextPosition };
+
+    this.noteCount += 1;
     this.notesByGuid.set(guid, slot);
 
     return slot;
@@ -454,17 +430,6 @@ export default class Exporter {
   private _getNoteGuid(front: string, back: string): string {
     return createHash("sha1").update(`${this.deckName}${front}${back}`).digest("hex");
   }
-
-  /** Reuse the card already attached to this note, for the same reason. */
-  private _getCardId(noteId: number, ts: number): number {
-    const existing = this._getHighestValue(
-      `SELECT id from cards WHERE nid = :note_id ORDER BY id DESC LIMIT 1`,
-      "id",
-      { ":note_id": noteId },
-    );
-
-    return existing ?? this._getId("cards", "id", ts);
-  }
 }
 
 /**
@@ -473,6 +438,7 @@ export default class Exporter {
  */
 interface NoteSlot {
   id: number;
+  cardId: number;
   position: number;
 }
 
