@@ -38,7 +38,7 @@ pnpm add @shbernal/anki-apkg-export
 ```
 
 ```ts
-import fs from "fs";
+import fs from "node:fs";
 import AnkiExport from "@shbernal/anki-apkg-export";
 
 const apkg = await AnkiExport("deck-name");

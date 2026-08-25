@@ -60,14 +60,15 @@ records what every field holds and which differences from Anki are deliberate.
 ## Layout
 
 ```text
-src/index.ts      entry point; loads sql.js and reads the clock once
-src/exporter.ts   the deck: rows, ids, note identity, media collection
-src/archive.ts    the .apkg container: media manifest, zipping, UTC timestamps
-src/template.ts   the empty collection, as one SQL script
-src/text.ts       a port of Anki's HTML stripper
-test/             vitest suites and fixtures
-tools/oracle/     Python checks against the real anki library
-docs/             durable documentation, one page per subject
+src/index.ts          entry point; loads sql.js and reads the clock once
+src/exporter.ts       the deck: rows, ids, note identity, media collection
+src/archive.ts        the .apkg container: media manifest, zipping, UTC timestamps
+src/template.ts       the empty collection, as one SQL script
+src/text.ts           a port of Anki's HTML stripper
+src/html-entities.ts  the named-entity table that stripper decodes with
+test/                 vitest suites and fixtures
+tools/oracle/         Python checks against the real anki library
+docs/                 durable documentation, one page per subject
 ```
 
 The boundaries between those modules, and the reasons they sit where they do,
