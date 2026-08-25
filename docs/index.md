@@ -23,7 +23,7 @@ row per call to `addCard`, and zipping the result with its media manifest.
 
 It intentionally does not own:
 
-- **A CLI.** This is a library. `mdanki` is the tool that wraps it.
+- **A CLI.** This is a library. The caller owns the entry point.
 - **Markdown, PDF, or any other input format.** Callers pass HTML strings.
 - **Multiple notetypes or templates.** One notetype with a Front/Back pair,
   whose question format, answer format, and CSS the caller may override.

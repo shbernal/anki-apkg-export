@@ -14,7 +14,7 @@ plus a stripper that could be made to hang on a hundred bytes.
 
 - **The note guid separates the parts it hashes.** It was `sha1` over
   `deckName + front + back` glued together, so a deck named `ab` with front `c`
-  produced the same guid as a deck named `a` with front `bc` — and two notes
+  produced the same guid as a deck named `a` with front `bc`, and two notes
   sharing a guid are one note to Anki, the second silently replacing the first.
   The three are now joined with `U+001F`, the character Anki splits `flds` on
   and therefore the one no field can carry, which makes the encoding
@@ -42,9 +42,9 @@ plus a stripper that could be made to hang on a hundred bytes.
   ends whether or not anything survived the join, so `{ tags: [] }` stored two
   spaces where Anki stores nothing, and an empty entry stored a doubled
   separator. Entries with no tag in them are dropped now, and an array that
-  yields none writes `""`. **If you pass `[]` for untagged cards — which is what
-  `mdanki` does for every one of them — this changes the bytes of every note you
-  export.** A preformatted tag string still passes through untouched.
+  yields none writes `""`. **If you pass `[]` for untagged cards, this changes
+  the bytes of every note you export.** A preformatted tag string still passes
+  through untouched.
 - **The HTML stripper no longer backtracks exponentially.** rslib's media
   pattern is ambiguous about its attribute run, which costs the Rust `regex`
   crate nothing and cost this transcription forty seconds on a 101-byte field:
@@ -52,15 +52,16 @@ plus a stripper that could be made to hang on a hundred bytes.
   no `src` explored every combination. The run is walked now, each position
   tried once in the order a backtracking engine reaches it, so the answer is
   identical and the same input strips in under a millisecond. Anki's behaviour
-  is unchanged and the oracle corpus is still what adjudicates it — 18 cases
+  is unchanged and the oracle corpus is still what adjudicates it; 18 cases
   covering unbalanced quotes and hidden `>` were added to it first.
 - **The collection selects the exported deck.** `col.conf.curModel` was
   repointed at this export's notetype because the seeded value names one that is
   in no file at all, but `curDeck` and `activeDecks` were left at the empty
   "Default" deck the template also carries. All three name this export now. An
-  importing user sees no difference — Anki resolves both against the collection
-  the deck lands in — but a `collection.anki2` opened directly no longer starts
-  on a deck holding none of the cards. **The emitted bytes change.**
+  importing user sees no difference, since Anki resolves both against the
+  collection the deck lands in, but a `collection.anki2` opened directly no
+  longer starts on a deck holding none of the cards. **The emitted bytes
+  change.**
 - **`mtime` passed to `save` reaches the archive.** Every entry was stamped with
   the build instant and the caller's bag was applied at the archive level, where
   fflate lets the per-entry value win, so `save({ mtime })` returned the same
@@ -79,6 +80,8 @@ plus a stripper that could be made to hang on a hundred bytes.
   notes, so the re-import claim is re-checked rather than verified once by hand.
 - `exporter.ts` keeps one copy of the state it used to keep twice, and
   `src/index.ts` resolves the sql.js wasm directory once per process.
+
+**Full changelog**: https://github.com/shbernal/anki-apkg-export/compare/v5.2.0...v6.0.0
 
 ## 5.2.0
 
@@ -146,10 +149,10 @@ accept, and `addMedia` resolves a repeated filename differently.
 - CI runs the built package through the Node example, so a build that emits
   something unimportable no longer passes every gate.
 
-### Downstream
+### Emitted bytes
 
-None. `test/fixtures/output.apkg` is byte-identical to 5.1.0's, so no fixture
-regeneration is needed in `mdanki` or `pdfanki`.
+Unchanged. `test/fixtures/output.apkg` is byte-identical to 5.1.0's, so anything
+pinning those bytes keeps its fixture.
 
 **Full changelog**: https://github.com/shbernal/anki-apkg-export/compare/v5.1.0...v5.2.0
 
@@ -201,10 +204,9 @@ AnkiExport(...)` releases the sql.js database at the end of the block. Without
   numeric-entity cases the HTML decoder rejects are now covered by fixtures
   generated from the real Anki wheel rather than by hand.
 
-### Downstream
+### Emitted bytes
 
-Fixtures that pin exported bytes need regenerating against this: `mdanki`, and
-`pdfanki` through it.
+Changed. Any fixture that pins exported bytes needs regenerating against this.
 
 **Full changelog**: https://github.com/shbernal/anki-apkg-export/compare/v5.0.1...v5.1.0
 

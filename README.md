@@ -9,8 +9,7 @@ file Anki imports.
 
 It is the piece you want when the cards already exist somewhere else: a
 database, a set of notes, a scraped corpus, the output of another tool. Nothing
-has to go through the Anki desktop app. If what you have is Markdown, `mdanki`
-wraps this package and does that part for you.
+has to go through the Anki desktop app.
 
 ## Requirements
 
@@ -108,6 +107,6 @@ non-conformances are in
 
 ## References
 
-- [`rslib/src/text.rs`](https://github.com/ankitects/anki/blob/main/rslib/src/text.rs) —
-  Anki's own HTML stripper, which `src/text.ts` ports
+- [`rslib/src/text.rs`](https://github.com/ankitects/anki/blob/main/rslib/src/text.rs).
+  Anki's own HTML stripper; `src/text.ts` is a port of it.
 - [APKG format documentation](https://decks.fandom.com/wiki/Anki_APKG_format_documentation)

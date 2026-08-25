@@ -445,8 +445,7 @@ describe("the exporter internals", () => {
 
     exporter.addCard("Test Front", "Test back", { tags: [] });
 
-    /* What Anki writes for an untagged note, and what `mdanki` asks for on
-       every card it exports without tags. */
+    /* What Anki writes for an untagged note. */
     expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags: "" });
   });
 

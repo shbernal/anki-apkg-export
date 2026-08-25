@@ -107,10 +107,10 @@ three are set at construction, `nextPos` on every `save`:
 
 The seeded `curModel` names a notetype that is in no file at all; the seeded
 `curDeck` and `activeDecks` name the "Default" deck this template does carry,
-but which holds none of the exported cards. Neither reaches an importing user —
-Anki resolves both against the collection the deck lands in — so this is about
-the file agreeing with itself for anything that opens `collection.anki2`
-directly.
+but which holds none of the exported cards. Neither reaches an importing user,
+since Anki resolves both against the collection the deck lands in. Rewriting
+them is about the file agreeing with itself for anything that opens
+`collection.anki2` directly.
 
 ## Note identity
 
@@ -180,5 +180,5 @@ The golden test in `test/deck-round-trip.test.ts` asserts byte equality against
 invalidates it. Regenerate with `pnpm run fixture:regen` **in the same commit**
 as the behavioral change, so the byte diff and its reason land together.
 
-Emitted-byte changes also break fixtures in `mdanki`, and in `pdfanki` through
-it. Those packages need a matching update in the same pass.
+A byte change is user-visible: anyone caching or diffing decks sees every note
+move. It belongs in the changelog, not only in the fixture.

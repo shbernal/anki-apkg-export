@@ -88,8 +88,8 @@ it makes the library clearer or safer, but it is a semver decision rather than
 incidental cleanup, and it belongs in [CHANGELOG.md](CHANGELOG.md) with a
 migration note. There are no deprecation cycles here.
 
-`mdanki` depends on this package, and `pdfanki` depends on `mdanki`, so a change
-to the emitted bytes breaks fixtures downstream. Say so in the pull request.
+The emitted bytes are part of that contract too. Anyone caching or diffing decks
+sees every note move when they change, so say so in the pull request.
 
 ## Commits
 

@@ -5,7 +5,6 @@ summary: "The validation gates, the oxlint and oxfmt setup, and why each disable
 read_when:
   - Running the gates before a commit or release
   - Adding, changing, or removing a lint rule
-  - Wondering whether to copy this config to a sibling package
   - Checking this package against the real Anki library
 doc_type: "guide"
 ---
@@ -77,14 +76,13 @@ not a regression to revert.
 ## oxlint and oxfmt
 
 This package uses oxlint and oxfmt. ESLint, Prettier, and `typescript-eslint`
-are gone. It went first among the four `anki-md-pkgs` packages because it is the
-base of the dependency chain and the smallest of them; `mdanki`, `ankimd`, and
-`pdfanki` are still on ESLint + Prettier, and that split is intentional rather
-than drift.
+are gone.
 
 - `.oxlintrc.json` enables all five categories: `correctness`, `suspicious`,
-  `perf`, `pedantic`, and `style`. That is a higher bar than the other three
-  packages' `recommendedTypeChecked` + `stylisticTypeChecked`.
+  `perf`, `pedantic`, and `style`. The last two are the ones most configs leave
+  off, and between them they are why the `rules` block is as long as it is.
+  Roughly half of what `style` adds needed either a per-rule setting or a
+  documented exemption.
 - Categories are not everything. `unicorn/prefer-node-protocol` belongs to none
   of the five and is switched on by name. If a convention seems to hold by habit
   rather than by a gate, check whether the rule exists but is uncategorized
@@ -96,11 +94,11 @@ than drift.
 - oxfmt formats Markdown, YAML, and JSON as well as TS/JS, so `pnpm-lock.yaml`
   must stay in `ignorePatterns`.
 
-TypeScript is on 7.x here. The old 6.x hold across the four packages existed
-only because `typescript-eslint` 8.x rejected the TS 7.0 API, and that
-dependency is gone from this one. TS 7 was verified to emit byte-identical `.js`
-and `.d.ts` against TS 6. Keep `oxlint-tsgolint` in step with the `typescript`
-major; its version tracks the TS release it was built against.
+TypeScript is on 7.x. The only thing holding it at 6.x was `typescript-eslint`
+8.x, which rejected the TS 7.0 API, and that dependency is gone. TS 7 emits
+byte-identical `.js` and `.d.ts` against TS 6, checked before the bump.
+Keep `oxlint-tsgolint` in step with the `typescript` major; its version tracks
+the TS release it was built against.
 
 ## Why `verbatimModuleSyntax` is off
 
@@ -156,26 +154,11 @@ A handful of sites carry `oxlint-disable-next-line` with a reason above it, all
 at genuine boundaries: sql.js rows and `JSON.parse` results that only the caller
 can type, and the one helper that must mutate the object it is given.
 
-## Copying this to a sibling package
-
-`.oxlintrc.json` is **not** a drop-in for `mdanki`, `ankimd`, or `pdfanki`.
-Roughly half of what the `style` category adds needed either per-rule
-configuration or a documented exemption, and several of those are specific to
-this package: the Anki schema literal, the sql.js and `JSON.parse` boundaries,
-the `AnkiExport` factory. Migrating another package is its own task per package.
-
-The three formatting styles across the four packages also differ deliberately.
-Converging them would rewrite nearly every line and bury real history in
-`git blame` for no functional gain. Each repo gates its own style with
-`format:check`, which is what actually matters.
-
 ## Dependencies
 
 - Check pnpm itself before dependency work, and update `packageManager` when the
   latest pnpm is the same major.
 - Keep `minimumReleaseAgeStrict: true` in `pnpm-workspace.yaml`.
-- Refresh the four `anki-md-pkgs` packages coherently rather than one in
-  isolation.
 
 The runtime dependencies are `sql.js` and `fflate`, and both are load-bearing.
 `fflate` writes the ZIP container that an `.apkg` is; Node ships deflate in

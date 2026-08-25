@@ -78,9 +78,9 @@ Fix:
 
 ## A deck built with 5.x re-imports as duplicates
 
-Expected, once. 6.0.0 changed how the note guid is derived — the deck name and
-the two fields are now joined by `U+001F` instead of concatenated — so every
-note a 5.x build emitted has a new guid. Anki matches on the guid, so the first
+Expected, once. 6.0.0 changed how the note guid is derived. The deck name and
+the two fields are now joined by `U+001F` instead of concatenated, so every note
+a 5.x build emitted has a new guid. Anki matches on the guid, so the first
 re-import after upgrading lands each note beside its old copy instead of
 updating it.
 

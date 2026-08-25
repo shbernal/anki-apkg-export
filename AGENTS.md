@@ -17,16 +17,6 @@ coding.
 
 Update the matching page when behavior changes.
 
-## Repository context
-
-- `anki-apkg-export` lives alongside other Anki-related packages under
-  `anki-md-pkgs`; treat `mdanki`, `ankimd`, and `pdfanki` as related but separate
-- this package is the base of the chain: `mdanki` depends on it, and `pdfanki`
-  depends on `mdanki`
-- release it before any downstream package that needs a new version of it
-- keep it usable as a standalone library, not only as a piece of `mdanki` or
-  `pdfanki`
-
 ## Project scope
 
 - generates Anki `.apkg` deck packages from JavaScript and TypeScript
@@ -34,7 +24,8 @@ Update the matching page when behavior changes.
 - `src/exporter.ts` holds the deck logic, `src/archive.ts` the `.apkg` packaging,
   `src/template.ts` the default note template, `src/text.ts` Anki's HTML stripper,
   `src/index.ts` the entry point
-- there is no CLI; the package is a library
+- there is no CLI; the package is a library, and nothing in it should assume a
+  particular caller
 
 ## Public API guardrails
 
