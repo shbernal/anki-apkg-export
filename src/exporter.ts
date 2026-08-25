@@ -252,6 +252,26 @@ export default class Exporter {
   ): void {
     this._assertOpen("addCard");
     const { now } = this;
+
+    /**
+     * Both the sort field and the checksum come from the first field with its
+     * HTML stripped — never from the joined field list. The notetype's `sortf`
+     * picks which field sorts, and this package pins it to 0; were `sortf` ever
+     * made configurable, both of these would follow it rather than `front`.
+     */
+    const sortField = stripHtmlPreservingMediaFilenames(front);
+
+    /* Before anything is written or any position is claimed: Anki's importer
+       reports a note whose first field is empty as `empty_first_field` and
+       drops it, so writing one would build a deck that silently loses cards.
+       The test is on the stripped field, which is what `sfld` holds — `<br>`
+       is empty by this measure, while `<img src="a.png">` keeps its filename. */
+    if (sortField.trim() === "") {
+      throw new Error(
+        `Cannot add a card whose first field is empty once its HTML is stripped: Anki drops those notes on import (front was ${JSON.stringify(front)})`,
+      );
+    }
+
     const noteGuid = this._getNoteGuid(front, back);
     const note = this._getNoteSlot(noteGuid, now);
 
@@ -261,6 +281,7 @@ export default class Exporter {
       guid: noteGuid,
       id: note.id,
       now,
+      sortField,
       tags: normalizeTags(tags),
     });
     this._insertCard(note, now);
@@ -271,16 +292,8 @@ export default class Exporter {
    * steps and frees in one call. Holding these two statements open across cards
    * instead was measured and rejected; see docs/architecture.md.
    */
-  private _insertNote({ back, front, guid, id, now, tags }: Readonly<NoteRow>): void {
+  private _insertNote({ back, front, guid, id, now, sortField, tags }: Readonly<NoteRow>): void {
     const fields = front + this.separator + back;
-
-    /**
-     * Both the sort field and the checksum come from the first field with its
-     * HTML stripped — never from the joined field list. The notetype's `sortf`
-     * picks which field sorts, and this package pins it to 0; were `sortf` ever
-     * made configurable, both of these would follow it rather than `front`.
-     */
-    const sortField = stripHtmlPreservingMediaFilenames(front);
 
     this.db.run(
       "insert or replace into notes values(:id,:guid,:mid,:mod,:usn,:tags,:flds,:sfld,:csum,:flags,:data)",
@@ -456,6 +469,8 @@ interface NoteRow {
   tags: string;
   front: string;
   back: string;
+  /** `front` with its HTML stripped: what `sfld` holds and `csum` hashes. */
+  sortField: string;
   now: number;
 }
 

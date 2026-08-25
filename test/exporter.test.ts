@@ -35,6 +35,9 @@ const PADDING = 500;
 /** Fronts for the queue-position test; only how many there are matters. */
 const QUEUED_CARDS = ["front 1", "front 2", "front 3"];
 
+/** Fronts that strip to nothing, so Anki's importer would drop their notes. */
+const EMPTY_FRONTS = ["", "   ", "<br>"];
+
 /** Fronts for the repeat test: the second call repeats the first. */
 const REPEATED_CARDS = ["front 1", "front 1", "front 2"];
 
@@ -175,6 +178,48 @@ describe("the exporter internals", () => {
     await exporter.save();
 
     expect(readCollectionConf(exporter)).toMatchObject({ nextPos: QUEUED_CARDS.length + 1 });
+  });
+
+  it("refuses a card whose first field strips to nothing", () => {
+    expect.hasAssertions();
+
+    EMPTY_FRONTS.forEach((front: string) => {
+      expect(() => {
+        exporter.addCard(front, "back");
+      }).toThrow(/first field is empty/u);
+    });
+
+    /* The refusal happens before anything is written, so a rejected call costs
+       neither a row nor a queue position. */
+    expect(readRows(exporter.db, "select * from notes")).toStrictEqual([]);
+    expect(readRows(exporter.db, "select * from cards")).toStrictEqual([]);
+
+    exporter.addCard("front", "back");
+
+    expect(readRows(exporter.db, "select due from cards")).toStrictEqual([{ due: 1 }]);
+  });
+
+  it("accepts a first field that is nothing but a media reference", () => {
+    expect.hasAssertions();
+
+    /* `<img>` is stripped down to its filename rather than removed, so the
+       sort field is not empty and Anki keeps the note. */
+    exporter.addCard('<img src="a.png">', "back");
+
+    expect(readRows(exporter.db, "select sfld from notes")).toStrictEqual([{ sfld: " a.png " }]);
+  });
+
+  it("accepts an empty back", () => {
+    expect.hasAssertions();
+    const { separator } = exporter;
+
+    /* Anki only requires the *first* field, so a card with nothing on the back
+       is a note it imports. */
+    exporter.addCard("front", "");
+
+    expect(readRows(exporter.db, "select flds from notes")).toStrictEqual([
+      { flds: `front${separator}` },
+    ]);
   });
 
   it("joins a tag array into Anki's space-delimited form", () => {

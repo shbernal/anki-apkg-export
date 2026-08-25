@@ -67,6 +67,11 @@ there is cosmetic in the collection but still means the file disagrees with Anki
 Which field sorts is chosen by the notetype's `sortf`, pinned to `0` here. If
 that ever becomes configurable, `sfld` and `csum` follow it rather than `front`.
 
+No note is written with an empty `sfld`. Anki's importer buckets those as
+`empty_first_field` and drops them, so `addCard` refuses a front that strips to
+nothing rather than emitting a card the import will discard. The test is on the
+stripped field trimmed, so `<br>` is empty and `<img src="a.png">` is not.
+
 ## Cards
 
 Every card is new: `type` and `queue` are both `0`, and `ivl`, `factor`, `reps`,

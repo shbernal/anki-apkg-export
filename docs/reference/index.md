@@ -92,6 +92,12 @@ Writes one note and one card. Both fields are HTML; whatever is passed is
 stored verbatim in `flds`, and the first field also drives `sfld` and `csum`
 after stripping. See [deck format](deck-format.md).
 
+Throws if `front` strips to nothing — `""`, whitespace and `<br>` all qualify.
+Anki's importer reports such notes as `empty_first_field` and drops them, so the
+alternative is a deck that quietly loses cards. A front that is only a media
+reference is fine: `<img src="a.png">` strips to its filename. `back` may be
+empty; Anki only requires the first field.
+
 `tags` accepts either a preformatted string or an array. Array entries have
 their spaces replaced with underscores, since Anki separates tags by spaces.
 
