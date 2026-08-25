@@ -35,6 +35,12 @@ const PADDING = 500;
 /** Fronts for the queue-position test; only how many there are matters. */
 const QUEUED_CARDS = ["front 1", "front 2", "front 3"];
 
+/** Fronts for the repeat test: the second call repeats the first. */
+const REPEATED_CARDS = ["front 1", "front 1", "front 2"];
+
+/** How many cards `REPEATED_CARDS` actually queues, the repeat aside. */
+const REPEATED_CARDS_QUEUED = new Set(REPEATED_CARDS).size;
+
 /** Decode the collection's `conf` JSON column straight out of the live db. */
 const readCollectionConf = (target: Readonly<Exporter>): unknown =>
   JSON.parse(String(readRow(target.db, "select conf from col").conf));
@@ -244,6 +250,31 @@ describe("the exporter internals", () => {
       did: topDeckId,
       nid: notes[0]?.id,
     });
+  });
+
+  it("keeps the queue contiguous when a card repeats", async () => {
+    expect.hasAssertions();
+
+    REPEATED_CARDS.forEach((front: string) => {
+      exporter.addCard(front, "back");
+    });
+
+    const positions = readRows(exporter.db, "select due from cards order by id").map(
+      (row: Readonly<Record<string, SqlValue>>) => row.due,
+    );
+
+    /* The repeat replaces the card it duplicates rather than queueing a second
+       one, so it keeps its own position and leaves the next free for the card
+       that follows. */
+    expect(positions).toStrictEqual(
+      Array.from({ length: REPEATED_CARDS_QUEUED }, (_unused: unknown, index: number) => index + 1),
+    );
+
+    await exporter.save();
+
+    /* `nextPos` counts cards, not calls. Counting the repeat would point it
+       past a position nothing holds. */
+    expect(readCollectionConf(exporter)).toMatchObject({ nextPos: REPEATED_CARDS_QUEUED + 1 });
   });
 
   it("increments ids for rows inserted at the same timestamp", () => {

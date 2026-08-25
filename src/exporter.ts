@@ -63,17 +63,17 @@ export default class Exporter {
   private nextPosition: number = FIRST_NEW_CARD_POSITION;
 
   /**
-   * Every note id handed out so far, keyed by guid — the index schema 11 does
-   * not have. `notes.guid` is unindexed in Anki's own schema, so asking sqlite
+   * Every note handed out so far, keyed by guid — the index schema 11 does not
+   * have. `notes.guid` is unindexed in Anki's own schema, so asking sqlite
    * whether a guid is already present is a full table scan, and doing it once
    * per card made `addCard` quadratic in deck size. Adding the index instead
    * would change the emitted bytes and diverge from the schema Anki writes.
    *
    * The map is exactly equivalent to that query because this class is the only
    * writer of `notes` — the template seeds none — and every insert goes through
-   * `_getNoteId` below.
+   * `_getNoteSlot` below.
    */
-  private readonly noteIdsByGuid = new Map<string, number>();
+  private readonly notesByGuid = new Map<string, NoteSlot>();
 
   /** Whether `close` has released `db`; see the method for why it is tracked. */
   private closed = false;
@@ -253,18 +253,17 @@ export default class Exporter {
     this._assertOpen("addCard");
     const { now } = this;
     const noteGuid = this._getNoteGuid(front, back);
-    const noteId = this._getNoteId(noteGuid, now);
+    const note = this._getNoteSlot(noteGuid, now);
 
     this._insertNote({
       back,
       front,
       guid: noteGuid,
-      id: noteId,
+      id: note.id,
       now,
       tags: normalizeTags(tags),
     });
-    this._insertCard(noteId, now);
-    this.nextPosition += 1;
+    this._insertCard(note, now);
   }
 
   /*
@@ -301,7 +300,7 @@ export default class Exporter {
     );
   }
 
-  private _insertCard(noteId: number, now: number): void {
+  private _insertCard({ id: noteId, position }: Readonly<NoteSlot>, now: number): void {
     this.db.run(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
       {
@@ -321,7 +320,7 @@ export default class Exporter {
          * a day counted from `col.crt`, and for a learning card it is a
          * timestamp.
          */
-        ":due": this.nextPosition,
+        ":due": position,
         ":ivl": 0,
         ":factor": 0,
         ":reps": 0,
@@ -394,17 +393,23 @@ export default class Exporter {
     return highest + 1;
   }
 
-  /** Reuse a duplicate note's id so it is updated in place rather than added. */
-  private _getNoteId(guid: string, ts: number): number {
-    const existing = this.noteIdsByGuid.get(guid);
+  /**
+   * The id and queue position for a note guid, allocating both the first time
+   * that guid is seen. A repeat reuses them, so its rows are updated in place
+   * rather than added, and it keeps the position it was first given instead of
+   * consuming a second one and leaving a hole in the queue.
+   */
+  private _getNoteSlot(guid: string, ts: number): NoteSlot {
+    const existing = this.notesByGuid.get(guid);
     if (existing !== undefined) {
       return existing;
     }
 
-    const id = this._getId("notes", "id", ts);
-    this.noteIdsByGuid.set(guid, id);
+    const slot: NoteSlot = { id: this._getId("notes", "id", ts), position: this.nextPosition };
+    this.nextPosition += 1;
+    this.notesByGuid.set(guid, slot);
 
-    return id;
+    return slot;
   }
 
   /**
@@ -433,6 +438,15 @@ export default class Exporter {
 
     return existing ?? this._getId("cards", "id", ts);
   }
+}
+
+/**
+ * What one note guid was allocated: its row `id` and its place in the new-card
+ * queue. Both are handed out once and reused by every repeat of that guid.
+ */
+interface NoteSlot {
+  id: number;
+  position: number;
 }
 
 /** The parts of a note row that `addCard` derives before writing it. */

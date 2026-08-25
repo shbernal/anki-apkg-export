@@ -76,6 +76,10 @@ Every card is new: `type` and `queue` are both `0`, and `ivl`, `factor`, `reps`,
 1 in call order. `col.conf.nextPos` is written back on `save` so it points past
 the last position used, and a card the user adds later does not reuse one.
 
+A position is claimed per note guid, not per `addCard` call: a repeat updates
+the card it already wrote and keeps its position, so the queue stays contiguous
+and `nextPos` counts cards rather than calls.
+
 That reading of `due` only holds for new cards. For a review card `due` is a day
 counted from `col.crt`; for a learning card it is a timestamp.
 

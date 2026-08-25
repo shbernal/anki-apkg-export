@@ -95,7 +95,9 @@ after stripping. See [deck format](deck-format.md).
 `tags` accepts either a preformatted string or an array. Array entries have
 their spaces replaced with underscores, since Anki separates tags by spaces.
 
-Cards are numbered in the new-card queue in call order, starting at 1.
+Cards are numbered in the new-card queue in call order, starting at 1. A
+repeated card keeps the position it was first given rather than taking a
+second one, so the numbering has no holes in it.
 
 Adding the same front and back twice writes one note, and re-exporting a deck
 produces the same note identities as last time, so re-importing it updates
