@@ -35,6 +35,12 @@ const PADDING = 500;
 /** Fronts for the queue-position test; only how many there are matters. */
 const QUEUED_CARDS = ["front 1", "front 2", "front 3"];
 
+/** A first field that parses as a number, which `sfld`'s column affinity coerces. */
+const NUMERIC_FRONT = "42";
+
+/** `sha1("42")` truncated to four bytes, big endian: the checksum of the *string*. */
+const NUMERIC_FRONT_CHECKSUM = 0x92_cf_ce_b3;
+
 /** Fronts that strip to nothing, so Anki's importer would drop their notes. */
 const EMPTY_FRONTS = ["", "   ", "<br>"];
 
@@ -160,6 +166,29 @@ describe("the exporter internals", () => {
     expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(PADDING));
   });
 
+  it("keeps building after a save", async () => {
+    expect.hasAssertions();
+
+    exporter.addCard("front 1", "back");
+    await exporter.save();
+
+    exporter.addCard("front 2", "back");
+    const second = await exporter.save();
+    const third = await exporter.save();
+
+    /* `db.export()` invalidates any statement left open across it, which is why
+       nothing here caches one — see docs/architecture.md. This is the property
+       that reasoning rests on. */
+    const collection = unzipDeckToBuffers(second).get("collection.anki2")!.toString("latin1");
+
+    expect(collection).toContain("front 1");
+    expect(collection).toContain("front 2");
+
+    /* Saving again with nothing added in between changes no byte: the exporter
+       reads its clock once, at construction. */
+    expect(third.equals(second)).toBe(true);
+  });
+
   it("populates note and card rows when a card is added", () => {
     expect.hasAssertions();
     const { topDeckId, topModelId, separator } = exporter;
@@ -261,6 +290,26 @@ describe("the exporter internals", () => {
     expect(readRows(exporter.db, "select flds from notes")).toStrictEqual([
       { flds: `front${separator}` },
     ]);
+  });
+
+  it("stores a numeric first field as an integer and still checksums the string", () => {
+    expect.hasAssertions();
+
+    exporter.addCard(NUMERIC_FRONT, "back");
+
+    /* `notes.sfld` is declared `integer`, so SQLite's column affinity converts
+       a first field that parses as one. Anki does the same, which is why the
+       oracle reads `sfld` back as an int. */
+    const row = readRow(exporter.db, "select sfld, typeof(sfld) as sfldType, csum from notes");
+
+    expect(row).toStrictEqual({
+      sfld: Number(NUMERIC_FRONT),
+      sfldType: "integer",
+
+      /* The checksum is computed in JavaScript from the string, before sqlite
+         ever sees it, so the coercion does not follow it. */
+      csum: NUMERIC_FRONT_CHECKSUM,
+    });
   });
 
   it("joins a tag array into Anki's space-delimited form", () => {

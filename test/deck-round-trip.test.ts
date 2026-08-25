@@ -44,6 +44,18 @@ const TAGGED = {
 const EXPECTED_TAGS = " some tag tags_with_multiple_words ";
 
 /**
+ * A deck whose name, fields and tag are all non-ASCII. Both the guid and the
+ * stored fields are UTF-8 bytes, and Anki hashes the same ones, so an encoding
+ * that changed anywhere on the way through would land here.
+ */
+const UNICODE = {
+  deckName: "café — 日本語",
+  front: "こんにちは <b>世界</b>",
+  back: "Grüße, Ωμέγα",
+  tag: "日本語",
+} as const;
+
+/**
  * Reads back a deck the exporter just wrote, through a SQLite build other than
  * the one that produced it.
  *
@@ -152,5 +164,30 @@ describe("a deck read back through node:sqlite", () => {
       "",
       EXPECTED_TAGS,
     ]);
+  });
+
+  it("carries non-ASCII fields, sort fields and tags through unchanged", async () => {
+    expect.hasAssertions();
+    const apkg = await AnkiExport(UNICODE.deckName);
+    apkg.addCard(UNICODE.front, UNICODE.back, { tags: [UNICODE.tag] });
+
+    await fsp.writeFile(dest, await apkg.save());
+    await unzipDeckToDir(dest, destUnpacked);
+
+    /* Read back through node:sqlite — a different SQLite build from the one
+       that wrote the file, so a mismatch in how the text was encoded shows up
+       here rather than being masked by a symmetric bug. */
+    const [row] = readRows(
+      destUnpackedDb,
+      "SELECT flds as fields, sfld as sortField, tags from notes",
+    );
+
+    expect(row).toStrictEqual({
+      fields: UNICODE.front + SEPARATOR + UNICODE.back,
+
+      /* `<b>` goes, the text around it stays. */
+      sortField: "こんにちは 世界",
+      tags: ` ${UNICODE.tag} `,
+    });
   });
 });
