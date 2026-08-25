@@ -5,8 +5,6 @@ import type { Database, SqlJsStatic } from "sql.js";
 import { type MediaItem, packageDeck, type ZipOptions } from "./archive.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
 
-export type { ZipOptions } from "./archive.js";
-
 interface ExporterOptions {
   template: string;
   sql: SqlJsStatic;
