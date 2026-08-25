@@ -57,5 +57,17 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      # Nothing in the test suite imports dist/: the suites run against src/ so
+      # they need no build. The example does import it, so running it is what
+      # covers the exports map, the emitted extensions and the import.meta
+      # resolve that finds the sql.js WASM. It writes into the working
+      # directory, hence the temp one, and it logs failures rather than exiting
+      # non-zero — so the deck itself is what gets checked.
+      - name: Smoke-test the built package
+        run: |
+          cd "$(mktemp -d)"
+          node "$GITHUB_WORKSPACE/examples/server/server.js"
+          test -s output.apkg
+
       - name: Verify package contents
         run: npm pack --dry-run --ignore-scripts
