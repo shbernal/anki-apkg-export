@@ -55,9 +55,14 @@ const mediaValueAt = (html: string, at: number): MediaValue | null => {
     return null;
   }
 
-  const groups = match.groups ?? {};
+  /* Read positionally, in the order the alternation names them: `match.groups`
+     is optional to TypeScript, and a pattern that always carries named groups
+     has no case where it is missing. */
+  const [, doubleQuoted, singleQuoted, bare] = match;
+
   return {
-    filename: `${groups.doubleQuoted ?? ""}${groups.singleQuoted ?? ""}${groups.bare ?? ""}`,
+    /* Exactly one alternative matched; the two that did not are undefined. */
+    filename: `${doubleQuoted ?? ""}${singleQuoted ?? ""}${bare ?? ""}`,
     end: at + match[0].length,
   };
 };

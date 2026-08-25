@@ -15,6 +15,13 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       reporter: ["text-summary", "lcov"],
       reportsDirectory: "coverage",
+      /*
+       * A floor, not a target: the suite is at 100% on all four counters, and
+       * this is what keeps a new branch from quietly landing uncovered. It
+       * binds `test:coverage` rather than `pnpm test`, so the gate CI runs
+       * stays the fast one.
+       */
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
   },
 });
