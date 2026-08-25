@@ -66,12 +66,9 @@ export default class Exporter {
    */
   private readonly now: number;
 
-  /** How many distinct note guids have been allocated so far. */
-  private noteCount = 0;
-
   /** The queue position the next new card takes; see `FIRST_NEW_CARD_POSITION`. */
   private get nextPosition(): number {
-    return FIRST_NEW_CARD_POSITION + this.noteCount;
+    return FIRST_NEW_CARD_POSITION + this.notesByGuid.size;
   }
 
   /**
@@ -294,7 +291,6 @@ export default class Exporter {
     { tags }: Readonly<{ tags?: string | readonly string[] }> = {},
   ): void {
     this._assertOpen("addCard");
-    const { now } = this;
 
     /**
      * Both the sort field and the checksum come from the first field with its
@@ -323,11 +319,10 @@ export default class Exporter {
       front,
       guid: noteGuid,
       id: note.id,
-      now,
       sortField,
       tags: normalizeTags(tags),
     });
-    this._insertCard(note, now);
+    this._insertCard(note);
   }
 
   /*
@@ -335,7 +330,7 @@ export default class Exporter {
    * steps and frees in one call. Holding these two statements open across cards
    * instead was measured and rejected; see docs/architecture.md.
    */
-  private _insertNote({ back, front, guid, id, now, sortField, tags }: Readonly<NoteRow>): void {
+  private _insertNote({ back, front, guid, id, sortField, tags }: Readonly<NoteRow>): void {
     const fields = front + this.separator + back;
 
     this.db.run(
@@ -344,7 +339,7 @@ export default class Exporter {
         ":id": id,
         ":guid": guid,
         ":mid": this.topModelId,
-        ":mod": toModified(now),
+        ":mod": toModified(this.now),
         ":usn": -1,
         ":tags": tags,
         ":flds": fields,
@@ -356,15 +351,17 @@ export default class Exporter {
     );
   }
 
-  private _insertCard({ id: noteId, cardId, position }: Readonly<NoteSlot>, now: number): void {
+  private _insertCard({ id, position }: Readonly<NoteSlot>): void {
     this.db.run(
       "insert or replace into cards values(:id,:nid,:did,:ord,:mod,:usn,:type,:queue,:due,:ivl,:factor,:reps,:lapses,:left,:odue,:odid,:flags,:data)",
       {
-        ":id": cardId,
-        ":nid": noteId,
+        /* The card and its note share a row id: the two tables number their
+           rows separately, and exactly one card is written per note. */
+        ":id": id,
+        ":nid": id,
         ":did": this.topDeckId,
         ":ord": 0,
-        ":mod": toModified(now),
+        ":mod": toModified(this.now),
         ":usn": -1,
         ":type": 0,
         ":queue": 0,
@@ -421,10 +418,13 @@ export default class Exporter {
        the build instant instead of colliding on it. The note and its card
        share the id because both tables start there and exactly one card is
        written per note; a notetype generating two would need its own counter. */
-    const rowId = this.now + this.noteCount;
-    const slot: NoteSlot = { id: rowId, cardId: rowId, position: this.nextPosition };
+    const slot: NoteSlot = {
+      id: this.now + this.notesByGuid.size,
+      position: this.nextPosition,
+    };
 
-    this.noteCount += 1;
+    /* Both of those read the map, so the slot has to be built before it is
+       stored: the other order shifts every id and position by one. */
     this.notesByGuid.set(guid, slot);
 
     return slot;
@@ -457,12 +457,12 @@ export default class Exporter {
 }
 
 /**
- * What one note guid was allocated: its row `id` and its place in the new-card
- * queue. Both are handed out once and reused by every repeat of that guid.
+ * What one note guid was allocated: the row `id` its note and its card share,
+ * and its place in the new-card queue. Both are handed out once and reused by
+ * every repeat of that guid.
  */
 interface NoteSlot {
   id: number;
-  cardId: number;
   position: number;
 }
 
@@ -475,7 +475,6 @@ interface NoteRow {
   back: string;
   /** `front` with its HTML stripped: what `sfld` holds and `csum` hashes. */
   sortField: string;
-  now: number;
 }
 
 interface DeckModel {
