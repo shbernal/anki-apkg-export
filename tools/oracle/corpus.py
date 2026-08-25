@@ -63,6 +63,39 @@ LITERAL_CASES: list[str] = [
     'q &amp; a <img src="z.png"> [sound:s.mp3]',
 ]
 
+# Media tags whose attribute run is ambiguous: a quote left unbalanced, or a
+# quoted value hiding a `>` or a second `src=`. Anki reads the run as a
+# sequence of either whole quoted segments or single non-`>` characters, so a
+# value can be entered part way through and the first `src=` inside one wins.
+MEDIA_TAG_CASES: list[str] = [
+    # unbalanced quotes -- the value runs on, and the `src=` inside it is taken
+    '<img alt="x src=y.png>',
+    "<img alt='unclosed src=z.png>",
+    '<img alt=" src=fake.png " src="real.png">',
+    # a quoted value spanning a `>`, which does not end the tag
+    '<img alt="a>b" src="c.png">',
+    "<img alt='a>b' src='c.png'>",
+    '<img alt=">" src="d.png">',
+    # runs of quoted segments, the shape a backtracking engine explores twice
+    # over: once as quotes, once as ordinary characters
+    '<img "a""a""a" src="e.png">',
+    '<img "a""a""a""a""a""a""a""a"',
+    '<img ' + '"a"' * 12 + ' src="f.png">',
+    # one quoting style inside the other
+    '''<img alt='a"b' src="g.png">''',
+    """<img alt="a'b" src='h.png'>""",
+    # nothing a filename can be read out of, so the tag strips like any other
+    '<img alt="">',
+    "<img>",
+    '<img src="">',
+    # bare values next to another attribute
+    "<img alt=x src=y.png>",
+    '<img src="i.png" alt="j>">',
+    # the same unbalanced quote in the other tag names
+    '<audio alt="x src=k.mp3>',
+    '<object alt="x data=l.swf>',
+]
+
 # One reference per name the decoder knows, so a change to the table shows up as
 # a fixture diff rather than as a surprise in production.
 ENTITY_CASES: list[str] = [f"&{name};" for name in sorted(NAMED_ENTITIES)]
@@ -127,4 +160,4 @@ def _deduped(*groups: list[str]) -> list[str]:
     return out
 
 
-CASES: list[str] = _deduped(LITERAL_CASES, ENTITY_CASES, ENTITY_EDGE_CASES)
+CASES: list[str] = _deduped(LITERAL_CASES, MEDIA_TAG_CASES, ENTITY_CASES, ENTITY_EDGE_CASES)

@@ -203,6 +203,96 @@
       "csum": 2586372751
     },
     {
+      "input": "<img alt=\"x src=y.png>",
+      "sfld": " y.png ",
+      "csum": 1536102383
+    },
+    {
+      "input": "<img alt='unclosed src=z.png>",
+      "sfld": " z.png ",
+      "csum": 2165924668
+    },
+    {
+      "input": "<img alt=\" src=fake.png \" src=\"real.png\">",
+      "sfld": " fake.png ",
+      "csum": 1118638607
+    },
+    {
+      "input": "<img alt=\"a>b\" src=\"c.png\">",
+      "sfld": " c.png ",
+      "csum": 1443773589
+    },
+    {
+      "input": "<img alt='a>b' src='c.png'>",
+      "sfld": " c.png ",
+      "csum": 1443773589
+    },
+    {
+      "input": "<img alt=\">\" src=\"d.png\">",
+      "sfld": " d.png ",
+      "csum": 1020358907
+    },
+    {
+      "input": "<img \"a\"\"a\"\"a\" src=\"e.png\">",
+      "sfld": " e.png ",
+      "csum": 1418676017
+    },
+    {
+      "input": "<img \"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"",
+      "sfld": "<img \"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"",
+      "csum": 3618588972
+    },
+    {
+      "input": "<img \"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\"\"a\" src=\"f.png\">",
+      "sfld": " f.png ",
+      "csum": 2937653206
+    },
+    {
+      "input": "<img alt='a\"b' src=\"g.png\">",
+      "sfld": " g.png ",
+      "csum": 3657488919
+    },
+    {
+      "input": "<img alt=\"a'b\" src='h.png'>",
+      "sfld": " h.png ",
+      "csum": 4186545808
+    },
+    {
+      "input": "<img alt=\"\">",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "<img>",
+      "sfld": "",
+      "csum": 3661210606
+    },
+    {
+      "input": "<img src=\"\">",
+      "sfld": " \"\" ",
+      "csum": 354910604
+    },
+    {
+      "input": "<img alt=x src=y.png>",
+      "sfld": " y.png ",
+      "csum": 1536102383
+    },
+    {
+      "input": "<img src=\"i.png\" alt=\"j>\">",
+      "sfld": " i.png \">",
+      "csum": 3611413440
+    },
+    {
+      "input": "<audio alt=\"x src=k.mp3>",
+      "sfld": " k.mp3 ",
+      "csum": 3721128714
+    },
+    {
+      "input": "<object alt=\"x data=l.swf>",
+      "sfld": " l.swf ",
+      "csum": 648688322
+    },
+    {
       "input": "&AElig;",
       "sfld": "Æ",
       "csum": 700564137
