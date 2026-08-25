@@ -3,6 +3,68 @@
 Notable changes per release. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
+## 6.0.0
+
+Note identity changes, which is what makes this a major release: **the first
+re-import of a deck built by 5.x adds a duplicate of every note, once.** Beyond
+that, two inputs the package used to accept quietly and one it used to discard,
+plus a stripper that could be made to hang on a hundred bytes.
+
+### Breaking
+
+- **The note guid separates the parts it hashes.** It was `sha1` over
+  `deckName + front + back` glued together, so a deck named `ab` with front `c`
+  produced the same guid as a deck named `a` with front `bc` — and two notes
+  sharing a guid are one note to Anki, the second silently replacing the first.
+  The three are now joined with `U+001F`, the character Anki splits `flds` on
+  and therefore the one no field can carry, which makes the encoding
+  unambiguous by construction. **Every note emitted by an earlier release gets a
+  new guid, so re-importing an existing deck lands each note beside its old copy
+  instead of updating it.** One round, the same shape as the 5.1.0 boundary, and
+  there is no third boundary to come. A card exported at two different instants
+  still gets one guid.
+- **`addMedia` refuses an empty or whitespace-only filename.** It used to write
+  a manifest entry named `""` that no importer can act on. Nothing else about
+  the name is checked, and deliberately so: entries are stored under their index
+  precisely so a deck can carry filenames a ZIP or a filesystem would refuse.
+
+### Fixed
+
+- **An empty tag array writes no tags.** The joined array was padded at both
+  ends whether or not anything survived the join, so `{ tags: [] }` stored two
+  spaces where Anki stores nothing, and an empty entry stored a doubled
+  separator. Entries with no tag in them are dropped now, and an array that
+  yields none writes `""`. **If you pass `[]` for untagged cards — which is what
+  `mdanki` does for every one of them — this changes the bytes of every note you
+  export.** A preformatted tag string still passes through untouched.
+- **The HTML stripper no longer backtracks exponentially.** rslib's media
+  pattern is ambiguous about its attribute run, which costs the Rust `regex`
+  crate nothing and cost this transcription forty seconds on a 101-byte field:
+  `[^>]` matches a quote that a quoted branch could take too, so a tag carrying
+  no `src` explored every combination. The run is walked now, each position
+  tried once in the order a backtracking engine reaches it, so the answer is
+  identical and the same input strips in under a millisecond. Anki's behaviour
+  is unchanged and the oracle corpus is still what adjudicates it — 18 cases
+  covering unbalanced quotes and hidden `>` were added to it first.
+- **`mtime` passed to `save` reaches the archive.** Every entry was stamped with
+  the build instant and the caller's bag was applied at the archive level, where
+  fflate lets the per-entry value win, so `save({ mtime })` returned the same
+  bytes as `save()` while the reference promised the bag was forwarded
+  untouched. The default is still the build instant pinned to UTC, which is what
+  keeps archives reproducible across timezones; overriding it takes that on.
+
+### Internal
+
+- The suite covers `src/archive.ts` at its own seam, including byte equality
+  across three timezones, and pins what the docs promise but nothing held:
+  hostile media filenames, the entity table's prototype guard, and that
+  `addCard` issues no `SELECT`. Coverage thresholds are a floor now, at the
+  100% the suite already reaches.
+- The oracle imports a generated deck twice and requires that Anki report no new
+  notes, so the re-import claim is re-checked rather than verified once by hand.
+- `exporter.ts` keeps one copy of the state it used to keep twice, and
+  `src/index.ts` resolves the sql.js wasm directory once per process.
+
 ## 5.2.0
 
 A quoting defect that made ordinary CSS unusable, three cases where a deck came
