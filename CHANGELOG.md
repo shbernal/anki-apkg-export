@@ -3,6 +3,55 @@
 Notable changes per release. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
+## 6.1.0
+
+The package reads `.apkg` files as well as writing them.
+
+### Added
+
+- **`readApkg(bytes)` and `readPackage(sql, bytes)`.** They hand back Anki's own
+  model of a package: its note types, its notes as field values and tags, and
+  its media keyed by the name card HTML references it by. There is no front, no
+  back and no flashcard in what comes out; mapping notes onto some other idea of
+  a card belongs above this package.
+
+  Reading is a much wider job than writing, and the reader takes everything Anki
+  and its exporters produce: package versions 1, 2 and 3, collection schemas 11
+  and 18 or newer, zstd for the version-3 collection and its media, and both
+  media-manifest encodings. Four things worth knowing, because each of them will
+  silently produce the wrong deck in a reader that misses it:
+
+  - **Versions 2 and 3 also ship a `collection.anki2`, and it is a decoy.** It
+    holds one note reading "Please update to the latest Anki version, then
+    import the .colpkg/.apkg file again", and it is a well-formed two-field
+    note, so opening the familiar name yields that card and no error. The entry
+    is chosen from `meta`, never by name.
+  - **The entry name does not imply the schema.** A user's own profile is a bare
+    `collection.anki2` at schema 18. `col.ver` is what decides.
+  - **Schema 18 declares six tables `COLLATE unicase`**, and three of them are
+    `WITHOUT ROWID`, so every query against them fails rather than merely
+    sorting oddly. Field names live only in one of those tables. Neither
+    `node:sqlite` nor `sql.js` can register a collation, so the clause is
+    stripped from `sqlite_master` under `PRAGMA writable_schema`, with `RESET`
+    rather than `OFF`: `OFF` leaves the parsed schema in memory and a later
+    index scan comes back with fewer rows than the table holds.
+  - **Note types are two unrelated layouts.** A JSON blob in `col.models` at
+    schema 11, three tables at 18, and cloze-ness is `models[].type` in one and
+    a protobuf varint in the other.
+
+  Anything outside that range is refused by name rather than half-read. The
+  whole matrix is in `docs/reference/deck-format.md`.
+
+- **`AnkiPackage`, `AnkiCollection`, `AnkiNote` and `AnkiNotetype`**, the types
+  a read returns.
+
+### Changed
+
+- **Nothing about what the package writes.** The emitted deck is byte-identical
+  to 6.0.0's, and `test/fixtures/output.apkg` is unchanged. The reader is
+  additive: it lives in its own modules, and the writer's strictness about
+  collections is deliberately not shared with it.
+
 ## 6.0.0
 
 Note identity changes, which is what makes this a major release: **the first

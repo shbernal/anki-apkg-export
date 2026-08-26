@@ -1,6 +1,6 @@
 {
   "name": "@shbernal/anki-apkg-export",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "Generate Anki deck packages from JavaScript and TypeScript.",
   "keywords": [
     "anki",
@@ -37,6 +37,7 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --deny-warnings",
     "oracle:check": "uv run tools/oracle/check_apkg.py",
+    "oracle:collections": "uv run tools/oracle/gen_collections.py",
     "oracle:fixture": "uv run tools/oracle/gen_stripped_fields.py",
     "oracle:fixture:check": "uv run tools/oracle/gen_stripped_fields.py --check",
     "prepare": "pnpm run build",
