@@ -12,8 +12,12 @@ interface ExporterOptions {
   now?: number;
 }
 
-/** Anki stores a note's fields as one string joined by this control character. */
-const FIELD_SEPARATOR = "\u001F";
+/**
+ * Anki stores a note's fields as one string joined by this control character.
+ * Exported because `collection.ts` splits on it: one definition of a wire
+ * format constant, read by the two modules that have to agree about it.
+ */
+export const FIELD_SEPARATOR = "\u001F";
 
 /** Anki's field checksum is the first 8 hex digits of the sha1, read as base 16. */
 const CHECKSUM_HEX_DIGITS = 8;

@@ -1,18 +1,20 @@
 ---
 doc-schema-version: 1
 title: "Deck format"
-summary: "What the generated schema-11 deck contains field by field, where it deliberately deviates from Anki, and what remains non-conformant."
+summary: "What the generated schema-11 deck contains field by field, where it deliberately deviates from Anki, what remains non-conformant, and which packages the reader accepts."
 read_when:
   - Changing anything the exporter or template writes into the collection
   - Investigating why an imported deck looks wrong in Anki
+  - Working on the reader, or on which packages it accepts
   - Deciding whether to move to schema 18 / package version v3
 doc_type: "reference"
 ---
 
 # Deck format
 
-Decks are written at **schema 11**, package version **Legacy1**, which every
-current Anki release imports.
+Decks are written at **schema 11**, package version **1**, which every current
+Anki release imports. Reading is a wider job than writing, and what it takes is
+[at the bottom of this page](#what-the-reader-accepts).
 
 The goal is stronger than "the importer accepts it": rows are written the way
 Anki writes them for the same content, so an exported deck agrees with the one
@@ -168,10 +170,90 @@ keeps no state between runs to remember it by.
 
 ## Out of scope
 
-- **Schema 18 / package version v3.** Not planned here; Legacy1 is what this
-  package targets.
+- **Writing schema 18 or package version 3.** Not planned; version 1 is what
+  this package emits, and every Anki release imports it. The reader takes all
+  three, which is a different question.
 - **More than one notetype or template.** Product scope, not a limitation to fix
   incidentally.
+
+## What the reader accepts
+
+`readApkg` has the opposite obligation to everything above. The writer emits one
+layout and is strict about it; the reader has to take what Anki 2.1, current
+Anki and third-party exporters have all written. The two worldviews are kept in
+separate modules on purpose: `src/unpack.ts` and `src/collection.ts` are the
+tolerant half, and nothing in `src/exporter.ts` or `src/template.ts` knows they
+exist.
+
+### Package versions
+
+The version is a varint in field 1 of a two-byte `meta` entry. **No `meta` at
+all is version 1**, which predates the entry; a `meta` that is there and names
+no version is refused, because `Meta.version` is an enum whose zero value means
+the writer did not know either.
+
+| Version | Collection entry     | Compression | Media manifest              |
+| ------- | -------------------- | ----------- | --------------------------- |
+| 1       | `collection.anki2`   | none        | JSON, entry to name         |
+| 2       | `collection.anki21`  | none        | JSON, entry to name         |
+| 3       | `collection.anki21b` | zstd        | zstd + protobuf, positional |
+
+In version 3 the media files are zstd-compressed too, not only the manifest and
+the collection.
+
+**Versions 2 and 3 also ship a `collection.anki2`, and it is a decoy.** It is a
+valid schema-11 database holding one note reading _"Please update to the latest
+Anki version, then import the .colpkg/.apkg file again."_ A reader that opens
+the name it recognizes gets that note and no error at all. The entry is selected
+from `meta`, never by looking for a familiar name.
+
+### Collection schemas
+
+Read from `col.ver`, always. **The entry name implies nothing**: a user's own
+profile is a bare `collection.anki2` holding schema 18.
+
+| Schema      | Note types                           | Cloze                        |
+| ----------- | ------------------------------------ | ---------------------------- |
+| 11          | JSON blob in `col.models`            | `models[].type === 1`        |
+| 18 or newer | `notetypes` / `fields` / `templates` | varint in `notetypes.config` |
+
+Anything between the two is refused by name. Anki upgrades a collection on open
+and never leaves one sitting at 12 through 17, so a file that claims one is a
+file to open in Anki once rather than a case to support.
+
+`fields` outlives the note types it belongs to: an Anki export ships rows for
+ids no note type has. Fields are therefore read from the note type out, never by
+iterating `fields`.
+
+### The `unicase` collation
+
+**Schema 18 declares six tables `COLLATE unicase`**, a collation only Anki's own
+Rust registers. Three of them are `WITHOUT ROWID`, so the collation sits in the
+b-tree key and _every_ query against them fails with `no query solution`, not
+merely an `ORDER BY`. Field names live only in `fields`, so schema 18 is
+unreadable until the clause goes:
+
+```sql
+PRAGMA writable_schema=ON;
+UPDATE sqlite_master SET sql = replace(sql, ' COLLATE unicase', '') WHERE sql LIKE '%unicase%';
+PRAGMA writable_schema=RESET;
+```
+
+`RESET` rather than `OFF`, and this is the part that is easy to get wrong.
+`OFF` leaves the schema SQLite already parsed in memory, and a later query that
+picks an index still reaches for the collation it remembers. That failure is
+worse than an error: a covering-index scan comes back with fewer rows than the
+table holds, silently.
+
+What survives the strip is ordering. `fields` and `templates` key on
+`(ntid, ord)`, both integers, so their b-trees are unaffected. `tags` keys on
+the collated text, so its rows come back in an order that is not the declared
+one. Nothing in the reader relies on SQL order, and nothing searches a collated
+column: a full index scan visits every entry whatever order it is in, while a
+seek by name would not.
+
+Neither `node:sqlite` nor `sql.js` can register a collation, which is why this
+is a workaround rather than a fix.
 
 ## Changing any of this
 

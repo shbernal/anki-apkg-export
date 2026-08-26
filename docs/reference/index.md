@@ -1,7 +1,7 @@
 ---
 doc-schema-version: 1
 title: "Reference"
-summary: "The exported API: the factory, the exporter methods, and the template override fields."
+summary: "The exported API: the factory, the exporter methods, the template override fields, and the reader."
 read_when:
   - Looking up an exported signature or option
   - Checking what counts as a breaking change
@@ -26,6 +26,12 @@ decision, not incidental cleanup.
 | `ExportOptions`   | type           | The second bag, holding `now`.                              |
 | `ZipOptions`      | type           | Re-exported from fflate, for `save`.                        |
 | `MediaData`       | type           | The bytes `addMedia` accepts.                               |
+| `readApkg`        | async function | Reads a package and returns what is in it.                  |
+| `readPackage`     | function       | The same, for callers supplying their own sql.js instance.  |
+| `AnkiPackage`     | type           | What a read returns.                                        |
+| `AnkiCollection`  | type           | The collection half of it, without the media.               |
+| `AnkiNote`        | type           | One note: field values and tags.                            |
+| `AnkiNotetype`    | type           | One note type: its field names, and whether it is cloze.    |
 
 ## `AnkiExport(deckName, template?, options?)`
 
@@ -207,3 +213,64 @@ The class behind the factory, exported for callers that already have a sql.js
 instance. `template` is the SQL script `createTemplate` produces, and `now` is
 the same clock value that built it. Pass one to both or neither. Public
 readonly properties: `db`, `topDeckId`, `topModelId`, `separator`, `deckName`.
+
+## `readApkg(apkg)`
+
+```ts
+function readApkg(apkg: Uint8Array): Promise<AnkiPackage>;
+```
+
+Reads a package and returns Anki's model of what is in it. Async for the same
+reason `AnkiExport` is: sql.js loads a WASM module, once per process.
+
+```ts
+interface AnkiPackage {
+  readonly notetypes: readonly AnkiNotetype[];
+  readonly notes: readonly AnkiNote[];
+  /** Media files by the name card HTML references them by. */
+  readonly media: ReadonlyMap<string, Uint8Array>;
+  /** The container layout: 1, 2 or 3. Says nothing about `schemaVersion`. */
+  readonly packageVersion: number;
+  readonly schemaVersion: number;
+}
+
+interface AnkiNotetype {
+  readonly id: number;
+  readonly name: string;
+  /** Field names, in the order the note type declares them. */
+  readonly fields: readonly string[];
+  readonly isCloze: boolean;
+}
+
+interface AnkiNote {
+  readonly id: number;
+  /** The id of the note type this note belongs to. */
+  readonly mid: number;
+  /** Field values, in that note type's order. */
+  readonly fields: readonly string[];
+  readonly tags: readonly string[];
+}
+```
+
+This is Anki's model and not a flashcard's: there is no front, no back and no
+deck of cards here. A note is field values, and its note type says what those
+fields are called. Anything that maps them onto some other idea of a card
+belongs above this package.
+
+Field values are the HTML Anki stores, verbatim. Tags are split on whitespace
+from the space-padded string Anki keeps them in, and Anki's own `::` nesting is
+left exactly as it was stored.
+
+What the reader accepts, and what it refuses by name, is in
+[deck format](deck-format.md#what-the-reader-accepts). A package it cannot read
+throws rather than coming back half-filled.
+
+## `readPackage(sql, apkg)`
+
+```ts
+function readPackage(sql: SqlJsStatic, apkg: Uint8Array): AnkiPackage;
+```
+
+The same read, for a caller that already holds a sql.js module. Synchronous,
+since the WASM load is the only asynchronous part. The database it opens is
+closed before it returns, so there is no handle to release.

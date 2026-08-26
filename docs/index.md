@@ -11,8 +11,8 @@ doc_type: "overview"
 
 # anki-apkg-export
 
-A library that builds Anki `.apkg` deck packages from JavaScript and TypeScript.
-Published to npm as `@shbernal/anki-apkg-export`.
+A library that reads and writes Anki `.apkg` deck packages from JavaScript and
+TypeScript. Published to npm as `@shbernal/anki-apkg-export`.
 
 ## What this project does
 
@@ -20,6 +20,10 @@ It takes a deck name, some cards, and optionally some media files, and returns
 the bytes of an `.apkg` archive. Internally that means seeding an in-memory
 SQLite collection with Anki's schema-11 defaults, inserting a note and a card
 row per call to `addCard`, and zipping the result with its media manifest.
+
+It also reads one, which is a wider job: three package versions, two collection
+schemas, zstd, a decoy collection and two media-manifest encodings. What comes
+back is Anki's model, note types and notes and media, and nothing above it.
 
 It intentionally does not own:
 
@@ -29,7 +33,8 @@ It intentionally does not own:
   whose question format, answer format, and CSS the caller may override.
 - **Scheduling.** Every card it writes is new; it never emits review or
   learning cards, and never writes `revlog` rows.
-- **Schema 18 / package version v3.** See [deck format](reference/deck-format.md).
+- **Writing schema 18 or package version 3.** It reads all of them; it writes
+  version 1 at schema 11. See [deck format](reference/deck-format.md).
 
 ## Quickstart
 
@@ -48,6 +53,14 @@ apkg.addCard("card #1 front", "card #1 back");
 apkg.addCard("card #2 front", "card #2 back", { tags: ["nice", "better card"] });
 
 fs.writeFileSync("./output.apkg", await apkg.save());
+```
+
+Reading one:
+
+```ts
+import { readApkg } from "@shbernal/anki-apkg-export";
+
+const { notes, notetypes, media } = await readApkg(fs.readFileSync("deck.apkg"));
 ```
 
 Requires Node.js >= 24 and ESM. The full signature list is in the

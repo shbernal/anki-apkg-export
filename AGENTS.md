@@ -19,18 +19,26 @@ Update the matching page when behavior changes.
 
 ## Project scope
 
-- generates Anki `.apkg` deck packages from JavaScript and TypeScript
+- reads and writes Anki `.apkg` deck packages from JavaScript and TypeScript
 - published to npm as `@shbernal/anki-apkg-export`, ESM-only, Node.js >= 24
-- `src/exporter.ts` holds the deck logic, `src/archive.ts` the `.apkg` packaging,
-  `src/template.ts` the default note template, `src/text.ts` Anki's HTML stripper,
-  `src/index.ts` the entry point
+- write path: `src/exporter.ts` holds the deck logic, `src/archive.ts` the
+  `.apkg` packaging, `src/template.ts` the default note template, `src/text.ts`
+  Anki's HTML stripper
+- read path: `src/reader.ts` is its entry, `src/unpack.ts` the container,
+  `src/collection.ts` the database, `src/protobuf.ts` the wire format
+- `src/index.ts` is the package entry point for both
+- **the two paths do not share their assumptions.** The writer knows one layout
+  and is strict about it; the reader takes three package versions and two
+  schemas. Keep the tolerance out of the writer and the strictness out of the
+  reader; see `docs/architecture.md`
 - there is no CLI; the package is a library, and nothing in it should assume a
   particular caller
 
 ## Public API guardrails
 
 - the published API is `AnkiExport(name, templateOverrides?, { now }?)` returning
-  `addCard`, `addMedia`, `save`, and `close`
+  `addCard`, `addMedia`, `save`, and `close`, plus `readApkg(bytes)` and
+  `readPackage(sql, bytes)`
 - changing it needs a deliberate semver decision, not incidental cleanup
 - keep `exports`, `files`, and `dist` shape intact unless the change is the point
   of the task
@@ -51,6 +59,11 @@ npm pack --dry-run --ignore-scripts   # before anything release-shaped
 
 Any change to the emitted deck also needs `pnpm run fixture:regen` **in the same
 commit**. See `docs/tooling.md` for why the order matters.
+
+The reader's fixtures in `test/fixtures/collections/` come from real Anki via
+`pnpm run oracle:collections`. They are inputs rather than golden files, and
+regenerating them changes their bytes every time, so no test may assert on an id
+read out of them.
 
 ## Release workflow
 

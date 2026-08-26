@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import Exporter from "./exporter.js";
+import { type AnkiPackage, readPackage } from "./reader.js";
 import createTemplate, { type TemplateOptions } from "./template.js";
 
 /*
@@ -50,8 +51,23 @@ const getSqlModule = (): Promise<SqlJsStatic> => {
 };
 
 export type { MediaData, ZipOptions } from "./archive.js";
+export type { AnkiCollection, AnkiNote, AnkiNotetype } from "./collection.js";
 export { default as Exporter } from "./exporter.js";
+export { type AnkiPackage, readPackage } from "./reader.js";
 export type { TemplateOptions } from "./template.js";
+
+/**
+ * Read an `.apkg` and hand back what is in it: its note types, its notes and
+ * its media, as Anki stores them.
+ *
+ * This is the opposite of `AnkiExport`, and deliberately not its mirror image.
+ * The writer emits one layout and is strict about it; the reader has to take
+ * three package versions and two schema versions, written by Anki 2.1, by
+ * current Anki and by third-party exporters. See `docs/reference/deck-format.md`
+ * for what each of those means and which are refused.
+ */
+export const readApkg = async (apkg: Uint8Array): Promise<AnkiPackage> =>
+  readPackage(await getSqlModule(), apkg);
 
 export interface ExportOptions {
   /**

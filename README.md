@@ -3,13 +3,15 @@
 [![weekly downloads](https://img.shields.io/npm/dw/%40shbernal%2Fanki-apkg-export.svg?label=npm%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/anki-apkg-export)
 [![total downloads](https://img.shields.io/npm/dt/%40shbernal%2Fanki-apkg-export.svg?label=npm%20total%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/anki-apkg-export)
 
-Build Anki `.apkg` decks from Node.js. Hand it a deck name, cards as HTML, and
-whatever images or audio those cards reference, and it hands back the bytes of a
-file Anki imports.
+Read and write Anki `.apkg` decks from Node.js. Hand it a deck name, cards as
+HTML, and whatever images or audio those cards reference, and it hands back the
+bytes of a file Anki imports. Hand it a package and it hands back the note
+types, notes and media inside it.
 
-It is the piece you want when the cards already exist somewhere else: a
-database, a set of notes, a scraped corpus, the output of another tool. Nothing
-has to go through the Anki desktop app.
+It is the piece you want when the cards already exist somewhere else, or when
+they are already in Anki and you want them out: a database, a set of notes, a
+scraped corpus, the output of another tool. Nothing has to go through the Anki
+desktop app.
 
 ## Requirements
 
@@ -55,6 +57,37 @@ Only a process that builds deck after deck needs `close()`; a one-shot script
 can ignore it. Full signatures and defaults are in
 [docs/reference](docs/reference/index.md).
 
+### Reading a package
+
+```ts
+import fs from "node:fs";
+import { readApkg } from "@shbernal/anki-apkg-export";
+
+const { notes, notetypes, media } = await readApkg(fs.readFileSync("deck.apkg"));
+
+const byId = new Map(notetypes.map((notetype) => [notetype.id, notetype]));
+
+for (const note of notes) {
+  const { fields, isCloze } = byId.get(note.mid) ?? { fields: [], isCloze: false };
+  console.log(fields.join(" / "), note.fields, note.tags, isCloze);
+}
+```
+
+What comes back is Anki's own model, not a flashcard: a note is field values and
+tags, and its note type says what those fields are called. `media` maps the name
+card HTML references a file by to its bytes.
+
+| Call                  | What it does                                                     |
+| --------------------- | ---------------------------------------------------------------- |
+| `readApkg(bytes)`     | Reads a package and returns `{ notetypes, notes, media, ... }`.  |
+| `readPackage(sql, …)` | The same, for a caller that already holds its own sql.js module. |
+
+The reader takes package versions 1, 2 and 3 and collection schemas 11 and 18
+or newer, which covers every `.apkg` Anki has written since 2.1 as well as the
+ones third-party tools produce. Anything else is refused by name rather than
+half-read. What each of those means is in
+[docs/reference/deck-format](docs/reference/deck-format.md).
+
 ### Template customization
 
 The second argument overrides the note template, one field at a time. Anything
@@ -82,8 +115,8 @@ A build that caches or diffs its decks wants this.
 
 ## Generated decks
 
-Decks are written at schema 11, package version Legacy1, which every current
-Anki release imports. Rows are written the way Anki writes them for the same
+Decks are **written** at schema 11, package version 1, which every current Anki
+release imports. Reading is not the mirror of that: see above for what it takes. Rows are written the way Anki writes them for the same
 content, so a deck from here agrees with one Anki would have produced. Notes are
 matched on content, so re-importing a regenerated deck updates the collection
 instead of doubling it.

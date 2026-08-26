@@ -11,7 +11,8 @@ doc_type: "architecture"
 
 # Architecture
 
-Six modules under `src/`, about 1,650 lines total.
+Ten modules under `src/`, split into a write path and a read path that share
+one entry point and one wire constant.
 
 A new module needs a reason better than deduplication. It needs a seam.
 `archive.ts` is the sixth because it has one: it knows about ZIP entries, DOS
@@ -38,6 +39,28 @@ literal does not.
 | `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                            |
 | `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                    |
 | `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                              |
+| `reader.ts`        | The read path's entry point: unpack the container, read the collection, put the media back beside it.                                               |
+| `unpack.ts`        | The `.apkg` container, read: package version, the decoy, zstd, and the two media-manifest encodings. Knows nothing about sqlite.                    |
+| `collection.ts`    | A collection database, read: schema 11's JSON models and schema 18's tables, and the `unicase` strip that makes the second readable at all.         |
+| `protobuf.ts`      | Just enough of the wire format for the three fields Anki keeps in it. Data only, in the sense that it decides nothing.                              |
+
+## Two worldviews, kept apart
+
+The writer holds exactly one assumption about collections and it is strict:
+`template.ts` generates the schema, and `_readJsonColumn` treats anything it did
+not seed as proof that the collection is not the one this class built.
+
+The reader has the opposite obligation. It must tolerate collections written by
+Anki 2.1, by current Anki and by third-party exporters, across three package
+versions and two schema versions. That tolerance is why `unpack.ts` is not part
+of `archive.ts` and `collection.ts` is not part of `exporter.ts`, even though
+each pair is about the same half of the format. The writer's strictness is
+correct for the writer and must not leak into the reader, and the reader's
+tolerance must not leak back.
+
+The one thing they share is `FIELD_SEPARATOR`, which `exporter.ts` exports and
+`collection.ts` splits on. It is a wire constant that the two modules have to
+agree about, which is the case the rule below is about.
 
 ## Data and control flow
 

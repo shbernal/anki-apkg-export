@@ -191,7 +191,15 @@
         // `sqlModule` and `exporter` are handed to the suite by `beforeAll` and
         // `beforeEach`, so there is no value to initialize them with at the
         // point of declaration.
-        "init-declarations": "off"
+        "init-declarations": "off",
+
+        // The reader's suites are tables of bytes: `meta` entries written by
+        // hand, a PNG signature, a wire tag, the version pair each fixture
+        // stands for. The rule's escape hatch is a named `const`, which does not
+        // reach inside an array literal or an object property, so following it
+        // would mean one name per byte. Names are still used where a value has
+        // a meaning to state; this is off because a byte does not.
+        "no-magic-numbers": "off"
       }
     }
   ]

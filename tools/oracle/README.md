@@ -14,6 +14,7 @@ on first run. There is no virtualenv to create and nothing to activate.
 pnpm run oracle:fixture         # regenerate test/fixtures/anki-stripped-fields.json
 pnpm run oracle:fixture:check   # report whether that fixture is current, writing nothing
 pnpm run oracle:check           # confirm anki accepts test/fixtures/output.apkg
+pnpm run oracle:collections     # regenerate test/fixtures/collections/
 ```
 
 Or call them directly, which is the same thing:
@@ -21,6 +22,7 @@ Or call them directly, which is the same thing:
 ```sh
 uv run tools/oracle/gen_stripped_fields.py
 uv run tools/oracle/check_apkg.py [path/to/deck.apkg]
+uv run tools/oracle/gen_collections.py
 ```
 
 Without uv, any environment with the pinned `anki` installed works. The scripts
@@ -52,6 +54,17 @@ promise Anki owns: notes are matched on their guid, so a deck arriving in a
 collection that already holds it updates rather than duplicates. The other half,
 that two builds of identical content carry the same guids, is a property of this
 package and is pinned in `test/exporter.test.ts`.
+
+`gen_collections.py` writes the four packages in `test/fixtures/collections/`,
+which are what `test/reader.test.ts` reads. They exist because this package
+writes one layout and the reader has to take three: only Anki can produce a
+package version 3 with a zstd collection, a decoy and a protobuf media manifest.
+Two of the four come straight out of an Anki export and two are those exports
+re-framed, because Anki cannot write the containers they stand for.
+
+Unlike the two scripts above, this one is not a check. Its output is an input to
+the suite, and regenerating it changes the bytes every time, since ids and
+timestamps come from the clock. No test may assert on an id from these files.
 
 ## Pins and provenance
 
