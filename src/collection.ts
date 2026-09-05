@@ -125,12 +125,31 @@ const readNotes = (db: Database): AnkiNote[] =>
     tags: splitTags(String(row.tags)),
   }));
 
+/** A field as either schema declares it: a name and the position it sits at. */
+interface NamedField {
+  readonly name: string;
+  readonly ord: number;
+}
+
+/**
+ * Field names in the order the note type declares them.
+ *
+ * The two schemas disagree about where fields are kept and agree about this,
+ * so it is stated once. Ordered in JS rather than by `ORDER BY`, because
+ * schema 18's `fields` is one of the tables whose collation is stripped and
+ * nothing here searches a collated column.
+ */
+const fieldNamesInOrder = (fields: readonly NamedField[]): string[] =>
+  [...fields]
+    .sort((left: Readonly<NamedField>, right: Readonly<NamedField>) => left.ord - right.ord)
+    .map((field: Readonly<NamedField>) => field.name);
+
 /** One model as schema 11 serializes it into `col.models`. */
 interface LegacyModel {
   readonly id: number;
   readonly name: string;
   readonly type: number;
-  readonly flds: readonly { readonly name: string; readonly ord: number }[];
+  readonly flds: readonly NamedField[];
 }
 
 const readLegacyNotetypes = (db: Database): AnkiNotetype[] => {
@@ -150,21 +169,14 @@ const readLegacyNotetypes = (db: Database): AnkiNotetype[] => {
   const models = parsed as Record<string, LegacyModel>;
 
   return Object.values(models).map((model: Readonly<LegacyModel>) => ({
-    fields: [...model.flds]
-      .sort((left, right) => left.ord - right.ord)
-      .map((field: Readonly<{ name: string }>) => field.name),
+    fields: fieldNamesInOrder(model.flds),
     id: model.id,
     isCloze: model.type === LEGACY_MODEL_CLOZE,
     name: model.name,
   }));
 };
 
-interface NamedField {
-  readonly name: string;
-  readonly ord: number;
-}
-
-/** Field names by note type id, sorted by `ord` in JS rather than in SQL. */
+/** Field names by note type id, gathered a row at a time and then ordered. */
 const readFieldNames = (db: Database): Map<number, string[]> => {
   const byNotetype = new Map<number, NamedField[]>();
 
@@ -175,14 +187,13 @@ const readFieldNames = (db: Database): Map<number, string[]> => {
     byNotetype.set(ntid, found);
   }
 
-  return new Map(
-    [...byNotetype].map(([ntid, fields]: readonly [number, readonly NamedField[]]) => [
-      ntid,
-      [...fields]
-        .sort((left: Readonly<NamedField>, right: Readonly<NamedField>) => left.ord - right.ord)
-        .map((field: Readonly<NamedField>) => field.name),
-    ]),
-  );
+  const names = new Map<number, string[]>();
+
+  for (const [ntid, fields] of byNotetype) {
+    names.set(ntid, fieldNamesInOrder(fields));
+  }
+
+  return names;
 };
 
 /** `notetypes.config`, whose column is a blob but whose type from sql.js is not. */
