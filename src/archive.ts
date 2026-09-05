@@ -66,10 +66,6 @@ export const packageDeck = (
   // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
   options: Readonly<ZipOptions> = {},
 ): Buffer => {
-  const mediaMap = Object.fromEntries(
-    media.map((item: Readonly<MediaItem>, idx) => [idx, item.filename]),
-  );
-
   /* A caller's own `mtime` is forwarded verbatim rather than pinned: fflate
      takes a `Date`, a number or a string, and reinterpreting any of them as UTC
      would be second-guessing an explicit instruction. The pinned build instant
@@ -77,13 +73,22 @@ export const packageDeck = (
   const mtime = options.mtime ?? toArchiveClock(createdAt);
   const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
+  /* One pass over the media, because the manifest key and the entry name are
+     the same index and that correspondence is the format's actual rule. */
+  const manifest: Record<string, string> = {};
+  const entries: Zippable = {};
+
+  media.forEach((item: Readonly<MediaItem>, idx: number) => {
+    const name = String(idx);
+    manifest[name] = item.filename;
+    entries[name] = entry(toBytes(item.data));
+  });
+
   const files: Zippable = {
     "collection.anki2": entry(collection),
-    media: entry(strToU8(JSON.stringify(mediaMap))),
+    media: entry(strToU8(JSON.stringify(manifest))),
+    ...entries,
   };
-  media.forEach((item: Readonly<MediaItem>, idx) => {
-    files[String(idx)] = entry(toBytes(item.data));
-  });
 
   /* Only `options`: every entry carries its own stamp, and fflate applies an
      archive-level one to entries without one. */
