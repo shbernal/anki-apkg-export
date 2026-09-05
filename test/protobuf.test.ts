@@ -122,6 +122,32 @@ describe("reading a protobuf message", () => {
     expect(() => [...readMessage(message)]).toThrow(/runs past the end/u);
   });
 
+  /* Ten bytes is what the format permits for a 64-bit value, so the bound has
+     to sit past it rather than on the five a uint32 needs. */
+  it("reads a varint of the full ten bytes the format allows", () => {
+    expect.hasAssertions();
+    const message = bytes(tag(1, VARINT), ...Array.from({ length: 9 }, () => CONTINUES), 0x01);
+
+    expect(varintField(message, 1)).toBe(2 ** 63);
+  });
+
+  it("refuses a varint longer than the wire format allows", () => {
+    expect.hasAssertions();
+    const message = bytes(tag(1, VARINT), ...Array.from({ length: 11 }, () => CONTINUES), 0x01);
+
+    expect(() => [...readMessage(message)]).toThrow(/longer than the wire format allows/u);
+  });
+
+  /* `subarray` clamps, so a declared length nothing backs would otherwise come
+     back as a short value with no complaint: half a media filename, read as
+     the whole one. */
+  it("refuses a length-delimited field that runs past the end", () => {
+    expect.hasAssertions();
+    const message = bytes(tag(1, LENGTH_DELIMITED), 10, 0x61, 0x62, 0x63);
+
+    expect(() => stringField(message, 1)).toThrow(/a length-delimited field runs past the end/u);
+  });
+
   it("reads an empty message as no fields at all", () => {
     expect.hasAssertions();
     expect([...readMessage(bytes())]).toStrictEqual([]);

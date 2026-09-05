@@ -31,7 +31,11 @@ const CONTINUATION = 0b1000_0000;
 const PAYLOAD_MASK = 0b0111_1111;
 const PAYLOAD_SCALE = 128;
 
+/** The wire format's ceiling: ten seven-bit groups cover a 64-bit value. */
+const VARINT_MAX_BYTES = 10;
+
 const EMPTY = new Uint8Array();
+const TEXT_DECODER = new TextDecoder();
 
 /** A varint and the offset just past it. */
 interface Varint {
@@ -45,7 +49,19 @@ interface Varint {
  * Accumulated by multiplication rather than by shifting: `<<` truncates to 32
  * bits, and a media entry's `size` is a `uint32` whose top bit is enough to
  * make the difference.
+ *
+ * Bounded by the wire format's ten bytes rather than by the value: a `uint64`
+ * within those ten bytes can still exceed `Number.MAX_SAFE_INTEGER`, and
+ * refusing it would be refusing a well-formed message.
  */
+const varintFailure = (consumed: number): Error => {
+  if (consumed === VARINT_MAX_BYTES) {
+    return new Error("Malformed protobuf: a varint is longer than the wire format allows");
+  }
+
+  return new Error("Malformed protobuf: a varint runs past the end of the message");
+};
+
 const varintAt = (data: Uint8Array, at: number): Varint => {
   let value = 0;
   let scale = 1;
@@ -53,8 +69,10 @@ const varintAt = (data: Uint8Array, at: number): Varint => {
 
   /* Iterated rather than indexed: `noUncheckedIndexedAccess` would otherwise
      put a fallback on every byte, for a subscript the loop bound already
-     proves is in range. */
-  for (const byte of data.subarray(at)) {
+     proves is in range. The window is what bounds the length: running out of
+     it means either corruption or the end of the message, and which one is
+     the byte count. */
+  for (const byte of data.subarray(at, at + VARINT_MAX_BYTES)) {
     value += (byte & PAYLOAD_MASK) * scale;
 
     if ((byte & CONTINUATION) === 0) {
@@ -65,7 +83,7 @@ const varintAt = (data: Uint8Array, at: number): Varint => {
     index += 1;
   }
 
-  throw new Error("Malformed protobuf: a varint runs past the end of the message");
+  throw varintFailure(index - at);
 };
 
 /** One field: a number, and either its varint value or its bytes. */
@@ -111,6 +129,25 @@ const tagAt = (data: Uint8Array, at: number): Tag => {
   };
 };
 
+const lengthDelimitedAt = (
+  data: Uint8Array,
+  fieldNumber: number,
+  valueAt: number,
+): DecodedField => {
+  const length = varintAt(data, valueAt);
+  const end = length.end + length.value;
+
+  /* `subarray` clamps, so without this a field declaring more bytes than the
+     message holds would hand back a short value as if it were whole. */
+  if (end > data.length) {
+    throw new Error(
+      "Malformed protobuf: a length-delimited field runs past the end of the message",
+    );
+  }
+
+  return { end, field: { bytes: data.subarray(length.end, end), fieldNumber, varint: 0 } };
+};
+
 const fieldAt = (data: Uint8Array, at: number): DecodedField => {
   const { fieldNumber, valueAt, wireType } = tagAt(data, at);
 
@@ -121,10 +158,7 @@ const fieldAt = (data: Uint8Array, at: number): DecodedField => {
   }
 
   if (wireType === LENGTH_DELIMITED) {
-    const length = varintAt(data, valueAt);
-    const end = length.end + length.value;
-
-    return { end, field: { bytes: data.subarray(length.end, end), fieldNumber, varint: 0 } };
+    return lengthDelimitedAt(data, fieldNumber, valueAt);
   }
 
   /* A fixed-width value nothing here reads. Reported anyway, since stepping
@@ -143,30 +177,41 @@ export const readMessage = function* readMessage(data: Uint8Array): Generator<Wi
   }
 };
 
-/** The first varint written for `fieldNumber`, or `null` when there is none. */
-export const varintField = (data: Uint8Array, fieldNumber: number): number | null => {
+/** The first field written for `fieldNumber`, or `null` when there is none. */
+const firstField = (data: Uint8Array, fieldNumber: number): WireField | null => {
   for (const field of readMessage(data)) {
     if (field.fieldNumber === fieldNumber) {
-      return field.varint;
+      return field;
     }
   }
 
   return null;
 };
 
-/** Every length-delimited value written for `fieldNumber`, in order. */
-export const repeatedField = (data: Uint8Array, fieldNumber: number): Uint8Array[] =>
-  [...readMessage(data)]
-    .filter((field: Readonly<WireField>) => field.fieldNumber === fieldNumber)
-    .map((field: Readonly<WireField>) => field.bytes);
+/** The first varint written for `fieldNumber`, or `null` when there is none. */
+export const varintField = (data: Uint8Array, fieldNumber: number): number | null =>
+  firstField(data, fieldNumber)?.varint ?? null;
 
-/** The first string written for `fieldNumber`, or `""` when there is none. */
-export const stringField = (data: Uint8Array, fieldNumber: number): string => {
+/** Every length-delimited value written for `fieldNumber`, in order. */
+export const repeatedField = (data: Uint8Array, fieldNumber: number): Uint8Array[] => {
+  const values: Uint8Array[] = [];
+
   for (const field of readMessage(data)) {
     if (field.fieldNumber === fieldNumber) {
-      return new TextDecoder().decode(field.bytes);
+      values.push(field.bytes);
     }
   }
 
-  return "";
+  return values;
+};
+
+/** The first string written for `fieldNumber`, or `""` when there is none. */
+export const stringField = (data: Uint8Array, fieldNumber: number): string => {
+  const field = firstField(data, fieldNumber);
+
+  if (field === null) {
+    return "";
+  }
+
+  return TEXT_DECODER.decode(field.bytes);
 };

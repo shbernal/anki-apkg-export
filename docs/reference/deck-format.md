@@ -185,6 +185,14 @@ separate modules on purpose: `src/unpack.ts` and `src/collection.ts` are the
 tolerant half, and nothing in `src/exporter.ts` or `src/template.ts` knows they
 exist.
 
+Tolerance stops at the wire format. `src/protobuf.ts` steps over fields it was
+not looking for, because a newer Anki adding one must not stop a reader that
+wanted the two before it, but it refuses a message whose own framing does not
+hold: a varint with no terminator or longer than the format's ten bytes, and a
+length-delimited field declaring more bytes than the message carries. The last
+of those would otherwise come back short and unremarked, which for a media
+entry means half a filename read as the whole one.
+
 ### Package versions
 
 The version is a varint in field 1 of a two-byte `meta` entry. **No `meta` at
