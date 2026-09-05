@@ -11,8 +11,8 @@ doc_type: "architecture"
 
 # Architecture
 
-Ten modules under `src/`, split into a write path and a read path that share
-one entry point and one wire constant.
+Eleven modules under `src/`, split into a write path and a read path that share
+one entry point and one file of wire constants.
 
 A new module needs a reason better than deduplication. It needs a seam.
 `archive.ts` is the sixth because it has one: it knows about ZIP entries, DOS
@@ -43,6 +43,7 @@ literal does not.
 | `unpack.ts`        | The `.apkg` container, read: package version, the decoy, zstd, and the two media-manifest encodings. Knows nothing about sqlite.                    |
 | `collection.ts`    | A collection database, read: schema 11's JSON models and schema 18's tables, and the `unicase` strip that makes the second readable at all.         |
 | `protobuf.ts`      | Just enough of the wire format for the three fields Anki keeps in it. Data only, in the sense that it decides nothing.                              |
+| `wire.ts`          | The format constants both paths have to agree about, which today is `FIELD_SEPARATOR`. Belongs to neither path.                                     |
 
 ## Two worldviews, kept apart
 
@@ -58,9 +59,15 @@ each pair is about the same half of the format. The writer's strictness is
 correct for the writer and must not leak into the reader, and the reader's
 tolerance must not leak back.
 
-The one thing they share is `FIELD_SEPARATOR`, which `exporter.ts` exports and
-`collection.ts` splits on. It is a wire constant that the two modules have to
-agree about, which is the case the rule below is about.
+The one thing they share is `FIELD_SEPARATOR`, and it lives in `wire.ts`,
+below both. It used to live in `exporter.ts`, which is where it is written and
+so where it reads most naturally — but that made the reader import the writer
+for one character, and with it `node:crypto`, `fflate` and the 252-entry entity
+table. The runtime cost was nil, since `index.ts` loads both paths anyway. The
+direction was the problem: the module whose defining property is that it
+assumes nothing about who wrote a collection depended on the one that assumes
+the most. A constant two worldviews have to agree about is a third thing, and
+that is the seam the rule above asks for.
 
 ## Data and control flow
 

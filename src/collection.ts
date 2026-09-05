@@ -1,7 +1,7 @@
 import type { Database, SqlValue } from "sql.js";
 
-import { FIELD_SEPARATOR } from "./exporter.js";
 import { varintField } from "./protobuf.js";
+import { FIELD_SEPARATOR } from "./wire.js";
 
 /*
  * A collection database, read.

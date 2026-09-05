@@ -5,6 +5,7 @@ import type { Database, SqlJsStatic } from "sql.js";
 import { type MediaData, packageDeck, type ZipOptions } from "./archive.js";
 import { PLACEHOLDER_DECK_ID, PLACEHOLDER_MODEL_ID } from "./template.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
+import { FIELD_SEPARATOR } from "./wire.js";
 
 interface ExporterOptions {
   template: string;
@@ -12,13 +13,6 @@ interface ExporterOptions {
   /** Epoch milliseconds to build this deck at; defaults to the current time. */
   now?: number;
 }
-
-/**
- * Anki stores a note's fields as one string joined by this control character.
- * Exported because `collection.ts` splits on it: one definition of a wire
- * format constant, read by the two modules that have to agree about it.
- */
-export const FIELD_SEPARATOR = "\u001F";
 
 /** Anki's field checksum is the first 8 hex digits of the sha1, read as base 16. */
 const CHECKSUM_HEX_DIGITS = 8;

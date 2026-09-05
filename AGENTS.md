@@ -27,6 +27,8 @@ Update the matching page when behavior changes.
 - read path: `src/reader.ts` is its entry, `src/unpack.ts` the container,
   `src/collection.ts` the database, `src/protobuf.ts` the wire format
 - `src/index.ts` is the package entry point for both
+- `src/wire.ts` holds the format constants both paths agree about, and belongs
+  to neither
 - **the two paths do not share their assumptions.** The writer knows one layout
   and is strict about it; the reader takes three package versions and two
   schemas. Keep the tolerance out of the writer and the strictness out of the
