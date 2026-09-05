@@ -135,10 +135,19 @@ interface LegacyModel {
 
 const readLegacyNotetypes = (db: Database): AnkiNotetype[] => {
   const row = readRow(db, "SELECT models FROM col");
+  const parsed: unknown = JSON.parse(String(row.models));
+
+  /* Enough to know `Object.values` has something to walk. `null` and a JSON
+     scalar both reach it otherwise and throw a `TypeError` naming neither the
+     column nor the collection. */
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("Malformed collection: col.models does not hold a note type map");
+  }
+
   /* `col.models` is the collection's own JSON. Same boundary as the media
      manifest in unpack.ts: asserted here rather than guarded. */
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const models = JSON.parse(String(row.models)) as Record<string, LegacyModel>;
+  const models = parsed as Record<string, LegacyModel>;
 
   return Object.values(models).map((model: Readonly<LegacyModel>) => ({
     fields: [...model.flds]
@@ -220,7 +229,13 @@ const readTableNotetypes = (db: Database): AnkiNotetype[] => {
 export const readCollection = (db: Database): AnkiCollection => {
   const schemaVersion = Number(readRow(db, "SELECT ver FROM col").ver);
 
-  if (schemaVersion !== LEGACY_SCHEMA && schemaVersion < TABLE_SCHEMA) {
+  /* `Number.isInteger` first: a `ver` that is not a number makes every
+     comparison below false, so the guard would pass a `NaN` through and the
+     collection would be read as schema 11. */
+  if (
+    !Number.isInteger(schemaVersion) ||
+    (schemaVersion !== LEGACY_SCHEMA && schemaVersion < TABLE_SCHEMA)
+  ) {
     throw new Error(
       `Unsupported collection schema version ${schemaVersion}: this reads 11 and 18 or newer. ` +
         `Open the collection in Anki once, which upgrades it, and export again.`,

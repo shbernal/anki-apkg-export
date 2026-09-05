@@ -141,13 +141,13 @@ const readManifest = (
 };
 
 const readMedia = (
-  archive: Readonly<Record<string, Uint8Array>>,
+  archive: ReadonlyMap<string, Uint8Array>,
   packageVersion: number,
 ): Map<string, Uint8Array> => {
   const media = new Map<string, Uint8Array>();
 
-  for (const [filename, entry] of readManifest(archive.media, packageVersion)) {
-    const data = archive[entry];
+  for (const [filename, entry] of readManifest(archive.get("media"), packageVersion)) {
+    const data = archive.get(entry);
     if (data === undefined) {
       throw new Error(
         `Malformed .apkg: the manifest names "${filename}" as entry ${entry}, ` +
@@ -169,11 +169,16 @@ const readMedia = (
  * valid schema-11 database holding one note that reads "Please update to the
  * latest Anki version, then import the .colpkg/.apkg file again." A reader that
  * opens the name it recognizes gets that note and no error at all.
+ *
+ * The archive is turned into a `Map` at the door. fflate hands back a plain
+ * object, and entry names come out of the manifest, which is the package's own
+ * JSON: an entry named `constructor` would otherwise resolve on the prototype
+ * and be handed back as a media file.
  */
 export const unpackDeck = (apkg: Uint8Array): UnpackedPackage => {
-  const archive = unzipSync(apkg);
-  const { entry, packageVersion } = readContainer(archive.meta);
-  const collection = archive[entry];
+  const archive = new Map(Object.entries(unzipSync(apkg)));
+  const { entry, packageVersion } = readContainer(archive.get("meta"));
+  const collection = archive.get(entry);
 
   if (collection === undefined) {
     throw new Error(

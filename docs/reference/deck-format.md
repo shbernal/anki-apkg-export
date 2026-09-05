@@ -263,6 +263,24 @@ seek by name would not.
 Neither `node:sqlite` nor `sql.js` can register a collation, which is why this
 is a workaround rather than a fix.
 
+### Where the tolerance stops
+
+Tolerance is for layouts Anki and third-party exporters actually write. Input
+the reader cannot answer for is refused by name rather than answered wrongly:
+
+- **A `col.ver` that is not an integer.** Every comparison against a `NaN`
+  version is false, including the guard's, so an unchecked one would be read as
+  schema 11 and published as `schemaVersion: NaN`.
+- **A `col.models` that is not an object.** `null` and a JSON scalar otherwise
+  reach `Object.values` and throw a `TypeError` naming neither the column nor
+  the collection. The blob's contents are still asserted rather than validated;
+  that is the same call as the media manifest, and a hand-written schema for a
+  one-level-deep blob is not worth what it costs.
+- **A manifest entry that is not in the package**, including one that names a
+  property of `Object.prototype`. The archive becomes a `Map` on the way in, so
+  a manifest reading `{"constructor": "evil.png"}` is a missing entry rather
+  than the `Object` function handed back as a media file.
+
 ## Changing any of this
 
 The golden test in `test/deck-round-trip.test.ts` asserts byte equality against

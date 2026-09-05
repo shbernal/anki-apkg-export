@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { unzipSync, zipSync } from "fflate";
+import { type SqlJsStatic } from "sql.js";
 import { describe, expect, it } from "vitest";
 
 import AnkiExport, {
@@ -71,6 +72,23 @@ const without = (name: string, entry: string): Uint8Array => {
   delete archive[entry];
 
   return zipSync(archive);
+};
+
+/**
+ * A fixture whose collection has been altered in place.
+ *
+ * The cases below that need a `col` this reader refuses build it out of a real
+ * export rather than out of a hand-written database, so the only thing wrong
+ * with the package is the thing under test.
+ */
+const patchCollection = (sql: SqlJsStatic, name: string, statement: string): Uint8Array => {
+  const archive = unzipSync(readFixture(name));
+  const db = new sql.Database(archive["collection.anki2"]);
+  db.exec(statement);
+  const patched = zipSync({ ...archive, "collection.anki2": db.export() });
+  db.close();
+
+  return patched;
 };
 
 /** The note type one note belongs to, looked up by the id the note carries. */
@@ -244,32 +262,57 @@ describe("packages this reader refuses", () => {
     expect(() => readPackage(sqlModule(), silent)).toThrow(/package version 0/u);
   });
 
-  it("says so when the collection has no `col` row", async () => {
+  /* The archive fflate hands back is a plain object, and this entry name
+     resolves on its prototype. Without a `Map` at the door the `Object`
+     function comes back as media, inside a `ReadonlyMap<string, Uint8Array>`. */
+  it("refuses a manifest naming an entry off the prototype", () => {
     expect.hasAssertions();
 
-    const sql = await loadSqlModule();
-    const archive = unzipSync(readFixture("v1-schema11"));
-    const db = new sql.Database(archive["collection.anki2"]);
-    db.exec("DELETE FROM col");
-    const emptied = zipSync({ ...archive, "collection.anki2": db.export() });
-    db.close();
+    const inherited = reframe("v1-schema11", {
+      media: new TextEncoder().encode('{"constructor":"evil.png"}'),
+    });
 
-    expect(() => readPackage(sql, emptied)).toThrow(/returned no rows/u);
+    expect(() => readPackage(sqlModule(), inherited)).toThrow(/which is not in the package/u);
   });
 
-  it("names the schema versions it reads", async () => {
+  it("says so when the collection has no `col` row", () => {
     expect.hasAssertions();
 
-    const sql = await loadSqlModule();
-    const archive = unzipSync(readFixture("v1-schema11"));
-    const db = new sql.Database(archive["collection.anki2"]);
-    db.exec(`UPDATE col SET ver = ${UNREADABLE_SCHEMA}`);
-    const downgraded = zipSync({ ...archive, "collection.anki2": db.export() });
-    db.close();
+    const emptied = patchCollection(sqlModule(), "v1-schema11", "DELETE FROM col");
 
-    expect(() => readPackage(sql, downgraded)).toThrow(
+    expect(() => readPackage(sqlModule(), emptied)).toThrow(/returned no rows/u);
+  });
+
+  it("names the schema versions it reads", () => {
+    expect.hasAssertions();
+
+    const downgraded = patchCollection(
+      sqlModule(),
+      "v1-schema11",
+      `UPDATE col SET ver = ${UNREADABLE_SCHEMA}`,
+    );
+
+    expect(() => readPackage(sqlModule(), downgraded)).toThrow(
       new RegExp(`schema version ${UNREADABLE_SCHEMA}`, "u"),
     );
+  });
+
+  /* Every comparison against a `NaN` version is false, so without a check for
+     one the guard passes it and the collection is read as schema 11. */
+  it("refuses a collection whose version is not a number", () => {
+    expect.hasAssertions();
+
+    const wordy = patchCollection(sqlModule(), "v1-schema11", "UPDATE col SET ver = 'eighteen'");
+
+    expect(() => readPackage(sqlModule(), wordy)).toThrow(/this reads 11 and 18 or newer/u);
+  });
+
+  it("refuses a collection whose `col.models` holds no map", () => {
+    expect.hasAssertions();
+
+    const empty = patchCollection(sqlModule(), "v1-schema11", "UPDATE col SET models = 'null'");
+
+    expect(() => readPackage(sqlModule(), empty)).toThrow(/col\.models/u);
   });
 });
 
