@@ -4,7 +4,7 @@ Notable changes per release, with anything landed since the last one under
 Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
-## Unreleased
+## 6.1.1
 
 Four inputs the reader used to answer wrongly rather than refuse. Nothing about
 what the package writes changes, and `test/fixtures/output.apkg` is untouched.
