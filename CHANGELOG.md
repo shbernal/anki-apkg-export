@@ -1,7 +1,48 @@
 # Changelog
 
-Notable changes per release. Versions before 4.0.4 predate this file; see the
+Notable changes per release, with anything landed since the last one under
+Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
+
+## Unreleased
+
+Four inputs the reader used to answer wrongly rather than refuse. Nothing about
+what the package writes changes, and `test/fixtures/output.apkg` is untouched.
+
+### Fixed
+
+- **A protobuf message whose framing does not hold is refused.** A
+  length-delimited field could declare more bytes than the message carried and
+  come back short, because `subarray` clamps rather than complains: half a media
+  filename was read as the whole one. Varints had no length bound either, so a
+  run of continuation bytes decoded to an unsafe integer in silence. Both throw
+  now. Unknown fields are still stepped over; a field whose declared length does
+  not fit is not an unknown field, it is a broken message.
+- **A `col.ver` that is not an integer is refused.** Every comparison in the
+  schema guard was false for a non-number, so the collection passed as schema 11
+  and reached the caller as `schemaVersion: NaN`. It now raises the same
+  `Unsupported collection schema version` error as a version outside the
+  supported range.
+- **A `col.models` that is not an object is refused.** `null` or a JSON scalar
+  in that column threw a `TypeError` naming neither the column nor the
+  collection. The message says which collection column is malformed. The blob is
+  still asserted rather than validated past that point, the same boundary the
+  media manifest sits on.
+- **A media entry named `constructor` is read as media.** The archive was a
+  plain object from fflate and entry names come out of the manifest, which is
+  the package's own JSON, so such a name resolved on the prototype and handed
+  the `Object` function back inside a `ReadonlyMap<string, Uint8Array>`. The
+  archive is a `Map` from the door in.
+
+### Internal
+
+- The exporter asks `template.ts` for the placeholder deck and notetype by id
+  rather than taking whichever entry came last out of the decoded column. That
+  was the placeholder only by accident: the seeded ids are above 2^32-1, so they
+  are string keys rather than integer indices and sorted after the `Default`
+  deck the template also carries. The error raised when a template seeds no
+  placeholder now names the missing entry.
+- Dev tooling and the pnpm pin refreshed, and vitest moved to 5.
 
 ## 6.1.0
 
