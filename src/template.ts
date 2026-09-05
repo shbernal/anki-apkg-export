@@ -57,6 +57,17 @@ const LATEX_PRE =
   "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n";
 
 /** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
+/**
+ * The ids this template seeds its placeholder deck and note model under.
+ *
+ * Exported because the exporter re-keys both under the export's own ids and
+ * has to say which entries it means. It used to take whichever entry came last
+ * out of the decoded column instead, which worked only because these ids are
+ * above 2^32-1 and so sort after the integer-indexed `Default` deck.
+ */
+export const PLACEHOLDER_DECK_ID = 1_435_588_830_424;
+export const PLACEHOLDER_MODEL_ID = 1_388_596_687_391;
+
 const buildDecks = (mod: number) => ({
   1: {
     desc: "",
@@ -74,7 +85,7 @@ const buildDecks = (mod: number) => ({
     id: 1,
     mod,
   },
-  1_435_588_830_424: {
+  [PLACEHOLDER_DECK_ID]: {
     desc: "",
     name: "Template",
     extendRev: 50,
@@ -88,7 +99,7 @@ const buildDecks = (mod: number) => ({
     conf: 1,
     revToday: [0, 0],
     lrnToday: [0, 0],
-    id: 1_435_588_830_424,
+    id: PLACEHOLDER_DECK_ID,
     mod,
   },
 });
@@ -139,12 +150,12 @@ const buildModels = (
   mod: number,
   { questionFormat, answerFormat, css }: Required<TemplateOptions>,
 ) => ({
-  1_388_596_687_391: {
+  [PLACEHOLDER_MODEL_ID]: {
     /* A dead schema-11 key Anki still writes; it was misspelled `veArs` here. */
     vers: [],
     name: "Basic-f15d2",
     tags: [],
-    did: 1_435_588_830_424,
+    did: PLACEHOLDER_DECK_ID,
     usn: -1,
     req: [[0, "all", [0]]],
     flds: NOTE_FIELDS,
@@ -163,7 +174,7 @@ const buildModels = (
     ],
     latexPost: "\\end{document}",
     type: 0,
-    id: 1_388_596_687_391,
+    id: PLACEHOLDER_MODEL_ID,
     css,
     mod,
   },

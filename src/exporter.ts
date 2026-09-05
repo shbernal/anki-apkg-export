@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { Database, SqlJsStatic } from "sql.js";
 
 import { type MediaData, packageDeck, type ZipOptions } from "./archive.js";
+import { PLACEHOLDER_DECK_ID, PLACEHOLDER_MODEL_ID } from "./template.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
 
 interface ExporterOptions {
@@ -155,7 +156,7 @@ export default class Exporter {
    * Write a decoded JSON column back. Always paired with a fresh
    * `_readJsonColumn` rather than a cached value, so two updates to the same
    * column cannot clobber one another — which is why `conf` is re-parsed once
-   * per key set rather than accumulated in memory.
+   * per key rather than accumulated in memory.
    */
   private _writeJsonColumn<TColumn extends keyof CollectionJson>(
     column: TColumn,
@@ -169,7 +170,7 @@ export default class Exporter {
   /** Point the collection's last deck at this export's name and id. */
   private _renameTopDeck(): void {
     const decks = this._readJsonColumn("decks");
-    const deck = takeLastItem(decks);
+    const deck = takePlaceholder(decks, PLACEHOLDER_DECK_ID);
     deck.name = this.deckName;
     deck.id = this.topDeckId;
     decks[String(this.topDeckId)] = deck;
@@ -188,7 +189,7 @@ export default class Exporter {
   /** Point the collection's last note model at this export's name, deck and id. */
   private _renameTopModel(): void {
     const models = this._readJsonColumn("models");
-    const model = takeLastItem(models);
+    const model = takePlaceholder(models, PLACEHOLDER_MODEL_ID);
     model.name = this.deckName;
     model.did = this.topDeckId;
     model.id = this.topModelId;
@@ -246,7 +247,14 @@ export default class Exporter {
     }
   }
 
-  /** Set one key of the collection's `conf` JSON column. */
+  /**
+   * Set one key of the collection's `conf` JSON column.
+   *
+   * One statement per key, which is why `_renameTopDeck` issues two. Setting
+   * both in a single read-modify-write would be sound, and it would still
+   * change the emitted file: SQLite's image depends on how many statements
+   * wrote it, not only on what they left behind.
+   */
   private _updateConf(key: string, value: number | readonly number[]): void {
     const conf = this._readJsonColumn("conf");
     conf[key] = value;
@@ -546,25 +554,34 @@ const normalizeTags = (tags?: string | readonly string[]): string => {
 };
 
 /**
- * Take the last entry off a decoded collection map — the name says `take`
+ * Take the placeholder the template seeded under `id` — the name says `take`
  * because the entry is deleted, not read. Anki's default collection ships one
- * placeholder deck and note model; this removes the placeholder and hands it
- * back so the caller can re-key it under the export's own id.
+ * placeholder deck and note model; this removes the named one and hands it back
+ * so the caller can re-key it under the export's own id.
  *
- * Throws on an empty map rather than returning `undefined` as `TItem`. Both
- * callers are renaming a placeholder the template is required to have seeded,
- * so an empty map means the template is broken — which is worth saying loudly
- * instead of writing `undefined` into the deck.
+ * Asked for by id rather than taken off the end of the map. Property order put
+ * the placeholder last only because both ids are above 2^32-1 and so are string
+ * keys rather than integer indices: a placeholder deck numbered under that
+ * would have sorted ahead of `Default`, and the export would have renamed the
+ * wrong deck without a word.
+ *
+ * Throws rather than returning `undefined` as `TItem`. Both callers are
+ * renaming a placeholder the template is required to have seeded, so a missing
+ * one means the template is broken, which is worth saying loudly instead of
+ * writing `undefined` into the deck.
  */
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
-const takeLastItem = <TItem>(obj: Record<string, TItem>): TItem => {
-  const lastEntry = Object.entries(obj).at(-1);
-  if (lastEntry === undefined) {
-    throw new Error("Cannot take the last item of an empty collection map");
+const takePlaceholder = <TItem>(obj: Record<string, TItem>, id: number): TItem => {
+  const key = String(id);
+  const item = obj[key];
+
+  if (item === undefined) {
+    throw new Error(
+      `Cannot rename the template's placeholder ${key}: the collection has no such entry`,
+    );
   }
 
-  const [lastKey, item] = lastEntry;
-  delete obj[lastKey];
+  delete obj[key];
 
   return item;
 };

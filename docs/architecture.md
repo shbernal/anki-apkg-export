@@ -72,9 +72,19 @@ get a SQL script, and hands all three to
 The constructor runs that script into a fresh in-memory database, which leaves
 one seeded deck and one seeded note model in the `col` row's JSON columns. It
 then claims a deck id and a model id, and re-keys those two placeholders under
-them. `takeLastItem` pops the placeholder out of the decoded map so it can be
-reinserted under the real id rather than duplicated. `curModel` is pointed at
-the new model id, because the template cannot know it.
+them. `takePlaceholder` takes the placeholder out of the decoded map by the id
+`template.ts` seeded it under, so it can be reinserted under the real id rather
+than duplicated. `curModel` is pointed at the new model id, because the
+template cannot know it.
+
+It used to take whichever entry came last instead, and that worked by accident:
+the placeholder ids are above 2^32-1, so they are string keys rather than
+integer indices and land after the `Default` deck the template also seeds. A
+placeholder deck numbered under that, or one more deck seeded after it, and the
+export would rename the wrong one without a word. `PLACEHOLDER_DECK_ID` and
+`PLACEHOLDER_MODEL_ID` are exported from `template.ts` so the dependency runs
+the way it reads: the template declares its placeholders, the exporter asks for
+them.
 
 `addCard(front, back, { tags })` derives a guid, claims a note id, strips the
 first field, and inserts one `notes` row and one `cards` row. `addMedia` only

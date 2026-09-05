@@ -2,7 +2,7 @@ import type { SqlValue } from "sql.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Exporter from "../src/exporter.js";
-import createTemplate from "../src/template.js";
+import createTemplate, { PLACEHOLDER_DECK_ID } from "../src/template.js";
 import { readRow, readRows, unzipDeckToBuffers, useSqlModule } from "./_helpers.js";
 
 const now = 1_700_000_000_000;
@@ -659,6 +659,10 @@ describe("reading the collection row", () => {
   });
 });
 
+/** A deck seeded after the placeholder, so the placeholder is no longer last. */
+const LATER_DECK_ID = 2_000_000_000_000;
+const LATER_DECK_NAME = "Later";
+
 describe("a template missing its placeholders", () => {
   const sqlModule = useSqlModule();
 
@@ -673,7 +677,36 @@ describe("a template missing its placeholders", () => {
 
     expect(
       () => new Exporter("testDeckName", { template: emptied, sql: sqlModule(), now }),
-    ).toThrow("Cannot take the last item of an empty collection map");
+    ).toThrow(`placeholder ${PLACEHOLDER_DECK_ID}`);
+  });
+
+  /*
+   * The placeholder used to be whichever entry came out of the decoded column
+   * last, which was the right one only because nothing was ever seeded after
+   * it. One more deck and the rename lands on a deck the export was supposed
+   * to leave alone, with the cards left in one still called "Template".
+   */
+  it("renames the placeholder deck rather than whichever comes last", () => {
+    expect.hasAssertions();
+
+    const withLater = `${createTemplate(undefined, now)}
+      UPDATE col SET decks = substr(decks, 1, length(decks) - 1) ||
+        ',"${LATER_DECK_ID}":{"id":${LATER_DECK_ID},"name":"${LATER_DECK_NAME}"}}';`;
+    const exporter = new Exporter("testDeckName", {
+      template: withLater,
+      sql: sqlModule(),
+      now,
+    });
+
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const decks = JSON.parse(String(readRow(exporter.db, "select decks from col").decks)) as Record<
+      string,
+      { name: string }
+    >;
+
+    expect(decks[String(exporter.topDeckId)]?.name).toBe("testDeckName");
+    expect(decks[String(LATER_DECK_ID)]?.name).toBe(LATER_DECK_NAME);
+    exporter.close();
   });
 });
 
