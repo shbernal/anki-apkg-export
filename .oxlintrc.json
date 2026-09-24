@@ -38,7 +38,7 @@
 
     // The published surface pairs named exports — `Exporter`, `TemplateOptions`
     // and `ZipOptions` — with the default `AnkiExport`. See the API guardrails
-    // in CLAUDE.md: collapsing them to a single default export is a breaking
+    // in AGENTS.md: collapsing them to a single default export is a breaking
     // change, not a lint fix.
     "import/no-named-export": "off",
 
