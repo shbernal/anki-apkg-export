@@ -94,13 +94,12 @@ interface ExecResult {
  */
 const readRows = (db: Database, query: string): Row[] =>
   db.exec(query).flatMap((result: ExecResult) =>
-    result.values.map(
-      (row: readonly SqlValue[]) =>
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        Object.fromEntries(
-          result.columns.map((column: string, index: number) => [column, row[index]]),
-        ) as Row,
-    ),
+    result.values.map((row: readonly SqlValue[]) => {
+      const entries = result.columns.map((column: string, index: number) => [column, row[index]]);
+
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return Object.fromEntries(entries) as Row;
+    }),
   );
 
 /** The one row a query is expected to return, or a collection that has no `col`. */

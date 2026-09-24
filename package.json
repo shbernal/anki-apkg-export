@@ -51,15 +51,15 @@
     "sql.js": "^1.14.2"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.6.2",
     "@types/sql.js": "^1.4.11",
-    "@vitest/coverage-v8": "^5.0.0",
-    "lefthook": "^2.1.12",
-    "oxfmt": "^0.66.0",
-    "oxlint": "^1.81.0",
-    "oxlint-tsgolint": "^7.0.2001",
+    "@vitest/coverage-v8": "^5.0.1",
+    "lefthook": "^2.1.14",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "oxlint-tsgolint": "^7.0.2002",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=24"

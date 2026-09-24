@@ -193,6 +193,15 @@
         // point of declaration.
         "init-declarations": "off",
 
+        // A builder declared inside the `it` that calls it — `save`, `build`,
+        // `buildIn` — is there so one case reads as one block: the input, the
+        // two calls, the assertion that their bytes match. The rule's fix is to
+        // hoist it out of the case it belongs to, which puts a test's setup out
+        // of sight of the test and offers the next one a helper written for
+        // this one. The rule still applies to src, where a helper that captures
+        // nothing is a module-level function that happens to be nested.
+        "unicorn/consistent-function-scoping": "off",
+
         // The reader's suites are tables of bytes: `meta` entries written by
         // hand, a PNG signature, a wire tag, the version pair each fixture
         // stands for. The rule's escape hatch is a named `const`, which does not
