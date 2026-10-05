@@ -1,6 +1,6 @@
 import type { Database, SqlValue } from "sql.js";
 
-import { varintField } from "./protobuf.js";
+import { bytesField, stringField, varintField } from "./protobuf.js";
 import { FIELD_SEPARATOR } from "./wire.js";
 
 /*
@@ -15,9 +15,23 @@ import { FIELD_SEPARATOR } from "./wire.js";
  * this can be simple.
  */
 
-/** `NotetypeConfig.kind`, whose value 1 is `CLOZE`. Schema 18 only. */
+/** `Notetype.Config`: `kind`, whose value 1 is `CLOZE`, then the sort field and the CSS. */
 const NOTETYPE_KIND_FIELD = 1;
 const NOTETYPE_KIND_CLOZE = 1;
+const NOTETYPE_SORT_FIELD = 2;
+const NOTETYPE_CSS_FIELD = 3;
+
+/** `Notetype.Template.Config`: the question and answer formats. */
+const TEMPLATE_QFMT_FIELD = 1;
+const TEMPLATE_AFMT_FIELD = 2;
+
+/** `Deck.KindContainer.normal`, and `Deck.Normal.description` inside it. */
+const DECK_NORMAL_FIELD = 1;
+const DECK_DESCRIPTION_FIELD = 4;
+
+/** Schema 18 joins deck levels with this; schema 11 and Anki's UI use `::`. */
+const DECK_LEVEL_SEPARATOR = "\u001F";
+const DECK_NAME_SEPARATOR = "::";
 
 /** Schema 11 spells the same thing `models[].type`. */
 const LEGACY_SCHEMA = 11;
@@ -26,24 +40,65 @@ const LEGACY_MODEL_CLOZE = 1;
 /** The first schema that keeps note types in tables of their own. */
 const TABLE_SCHEMA = 18;
 
+/** One card template: what Anki renders for one `ord` of a note. */
+export interface AnkiTemplate {
+  readonly afmt: string;
+  readonly name: string;
+  readonly qfmt: string;
+}
+
 export interface AnkiNotetype {
+  readonly css: string;
   readonly fields: readonly string[];
   readonly id: number;
   /** Cloze note types have no front and back, which is what makes them special. */
   readonly isCloze: boolean;
   readonly name: string;
+  /** The index of the field the browser sorts by. */
+  readonly sortField: number;
+  /** In `ord` order. A cloze note type has one, whatever its card count. */
+  readonly templates: readonly AnkiTemplate[];
 }
 
 export interface AnkiNote {
   /** The field values, in the order its note type declares them. */
   readonly fields: readonly string[];
+  /** The id that survives export and import, unlike `id`. */
+  readonly guid: string;
   readonly id: number;
   /** The id of the note type this note belongs to. */
   readonly mid: number;
   readonly tags: readonly string[];
 }
 
+/** A card's row, scheduling values as stored rather than as displayed. */
+export interface AnkiCard {
+  /** The deck it is in. */
+  readonly did: number;
+  readonly due: number;
+  readonly factor: number;
+  readonly id: number;
+  readonly ivl: number;
+  readonly lapses: number;
+  /** The note it belongs to. */
+  readonly nid: number;
+  /** Which template, or for a cloze which cloze number less one, it shows. */
+  readonly ord: number;
+  readonly queue: number;
+  readonly reps: number;
+  readonly type: number;
+}
+
+export interface AnkiDeck {
+  readonly description: string;
+  readonly id: number;
+  /** The full name, levels joined by `::` whichever schema stored it. */
+  readonly name: string;
+}
+
 export interface AnkiCollection {
+  readonly cards: readonly AnkiCard[];
+  readonly decks: readonly AnkiDeck[];
   readonly notes: readonly AnkiNote[];
   readonly notetypes: readonly AnkiNotetype[];
   readonly schemaVersion: number;
@@ -75,6 +130,15 @@ const stripUnicase = (db: Database): void => {
 };
 
 type Row = Readonly<Record<string, SqlValue>>;
+
+/** A blob column, whose type from sql.js is every type a cell can have. */
+const blobOf = (value: SqlValue | undefined): Uint8Array => {
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+
+  return new Uint8Array();
+};
 
 /** The `QueryExecResult` of sql.js, restated deeply readonly: nothing writes it. */
 interface ExecResult {
@@ -117,8 +181,9 @@ const readRow = (db: Database, query: string): Row => {
 const splitTags = (tags: string): string[] => tags.split(/\s+/u).filter((tag) => tag !== "");
 
 const readNotes = (db: Database): AnkiNote[] =>
-  readRows(db, "SELECT id, mid, flds, tags FROM notes").map((row: Row) => ({
+  readRows(db, "SELECT id, guid, mid, flds, tags FROM notes").map((row: Row) => ({
     fields: String(row.flds).split(FIELD_SEPARATOR),
+    guid: String(row.guid),
     id: Number(row.id),
     mid: Number(row.mid),
     tags: splitTags(String(row.tags)),
@@ -139,41 +204,100 @@ interface NamedField {
  * nothing here searches a collated column.
  */
 const fieldNamesInOrder = (fields: readonly NamedField[]): string[] =>
-  [...fields]
-    .sort((left: Readonly<NamedField>, right: Readonly<NamedField>) => left.ord - right.ord)
-    .map((field: Readonly<NamedField>) => field.name);
+  [...fields].sort(byOrd).map((field: Readonly<NamedField>) => field.name);
+
+const templatesInOrder = (templates: readonly LegacyTemplate[]): AnkiTemplate[] =>
+  [...templates]
+    .sort(byOrd)
+    .map(({ afmt, name, qfmt }: Readonly<LegacyTemplate>) => ({ afmt, name, qfmt }));
+
+const CARD_COLUMNS = "id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses";
+
+const readCards = (db: Database): AnkiCard[] =>
+  readRows(db, `SELECT ${CARD_COLUMNS} FROM cards`).map((row: Row) => ({
+    did: Number(row.did),
+    due: Number(row.due),
+    factor: Number(row.factor),
+    id: Number(row.id),
+    ivl: Number(row.ivl),
+    lapses: Number(row.lapses),
+    nid: Number(row.nid),
+    ord: Number(row.ord),
+    queue: Number(row.queue),
+    reps: Number(row.reps),
+    type: Number(row.type),
+  }));
+
+/** Something either schema keeps at a position: a field, or a template. */
+interface Ordered {
+  readonly ord: number;
+}
+
+const byOrd = (left: Readonly<Ordered>, right: Readonly<Ordered>): number => left.ord - right.ord;
+
+/** One template as schema 11 serializes it into a model's `tmpls`. */
+interface LegacyTemplate extends Ordered {
+  readonly afmt: string;
+  readonly name: string;
+  readonly qfmt: string;
+}
 
 /** One model as schema 11 serializes it into `col.models`. */
 interface LegacyModel {
+  readonly css: string;
   readonly id: number;
   readonly name: string;
+  readonly sortf: number;
+  readonly tmpls: readonly LegacyTemplate[];
   readonly type: number;
   readonly flds: readonly NamedField[];
 }
 
-const readLegacyNotetypes = (db: Database): AnkiNotetype[] => {
-  const row = readRow(db, "SELECT models FROM col");
-  const parsed: unknown = JSON.parse(String(row.models));
+/** One deck as schema 11 serializes it into `col.decks`. */
+interface LegacyDeck {
+  readonly desc?: string;
+  readonly id: number;
+  readonly name: string;
+}
+
+/**
+ * A JSON column of `col` holding an object keyed by id, as its values.
+ *
+ * The JSON is the collection's own. Same boundary as the media manifest in
+ * unpack.ts: checked for being an object, then asserted rather than guarded.
+ */
+const readLegacyMap = <Value>(db: Database, column: string): Value[] => {
+  const row = readRow(db, `SELECT ${column} FROM col`);
+  const parsed: unknown = JSON.parse(String(row[column]));
 
   /* Enough to know `Object.values` has something to walk. `null` and a JSON
      scalar both reach it otherwise and throw a `TypeError` naming neither the
      column nor the collection. */
   if (typeof parsed !== "object" || parsed === null) {
-    throw new Error("Malformed collection: col.models does not hold a note type map");
+    throw new Error(`Malformed collection: col.${column} does not hold a map by id`);
   }
 
-  /* `col.models` is the collection's own JSON. Same boundary as the media
-     manifest in unpack.ts: asserted here rather than guarded. */
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const models = parsed as Record<string, LegacyModel>;
+  return Object.values(parsed as Record<string, Value>);
+};
 
-  return Object.values(models).map((model: Readonly<LegacyModel>) => ({
+const readLegacyNotetypes = (db: Database): AnkiNotetype[] =>
+  readLegacyMap<LegacyModel>(db, "models").map((model: Readonly<LegacyModel>) => ({
+    css: model.css,
     fields: fieldNamesInOrder(model.flds),
     id: model.id,
     isCloze: model.type === LEGACY_MODEL_CLOZE,
     name: model.name,
+    sortField: model.sortf,
+    templates: templatesInOrder(model.tmpls),
   }));
-};
+
+const readLegacyDecks = (db: Database): AnkiDeck[] =>
+  readLegacyMap<LegacyDeck>(db, "decks").map((deck: Readonly<LegacyDeck>) => ({
+    description: deck.desc ?? "",
+    id: deck.id,
+    name: deck.name,
+  }));
 
 /** Field names by note type id, gathered a row at a time and then ordered. */
 const readFieldNames = (db: Database): Map<number, string[]> => {
@@ -195,17 +319,41 @@ const readFieldNames = (db: Database): Map<number, string[]> => {
   return names;
 };
 
-/** `notetypes.config`, whose column is a blob but whose type from sql.js is not. */
-const configOf = (row: Row): Uint8Array => {
-  if (row.config instanceof Uint8Array) {
-    return row.config;
+/** One `templates` row, its formats out of the config blob. */
+const templateOf = (row: Row): LegacyTemplate => {
+  const config = blobOf(row.config);
+
+  return {
+    afmt: stringField(config, TEMPLATE_AFMT_FIELD),
+    name: String(row.name),
+    ord: Number(row.ord),
+    qfmt: stringField(config, TEMPLATE_QFMT_FIELD),
+  };
+};
+
+/** Templates by note type id, the same way and for the same reason as fields. */
+const readTemplates = (db: Database): Map<number, AnkiTemplate[]> => {
+  const byNotetype = new Map<number, LegacyTemplate[]>();
+
+  for (const row of readRows(db, "SELECT ntid, ord, name, config FROM templates")) {
+    const ntid = Number(row.ntid);
+    const found = byNotetype.get(ntid) ?? [];
+    found.push(templateOf(row));
+    byNotetype.set(ntid, found);
   }
 
-  return new Uint8Array();
+  const templates = new Map<number, AnkiTemplate[]>();
+
+  for (const [ntid, found] of byNotetype) {
+    templates.set(ntid, templatesInOrder(found));
+  }
+
+  return templates;
 };
 
 const readTableNotetypes = (db: Database): AnkiNotetype[] => {
   const names = readFieldNames(db);
+  const templates = readTemplates(db);
 
   /*
    * A plain scan. It may well run over the unique index on `name`, which is
@@ -215,19 +363,37 @@ const readTableNotetypes = (db: Database): AnkiNotetype[] => {
    */
   return readRows(db, "SELECT id, name, config FROM notetypes").map((row: Row) => {
     const id = Number(row.id);
+    const config = blobOf(row.config);
 
     return {
+      css: stringField(config, NOTETYPE_CSS_FIELD),
       /* `fields` outlives the note types it belongs to: an export carries rows
          for ids that have no notetype, so this reads from the note type out. A
          note type with no rows at all is a collection missing them, and it
          comes back with no fields rather than with somebody else's. */
       fields: names.get(id) ?? [],
       id,
-      isCloze: varintField(configOf(row), NOTETYPE_KIND_FIELD) === NOTETYPE_KIND_CLOZE,
+      isCloze: varintField(config, NOTETYPE_KIND_FIELD) === NOTETYPE_KIND_CLOZE,
       name: String(row.name),
+      sortField: varintField(config, NOTETYPE_SORT_FIELD) ?? 0,
+      templates: templates.get(id) ?? [],
     };
   });
 };
+
+/**
+ * Schema 18's decks. A filtered deck has no description to read: its `kind`
+ * holds `filtered` rather than `normal`, and that message has no such field.
+ */
+const readTableDecks = (db: Database): AnkiDeck[] =>
+  readRows(db, "SELECT id, name, kind FROM decks").map((row: Row) => ({
+    description: stringField(
+      bytesField(blobOf(row.kind), DECK_NORMAL_FIELD),
+      DECK_DESCRIPTION_FIELD,
+    ),
+    id: Number(row.id),
+    name: String(row.name).split(DECK_LEVEL_SEPARATOR).join(DECK_NAME_SEPARATOR),
+  }));
 
 /**
  * Read one open collection.
@@ -255,8 +421,20 @@ export const readCollection = (db: Database): AnkiCollection => {
   if (schemaVersion >= TABLE_SCHEMA) {
     stripUnicase(db);
 
-    return { notes: readNotes(db), notetypes: readTableNotetypes(db), schemaVersion };
+    return {
+      cards: readCards(db),
+      decks: readTableDecks(db),
+      notes: readNotes(db),
+      notetypes: readTableNotetypes(db),
+      schemaVersion,
+    };
   }
 
-  return { notes: readNotes(db), notetypes: readLegacyNotetypes(db), schemaVersion };
+  return {
+    cards: readCards(db),
+    decks: readLegacyDecks(db),
+    notes: readNotes(db),
+    notetypes: readLegacyNotetypes(db),
+    schemaVersion,
+  };
 };

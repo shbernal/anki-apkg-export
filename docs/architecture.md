@@ -31,19 +31,19 @@ literal does not.
 
 ## Responsibilities
 
-| Module             | Owns                                                                                                                                                |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, reads the clock, then constructs an `Exporter` with a freshly built template. |
-| `exporter.ts`      | The deck. Row insertion, id allocation, note identity, and media collection.                                                                        |
-| `archive.ts`       | The `.apkg` container: the media manifest, the UTC-pinned ZIP timestamps, and the zipping. Knows nothing about sqlite.                              |
-| `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                            |
-| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                    |
-| `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                              |
-| `reader.ts`        | The read path's entry point: unpack the container, read the collection, put the media back beside it.                                               |
-| `unpack.ts`        | The `.apkg` container, read: package version, the decoy, zstd, and the two media-manifest encodings. Knows nothing about sqlite.                    |
-| `collection.ts`    | A collection database, read: schema 11's JSON models and schema 18's tables, and the `unicase` strip that makes the second readable at all.         |
-| `protobuf.ts`      | Just enough of the wire format for the three fields Anki keeps in it. Data only, in the sense that it decides nothing.                              |
-| `wire.ts`          | The format constants both paths have to agree about, which today is `FIELD_SEPARATOR`. Belongs to neither path.                                     |
+| Module             | Owns                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, reads the clock, then constructs an `Exporter` with a freshly built template.   |
+| `exporter.ts`      | The deck. Row insertion, id allocation, note identity, and media collection.                                                                          |
+| `archive.ts`       | The `.apkg` container: the media manifest, the UTC-pinned ZIP timestamps, and the zipping. Knows nothing about sqlite.                                |
+| `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                              |
+| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                      |
+| `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                                |
+| `reader.ts`        | The read path's entry point: unpack the container, read the collection, put the media back beside it.                                                 |
+| `unpack.ts`        | The `.apkg` container, read: package version, the decoy, zstd, and the two media-manifest encodings. Knows nothing about sqlite.                      |
+| `collection.ts`    | A collection database, read: schema 11's JSON models and decks and schema 18's tables, and the `unicase` strip that makes the second readable at all. |
+| `protobuf.ts`      | Just enough of the wire format for the fields Anki keeps in it. Data only, in the sense that it decides nothing.                                      |
+| `wire.ts`          | The format constants both paths have to agree about, which today is `FIELD_SEPARATOR`. Belongs to neither path.                                       |
 
 ## Two worldviews, kept apart
 

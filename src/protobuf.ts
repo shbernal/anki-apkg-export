@@ -1,9 +1,9 @@
 /*
- * Just enough of the protobuf wire format to read three things Anki stores in
- * it: the package version in a `meta` entry, the media manifest of a v3
- * package, and whether a schema-18 notetype is a cloze.
+ * Just enough of the protobuf wire format to read what Anki stores in it: the
+ * package version in a `meta` entry, the media manifest of a v3 package, and a
+ * schema-18 notetype's, template's and deck's config.
  *
- * All three are a handful of bytes, and none of them needs a schema: the wire
+ * Each is a handful of bytes, and none of them needs a schema: the wire
  * format carries the field number and the shape of every value, and this reads
  * fields positionally the way `text.ts` reads regex groups positionally.
  * Generating stubs, or taking a runtime dependency to decode 89 bytes, would
@@ -204,6 +204,10 @@ export const repeatedField = (data: Uint8Array, fieldNumber: number): Uint8Array
 
   return values;
 };
+
+/** The first length-delimited value written for `fieldNumber`, or empty when there is none. */
+export const bytesField = (data: Uint8Array, fieldNumber: number): Uint8Array =>
+  firstField(data, fieldNumber)?.bytes ?? EMPTY;
 
 /** The first string written for `fieldNumber`, or `""` when there is none. */
 export const stringField = (data: Uint8Array, fieldNumber: number): string => {

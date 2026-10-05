@@ -30,8 +30,11 @@ decision, not incidental cleanup.
 | `readPackage`     | function       | The same, for callers supplying their own sql.js instance.  |
 | `AnkiPackage`     | type           | What a read returns.                                        |
 | `AnkiCollection`  | type           | The collection half of it, without the media.               |
-| `AnkiNote`        | type           | One note: field values and tags.                            |
-| `AnkiNotetype`    | type           | One note type: its field names, and whether it is cloze.    |
+| `AnkiNote`        | type           | One note: its guid, field values and tags.                  |
+| `AnkiNotetype`    | type           | One note type: fields, templates, CSS, and whether cloze.   |
+| `AnkiTemplate`    | type           | One card template: name, question and answer format.        |
+| `AnkiCard`        | type           | One card: its note, deck, ord and scheduling values.        |
+| `AnkiDeck`        | type           | One deck: its full name and description.                    |
 
 ## `AnkiExport(deckName, template?, options?)`
 
@@ -227,6 +230,8 @@ reason `AnkiExport` is: sql.js loads a WASM module, once per process.
 interface AnkiPackage {
   readonly notetypes: readonly AnkiNotetype[];
   readonly notes: readonly AnkiNote[];
+  readonly cards: readonly AnkiCard[];
+  readonly decks: readonly AnkiDeck[];
   /** Media files by the name card HTML references them by. */
   readonly media: ReadonlyMap<string, Uint8Array>;
   /** The container layout: 1, 2 or 3. Says nothing about `schemaVersion`. */
@@ -240,20 +245,55 @@ interface AnkiNotetype {
   /** Field names, in the order the note type declares them. */
   readonly fields: readonly string[];
   readonly isCloze: boolean;
+  /** In `ord` order. */
+  readonly templates: readonly AnkiTemplate[];
+  readonly css: string;
+  /** The index of the field the browser sorts by. */
+  readonly sortField: number;
+}
+
+interface AnkiTemplate {
+  readonly name: string;
+  readonly qfmt: string;
+  readonly afmt: string;
 }
 
 interface AnkiNote {
   readonly id: number;
+  /** The id that survives export and import, unlike `id`. */
+  readonly guid: string;
   /** The id of the note type this note belongs to. */
   readonly mid: number;
   /** Field values, in that note type's order. */
   readonly fields: readonly string[];
   readonly tags: readonly string[];
 }
+
+interface AnkiCard {
+  readonly id: number;
+  /** The note it belongs to, and the deck it is in. */
+  readonly nid: number;
+  readonly did: number;
+  readonly ord: number;
+  /** Scheduling values as stored, not as displayed. */
+  readonly type: number;
+  readonly queue: number;
+  readonly due: number;
+  readonly ivl: number;
+  readonly factor: number;
+  readonly reps: number;
+  readonly lapses: number;
+}
+
+interface AnkiDeck {
+  readonly id: number;
+  /** Levels joined by `::`, whichever schema stored the deck. */
+  readonly name: string;
+  readonly description: string;
+}
 ```
 
-This is Anki's model and not a flashcard's: there is no front, no back and no
-deck of cards here. A note is field values, and its note type says what those
+This is Anki's model and not a flashcard's: there is no front and no back here. A note is field values, and its note type says what those
 fields are called. Anything that maps them onto some other idea of a card
 belongs above this package.
 

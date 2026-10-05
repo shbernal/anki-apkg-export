@@ -51,7 +51,14 @@ const getSqlModule = (): Promise<SqlJsStatic> => {
 };
 
 export type { MediaData, ZipOptions } from "./archive.js";
-export type { AnkiCollection, AnkiNote, AnkiNotetype } from "./collection.js";
+export type {
+  AnkiCard,
+  AnkiCollection,
+  AnkiDeck,
+  AnkiNote,
+  AnkiNotetype,
+  AnkiTemplate,
+} from "./collection.js";
 export { default as Exporter } from "./exporter.js";
 export { type AnkiPackage, readPackage } from "./reader.js";
 export type { TemplateOptions } from "./template.js";

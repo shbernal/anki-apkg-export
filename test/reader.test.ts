@@ -6,6 +6,8 @@ import { type SqlJsStatic } from "sql.js";
 import { describe, expect, it } from "vitest";
 
 import AnkiExport, {
+  type AnkiCard,
+  type AnkiDeck,
   type AnkiNotetype,
   type AnkiPackage,
   readApkg,
@@ -160,6 +162,41 @@ describe("every package layout Anki writes", () => {
     expect(notetypeOf(pkg, 2)?.isCloze).toBe(true);
   });
 
+  /*
+   * Templates and CSS are `models[].tmpls` and `css` at schema 11, and a
+   * `templates` table plus two protobuf configs at 18.
+   */
+  it.each(LAYOUTS)("$name gives each note type its templates and CSS", async ({ name }) => {
+    expect.hasAssertions();
+
+    const pkg = await readApkg(readFixture(name));
+
+    expect(notetypeOf(pkg, 0)?.templates).toStrictEqual([
+      expect.objectContaining({ name: "Card 1", qfmt: "{{Front}}" }),
+    ]);
+    expect(notetypeOf(pkg, 2)?.templates[0]?.qfmt).toBe("{{cloze:Text}}");
+    expect(notetypeOf(pkg, 0)?.css).toContain(".card {");
+    expect(notetypeOf(pkg, 0)?.sortField).toBe(0);
+  });
+
+  it.each(LAYOUTS)("$name puts one card per note in the deck", async ({ name }) => {
+    expect.hasAssertions();
+
+    const { cards, decks, notes } = await readApkg(readFixture(name));
+    const deckOf = (did: number): string | undefined =>
+      decks.find((deck: Readonly<AnkiDeck>) => deck.id === did)?.name;
+
+    expect(cards.map((card: Readonly<AnkiCard>) => deckOf(card.did))).toStrictEqual([
+      "Botany",
+      "Botany",
+      "Botany",
+    ]);
+    expect(new Set(cards.map((card: Readonly<AnkiCard>) => card.nid))).toStrictEqual(
+      new Set(notes.map((note) => note.id)),
+    );
+    expect(notes.every((note) => note.guid.length > 0)).toBe(true);
+  });
+
   it.each(LAYOUTS)("$name gives back the image under the name cards use", async ({ name }) => {
     expect.hasAssertions();
 
@@ -217,7 +254,36 @@ describe("a deck this package wrote, read back", () => {
       expect.objectContaining({ fields: ["front", "back"], tags: ["one", "two"] }),
     ]);
     expect(pkg.notetypes[0]?.fields).toStrictEqual(["Front", "Back"]);
+    expect(pkg.decks.find((deck) => deck.id === pkg.cards[0]?.did)?.name).toBe("deck-name");
     expect(pkg.media.get("anki.png")).toStrictEqual(OWN_MEDIA);
+  });
+});
+
+describe("deck names", () => {
+  const sqlModule = useSqlModule();
+
+  it("joins schema 18's levels with `::`, the way schema 11 stores them", () => {
+    expect.hasAssertions();
+
+    /* Schema 18 separates levels with U+001F; nothing above the reader should
+       have to know that. Writing `decks.name` needs its `unicase` collation,
+       which only Anki registers, so the patch drops it first the way the
+       reader does. */
+    const nested = patchCollection(
+      sqlModule(),
+      "v1-schema18",
+      [
+        "PRAGMA writable_schema=ON",
+        "UPDATE sqlite_master SET sql = replace(sql, ' COLLATE unicase', '') WHERE sql LIKE '%unicase%'",
+        "PRAGMA writable_schema=RESET",
+        "REINDEX",
+        "UPDATE decks SET name = 'Botany' || char(31) || 'Leaves' WHERE name = 'Botany'",
+      ].join(";"),
+    );
+
+    expect(readPackage(sqlModule(), nested).decks.map((deck) => deck.name)).toContain(
+      "Botany::Leaves",
+    );
   });
 });
 

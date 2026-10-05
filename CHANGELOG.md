@@ -4,6 +4,16 @@ Notable changes per release, with anything landed since the last one under
 Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
+## Unreleased
+
+### Added
+
+- **The reader returns cards and decks, and the rest of each note type.**
+  `AnkiPackage` gains `cards` (each card's note, deck, `ord` and scheduling
+  values as stored) and `decks` (full name and description). Notes carry their
+  `guid`, and note types their `templates`, `css` and `sortField`. Schema 18's
+  deck names come back joined by `::`, the way schema 11 stores them.
+
 ## 6.1.1
 
 Four inputs the reader used to answer wrongly rather than refuse. Nothing about
