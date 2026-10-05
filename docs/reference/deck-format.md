@@ -13,7 +13,8 @@ doc_type: "reference"
 # Deck format
 
 Decks are written at **schema 11**, package version **1**, which every current
-Anki release imports. Reading is a wider job than writing, and what it takes is
+Anki release imports. `writeApkg` writes the same schema at package version
+**2**; [whole collections](#whole-collections) covers what differs. Reading is a wider job than writing, and what it takes is
 [at the bottom of this page](#what-the-reader-accepts).
 
 The goal is stronger than "the importer accepts it": rows are written the way
@@ -168,13 +169,40 @@ is taken over is covered under [note identity](#note-identity). A random guid
 would match Anki's shape but would defeat that entirely, since this package
 keeps no state between runs to remember it by.
 
+## Whole collections
+
+`writeApkg` writes a collection someone else described, so most of what this
+page says about `AnkiExport` (note identity, `nextPos`, every card new) is the
+caller's business there. What it does decide:
+
+| Entry               | Contents                                                 |
+| ------------------- | -------------------------------------------------------- |
+| `meta`              | `PackageMetadata { version: 2 }`, the two bytes `08 02`. |
+| `collection.anki21` | The SQLite collection, schema 11, `conf.schedVer` 2.     |
+| `media`             | The same index-keyed JSON manifest as version 1.         |
+
+- Ids, guids, tags and every card's `type`, `queue`, `due`, `ivl`, `factor`,
+  `reps` and `lapses` are stored as given. `left`, `odue`, `odid` and `flags`
+  are 0.
+- `sfld` is the note type's sort field stripped; `csum` hashes the first field
+  stripped, whichever field sorts. Anki computes both the same way.
+- `Default` is added under id 1, and so is each parent of a `::` deck name the
+  collection does not name, at the next ids above the caller's. Anki's importer
+  would create the parents anyway; writing them keeps the collection whole.
+- Note types carry no `req`. Current Anki derives card requirements from the
+  templates and drops the key when it upgrades schema 11.
+- There is no decoy `collection.anki2`. Anki writes one so that a 2.0 client
+  imports a note telling it to upgrade; without it, 2.0 refuses the file, which
+  says the same thing less politely.
+
 ## Out of scope
 
-- **Writing schema 18 or package version 3.** Not planned; version 1 is what
-  this package emits, and every Anki release imports it. The reader takes all
-  three, which is a different question.
-- **More than one notetype or template.** Product scope, not a limitation to fix
-  incidentally.
+- **Writing schema 18 or package version 3.** Not planned yet; versions 1 and 2
+  are what this package emits, and every Anki release since 2.1 imports both.
+  The reader takes all three, which is a different question.
+- **More than one notetype or template from `AnkiExport`.** Product scope, not a
+  limitation to fix incidentally. `writeApkg` takes as many as the collection
+  holds.
 
 ## What the reader accepts
 

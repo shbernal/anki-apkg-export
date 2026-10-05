@@ -50,17 +50,48 @@ interface DeckPackage {
   /** The instant the deck was built; every entry is stamped with it, unless
       the caller's own `mtime` says otherwise. */
   createdAt: Date;
+  /** The container layout; 1 when left out. See `LAYOUTS`. */
+  packageVersion?: WritablePackageVersion;
 }
 
+/** The package versions this writes. Version 3 is read, never written. */
+export const PACKAGE_V1 = 1;
+export const PACKAGE_V2 = 2;
+export type WritablePackageVersion = typeof PACKAGE_V1 | typeof PACKAGE_V2;
+
+/** The key byte of `PackageMetadata.version`: field 1, wire type varint. */
+const META_VERSION_KEY = 0x08;
+
 /**
- * Zip a collection and its media into the `.apkg` layout: `collection.anki2`,
- * a `media` manifest mapping stringified indices to original filenames, and one
+ * Where each version keeps its collection, and the `meta` entry it declares
+ * itself with. Version 1 has none; its absence is what says version 1.
+ */
+const LAYOUTS: Readonly<
+  Record<WritablePackageVersion, Readonly<{ entry: string; meta: Uint8Array | null }>>
+> = {
+  [PACKAGE_V1]: { entry: "collection.anki2", meta: null },
+  [PACKAGE_V2]: { entry: "collection.anki21", meta: Uint8Array.of(META_VERSION_KEY, PACKAGE_V2) },
+};
+
+/** The `meta` entry, for the versions that carry one. */
+const metaEntry = (meta: Uint8Array | null, mtime: ZipOptions["mtime"]): Zippable => {
+  if (meta === null) {
+    return {};
+  }
+
+  return { meta: [meta, { mtime }] };
+};
+
+/**
+ * Zip a collection and its media into the `.apkg` layout: the collection under
+ * the entry its package version names, a `meta` entry from version 2 on, a
+ * `media` manifest mapping stringified indices to original filenames, and one
  * numerically named entry per file. Media files are stored under their index
  * rather than their name, which is what lets a deck carry filenames a ZIP or a
  * filesystem would not take.
  */
 export const packageDeck = (
-  { collection, media, createdAt }: Readonly<DeckPackage>,
+  { collection, media, createdAt, packageVersion = PACKAGE_V1 }: Readonly<DeckPackage>,
   /* Forwarded to `zipSync` untouched. fflate's nested `extra` record cannot be
      restated as deeply readonly from here. */
   // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
@@ -84,8 +115,11 @@ export const packageDeck = (
     entries[name] = entry(toBytes(item.data));
   });
 
+  /* Anki writes `meta` first; the importer finds it by name either way. */
+  const layout = LAYOUTS[packageVersion];
   const files: Zippable = {
-    "collection.anki2": entry(collection),
+    ...metaEntry(layout.meta, mtime),
+    [layout.entry]: entry(collection),
     media: entry(strToU8(JSON.stringify(manifest))),
     ...entries,
   };

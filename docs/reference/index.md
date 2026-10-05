@@ -18,23 +18,27 @@ decision, not incidental cleanup.
 
 `@shbernal/anki-apkg-export` is ESM-only and requires Node.js >= 24.
 
-| Export            | Kind           | Notes                                                       |
-| ----------------- | -------------- | ----------------------------------------------------------- |
-| `AnkiExport`      | async function | The default export. The factory; resolves to an `Exporter`. |
-| `Exporter`        | class          | For callers supplying their own sql.js instance.            |
-| `TemplateOptions` | type           | The override bag accepted by the factory.                   |
-| `ExportOptions`   | type           | The second bag, holding `now`.                              |
-| `ZipOptions`      | type           | Re-exported from fflate, for `save`.                        |
-| `MediaData`       | type           | The bytes `addMedia` accepts.                               |
-| `readApkg`        | async function | Reads a package and returns what is in it.                  |
-| `readPackage`     | function       | The same, for callers supplying their own sql.js instance.  |
-| `AnkiPackage`     | type           | What a read returns.                                        |
-| `AnkiCollection`  | type           | The collection half of it, without the media.               |
-| `AnkiNote`        | type           | One note: its guid, field values and tags.                  |
-| `AnkiNotetype`    | type           | One note type: fields, templates, CSS, and whether cloze.   |
-| `AnkiTemplate`    | type           | One card template: name, question and answer format.        |
-| `AnkiCard`        | type           | One card: its note, deck, ord and scheduling values.        |
-| `AnkiDeck`        | type           | One deck: its full name and description.                    |
+| Export               | Kind           | Notes                                                       |
+| -------------------- | -------------- | ----------------------------------------------------------- |
+| `AnkiExport`         | async function | The default export. The factory; resolves to an `Exporter`. |
+| `Exporter`           | class          | For callers supplying their own sql.js instance.            |
+| `TemplateOptions`    | type           | The override bag accepted by the factory.                   |
+| `ExportOptions`      | type           | The second bag, holding `now`.                              |
+| `ZipOptions`         | type           | Re-exported from fflate, for `save`.                        |
+| `MediaData`          | type           | The bytes `addMedia` accepts.                               |
+| `readApkg`           | async function | Reads a package and returns what is in it.                  |
+| `readPackage`        | function       | The same, for callers supplying their own sql.js instance.  |
+| `writeApkg`          | async function | Writes a whole collection, the inverse of `readApkg`.       |
+| `writePackage`       | function       | The same, for callers supplying their own sql.js instance.  |
+| `WritableCollection` | type           | What a write takes: an `AnkiPackage` without its versions.  |
+| `WriteOptions`       | type           | `packageVersion` and `now`.                                 |
+| `AnkiPackage`        | type           | What a read returns.                                        |
+| `AnkiCollection`     | type           | The collection half of it, without the media.               |
+| `AnkiNote`           | type           | One note: its guid, field values and tags.                  |
+| `AnkiNotetype`       | type           | One note type: fields, templates, CSS, and whether cloze.   |
+| `AnkiTemplate`       | type           | One card template: name, question and answer format.        |
+| `AnkiCard`           | type           | One card: its note, deck, ord and scheduling values.        |
+| `AnkiDeck`           | type           | One deck: its full name and description.                    |
 
 ## `AnkiExport(deckName, template?, options?)`
 
@@ -314,3 +318,47 @@ function readPackage(sql: SqlJsStatic, apkg: Uint8Array): AnkiPackage;
 The same read, for a caller that already holds a sql.js module. Synchronous,
 since the WASM load is the only asynchronous part. The database it opens is
 closed before it returns, so there is no handle to release.
+
+## `writeApkg(collection, options?)`
+
+```ts
+interface WritableCollection {
+  notetypes: readonly AnkiNotetype[];
+  notes: readonly AnkiNote[];
+  cards: readonly AnkiCard[];
+  decks: readonly AnkiDeck[];
+  media?: ReadonlyMap<string, MediaData>;
+}
+
+interface WriteOptions {
+  packageVersion?: 2;
+  now?: number;
+}
+
+function writeApkg(collection: WritableCollection, options?: WriteOptions): Promise<Buffer>;
+```
+
+Writes a collection as it is described: every note type, note, card and deck,
+under the ids given, with each card's scheduling values stored as given. It
+takes the reader's own shapes, so what `readApkg` returns can be handed straight
+back. `AnkiExport` remains the way to build a deck from cards; this is for a
+collection that is already described.
+
+The package is version 2: schema 11 on the v2 scheduler under
+`collection.anki21`, plus the `meta` entry that names the version. `now` stamps
+the collection, the rows' `mod` and the archive, as it does for `AnkiExport`.
+
+What the write adds is what schema 11 needs and the description leaves out: the
+`Default` deck under id 1 unless a deck already has that id, each parent deck a
+`::` name implies, and every note's `sfld` (its sort field, stripped) and `csum`
+(its first field, stripped and hashed). Notes are not deduplicated and guids are
+written as given.
+
+It throws, writing nothing, when a note names a note type that is not in the
+collection or has a different number of fields than it, when a card names a note
+or deck that is not in the collection, or when `packageVersion` is anything but 2.
+
+## `writePackage(sql, collection, options?)`
+
+The same write with a sql.js module the caller already holds. Synchronous, and
+the database it builds is closed before it returns.

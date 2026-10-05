@@ -8,6 +8,12 @@ Unreleased. Versions before 4.0.4 predate this file; see the
 
 ### Added
 
+- **`writeApkg` writes a whole collection.** Note types, notes, cards with their
+  scheduling, decks and media, under the ids given, as a package version 2:
+  schema 11 on the v2 scheduler under `collection.anki21`. It takes the reader's
+  own shapes, so `writeApkg(await readApkg(bytes))` carries a package across.
+  `writePackage` is the same for a caller holding its own sql.js. `AnkiExport`
+  and what it writes are unchanged.
 - **The reader returns cards and decks, and the rest of each note type.**
   `AnkiPackage` gains `cards` (each card's note, deck, `ord` and scheduling
   values as stored) and `decks` (full name and description). Notes carry their

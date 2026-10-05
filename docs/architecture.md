@@ -11,7 +11,7 @@ doc_type: "architecture"
 
 # Architecture
 
-Eleven modules under `src/`, split into a write path and a read path that share
+Twelve modules under `src/`, split into a write path and a read path that share
 one entry point and one file of wire constants.
 
 A new module needs a reason better than deduplication. It needs a seam.
@@ -35,6 +35,7 @@ literal does not.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `index.ts`         | The public entry point. Resolves and memoizes the sql.js WASM module, reads the clock, then constructs an `Exporter` with a freshly built template.   |
 | `exporter.ts`      | The deck. Row insertion, id allocation, note identity, and media collection.                                                                          |
+| `writer.ts`        | A whole collection, written: the reader's shapes in, a version-2 package out. Adds only `Default`, implied parent decks, `sfld` and `csum`.           |
 | `archive.ts`       | The `.apkg` container: the media manifest, the UTC-pinned ZIP timestamps, and the zipping. Knows nothing about sqlite.                                |
 | `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                              |
 | `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                      |

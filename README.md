@@ -113,9 +113,23 @@ const apkg = await AnkiExport("deck-name", undefined, { now: 1_700_000_000_000 }
 
 A build that caches or diffs its decks wants this.
 
+### Writing a whole collection
+
+```ts
+import fs from "node:fs";
+import { readApkg, writeApkg } from "@shbernal/anki-apkg-export";
+
+const deck = await readApkg(fs.readFileSync("deck.apkg"));
+fs.writeFileSync("copy.apkg", await writeApkg(deck));
+```
+
+`writeApkg` takes what `readApkg` returns: note types, notes, cards with their
+scheduling, decks and media, ids included. It is for a collection that is
+already described; `AnkiExport` is still the way to build one from cards.
+
 ## Generated decks
 
-Decks are **written** at schema 11, package version 1, which every current Anki
+Decks are **written** at schema 11, package version 1 by `AnkiExport` and 2 by `writeApkg`, which every current Anki
 release imports. Reading is not the mirror of that: see above for what it takes. Rows are written the way Anki writes them for the same
 content, so a deck from here agrees with one Anki would have produced. Notes are
 matched on content, so re-importing a regenerated deck updates the collection

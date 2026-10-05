@@ -11,7 +11,7 @@ export interface TemplateOptions {
  * export rather than frozen, since that field is a real modification time.
  */
 
-const CONF = {
+export const CONF = {
   nextPos: 1,
   estTimes: true,
   /* Repointed at this export's deck, like `curDeck` below. */
@@ -53,7 +53,7 @@ const NOTE_FIELDS = [
   },
 ];
 
-const LATEX_PRE =
+export const LATEX_PRE =
   "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n";
 
 /** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
@@ -68,43 +68,49 @@ const LATEX_PRE =
 export const PLACEHOLDER_DECK_ID = 1_435_588_830_424;
 export const PLACEHOLDER_MODEL_ID = 1_388_596_687_391;
 
-const buildDecks = (mod: number) => ({
-  1: {
-    desc: "",
-    name: "Default",
-    extendRev: 50,
-    usn: 0,
-    collapsed: false,
-    newToday: [0, 0],
-    timeToday: [0, 0],
-    dyn: 0,
-    extendNew: 10,
-    conf: 1,
-    revToday: [0, 0],
-    lrnToday: [0, 0],
-    id: 1,
-    mod,
-  },
-  [PLACEHOLDER_DECK_ID]: {
-    desc: "",
-    name: "Template",
-    extendRev: 50,
-    usn: -1,
-    collapsed: false,
-    /* Per-day study counters. A freshly exported deck has studied nothing. */
-    newToday: [0, 0],
-    timeToday: [0, 0],
-    dyn: 0,
-    extendNew: 10,
-    conf: 1,
-    revToday: [0, 0],
-    lrnToday: [0, 0],
-    id: PLACEHOLDER_DECK_ID,
-    mod,
-  },
+/**
+ * One schema-11 deck. The `Default` deck, the placeholder below and every deck
+ * `writePackage` writes share this shape and its key order.
+ */
+export const buildDeck = ({
+  id,
+  name,
+  desc,
+  usn,
+  mod,
+}: Readonly<{ id: number; name: string; desc: string; usn: number; mod: number }>) => ({
+  desc,
+  name,
+  extendRev: 50,
+  usn,
+  collapsed: false,
+  /* Per-day study counters. A freshly exported deck has studied nothing. */
+  newToday: [0, 0],
+  timeToday: [0, 0],
+  dyn: 0,
+  extendNew: 10,
+  conf: 1,
+  revToday: [0, 0],
+  lrnToday: [0, 0],
+  id,
+  mod,
 });
 
-const DCONF = {
+/** Anki's own first deck, which every schema-11 collection carries under id 1. */
+export const DEFAULT_DECK_ID = 1;
+
+const buildDecks = (mod: number) => ({
+  [DEFAULT_DECK_ID]: buildDeck({ id: DEFAULT_DECK_ID, name: "Default", desc: "", usn: 0, mod }),
+  [PLACEHOLDER_DECK_ID]: buildDeck({
+    id: PLACEHOLDER_DECK_ID,
+    name: "Template",
+    desc: "",
+    usn: -1,
+    mod,
+  }),
+});
+
+export const DCONF = {
   1: {
     name: "Default",
     replayq: true,
@@ -296,6 +302,41 @@ const dayRollover = (nowMs: number): number => {
  */
 const sqlString = (value: unknown): string => `'${JSON.stringify(value).replaceAll("'", "''")}'`;
 
+/** The four JSON columns of the `col` row, already shaped as Anki stores them. */
+export interface CollectionColumns {
+  conf: unknown;
+  models: unknown;
+  decks: unknown;
+  dconf: unknown;
+}
+
+/**
+ * The SQL script for a schema-11 collection holding no notes or cards, with
+ * `columns` in its `col` row. `now` is the epoch-millisecond instant it is
+ * stamped with.
+ */
+export const createCollectionScript = (columns: Readonly<CollectionColumns>, now: number): string =>
+  `
+    PRAGMA foreign_keys=OFF;
+    BEGIN TRANSACTION;${COL_TABLE}
+    INSERT INTO "col" VALUES(
+      1,
+      ${dayRollover(now)},
+      ${now},
+      ${now},
+      11,
+      0,
+      0,
+      0,
+      ${sqlString(columns.conf)},
+      ${sqlString(columns.models)},
+      ${sqlString(columns.decks)},
+      ${sqlString(columns.dconf)},
+      '{}'
+    );${NOTE_TABLES}${INDEXES}
+    COMMIT;
+  `;
+
 /**
  * Build the SQL script for an empty collection. `now` is the epoch-millisecond
  * instant to stamp it with; the exporter passes its own single clock reading so
@@ -315,27 +356,13 @@ export default function createTemplate(
      note-model `mod` fields are seconds, and get the same instant. */
   const nowSeconds = Math.floor(now / MILLISECONDS_PER_SECOND);
 
-  const decks = buildDecks(nowSeconds);
-  const models = buildModels(nowSeconds, { questionFormat, answerFormat, css });
-
-  return `
-    PRAGMA foreign_keys=OFF;
-    BEGIN TRANSACTION;${COL_TABLE}
-    INSERT INTO "col" VALUES(
-      1,
-      ${dayRollover(now)},
-      ${now},
-      ${now},
-      11,
-      0,
-      0,
-      0,
-      ${sqlString(CONF)},
-      ${sqlString(models)},
-      ${sqlString(decks)},
-      ${sqlString(DCONF)},
-      '{}'
-    );${NOTE_TABLES}${INDEXES}
-    COMMIT;
-  `;
+  return createCollectionScript(
+    {
+      conf: CONF,
+      models: buildModels(nowSeconds, { questionFormat, answerFormat, css }),
+      decks: buildDecks(nowSeconds),
+      dconf: DCONF,
+    },
+    now,
+  );
 }

@@ -21,7 +21,8 @@ Update the matching page when behavior changes.
 
 - reads and writes Anki `.apkg` deck packages from JavaScript and TypeScript
 - published to npm as `@shbernal/anki-apkg-export`, ESM-only, Node.js >= 24
-- write path: `src/exporter.ts` holds the deck logic, `src/archive.ts` the
+- write path: `src/exporter.ts` holds the deck logic, `src/writer.ts` writes a
+  whole collection described in the reader's shapes, `src/archive.ts` the
   `.apkg` packaging, `src/template.ts` the default note template, `src/text.ts`
   Anki's HTML stripper
 - read path: `src/reader.ts` is its entry, `src/unpack.ts` the container,
@@ -39,8 +40,9 @@ Update the matching page when behavior changes.
 ## Public API guardrails
 
 - the published API is `AnkiExport(name, templateOverrides?, { now }?)` returning
-  `addCard`, `addMedia`, `save`, and `close`, plus `readApkg(bytes)` and
-  `readPackage(sql, bytes)`
+  `addCard`, `addMedia`, `save`, and `close`, plus `readApkg(bytes)`,
+  `readPackage(sql, bytes)`, `writeApkg(collection, options?)` and
+  `writePackage(sql, collection, options?)`
 - changing it needs a deliberate semver decision, not incidental cleanup
 - keep `exports`, `files`, and `dist` shape intact unless the change is the point
   of the task

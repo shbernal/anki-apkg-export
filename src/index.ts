@@ -6,6 +6,7 @@ import initSqlJs, { type SqlJsStatic } from "sql.js";
 import Exporter from "./exporter.js";
 import { type AnkiPackage, readPackage } from "./reader.js";
 import createTemplate, { type TemplateOptions } from "./template.js";
+import { type WritableCollection, type WriteOptions, writePackage } from "./writer.js";
 
 /*
  * Point sql.js at its own `dist/`. It loads the WASM by filename relative to a
@@ -62,6 +63,7 @@ export type {
 export { default as Exporter } from "./exporter.js";
 export { type AnkiPackage, readPackage } from "./reader.js";
 export type { TemplateOptions } from "./template.js";
+export { type WritableCollection, type WriteOptions, writePackage } from "./writer.js";
 
 /**
  * Read an `.apkg` and hand back what is in it: its note types, its notes and
@@ -75,6 +77,20 @@ export type { TemplateOptions } from "./template.js";
  */
 export const readApkg = async (apkg: Uint8Array): Promise<AnkiPackage> =>
   readPackage(await getSqlModule(), apkg);
+
+/**
+ * Write a whole collection as an `.apkg`: note types, notes, cards with their
+ * scheduling, decks and media, ids as given.
+ *
+ * This is the inverse of `readApkg`, which is why it takes the reader's own
+ * shapes: what a read returns, a write takes back. `AnkiExport` is still the
+ * way to build a deck from cards; this is for a collection that is already
+ * described, or one being carried from one package to another.
+ */
+export const writeApkg = async (
+  collection: Readonly<WritableCollection>,
+  options?: Readonly<WriteOptions>,
+): Promise<Buffer> => writePackage(await getSqlModule(), collection, options);
 
 export interface ExportOptions {
   /**
