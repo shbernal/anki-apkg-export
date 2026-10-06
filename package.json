@@ -51,7 +51,7 @@
     "sql.js": "^1.14.2"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4",
+    "@types/node": "^24.19.1",
     "@types/sql.js": "^1.4.11",
     "@vitest/coverage-v8": "^5.0.3",
     "lefthook": "^2.1.17",
