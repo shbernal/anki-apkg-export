@@ -179,6 +179,20 @@ describe("every package layout Anki writes", () => {
     expect(notetypeOf(pkg, 0)?.sortField).toBe(0);
   });
 
+  /*
+   * The LaTeX settings are `models[].latexPre`, `latexPost` and `latexsvg` at
+   * schema 11, and fields 5 to 7 of the notetype's protobuf config at 18.
+   */
+  it.each(LAYOUTS)("$name gives each note type its LaTeX settings", async ({ name }) => {
+    expect.hasAssertions();
+
+    const pkg = await readApkg(readFixture(name));
+
+    expect(notetypeOf(pkg, 0)?.latexPre).toContain(String.raw`\begin{document}`);
+    expect(notetypeOf(pkg, 0)?.latexPost).toBe(String.raw`\end{document}`);
+    expect(notetypeOf(pkg, 0)?.latexSvg).toBe(false);
+  });
+
   it.each(LAYOUTS)("$name puts one card per note in the deck", async ({ name }) => {
     expect.hasAssertions();
 

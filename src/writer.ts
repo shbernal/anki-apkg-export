@@ -113,8 +113,9 @@ const buildNotetype = (notetype: Readonly<AnkiNotetype>, mod: number) => ({
     media: [],
   })),
   css: notetype.css,
-  latexPre: LATEX_PRE,
-  latexPost: "\\end{document}",
+  latexPre: notetype.latexPre ?? LATEX_PRE,
+  latexPost: notetype.latexPost ?? String.raw`\end{document}`,
+  latexsvg: notetype.latexSvg ?? false,
   tags: [],
   vers: [],
 });

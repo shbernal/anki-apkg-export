@@ -151,6 +151,24 @@ describe("the collection writer", () => {
     expect(media).toStrictEqual(new Map([["a b.png", bytes]]));
   });
 
+  it("keeps LaTeX settings, and gives Anki's defaults when there are none", async () => {
+    expect.assertions(2);
+
+    const latex = {
+      latexPre: String.raw`\begin{document}`,
+      latexPost: String.raw`\end{document}`,
+      latexSvg: true,
+    };
+    const notetypes = VOCABULARY.notetypes.map((notetype) => ({ ...notetype, ...latex }));
+    const kept = await readApkg(writePackage(sql(), { ...VOCABULARY, notetypes }, { now: NOW }));
+    const defaulted = await readApkg(writePackage(sql(), VOCABULARY, { now: NOW }));
+
+    expect(kept.notetypes).toMatchObject([latex]);
+    expect(defaulted.notetypes).toMatchObject([
+      { latexPost: String.raw`\end{document}`, latexSvg: false },
+    ]);
+  });
+
   it.each([
     ["an unknown note type", { notes: [{ ...NOTE, mid: 11 }] }, "note type 11"],
     ["a short note", { notes: [{ ...NOTE, fields: ["x"] }] }, "1 fields"],

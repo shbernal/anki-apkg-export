@@ -15,11 +15,14 @@ import { FIELD_SEPARATOR } from "./wire.js";
  * this can be simple.
  */
 
-/** `Notetype.Config`: `kind`, whose value 1 is `CLOZE`, then the sort field and the CSS. */
+/** `Notetype.Config`: `kind`, whose value 1 is `CLOZE`, the sort field, the CSS and the LaTeX settings. */
 const NOTETYPE_KIND_FIELD = 1;
 const NOTETYPE_KIND_CLOZE = 1;
 const NOTETYPE_SORT_FIELD = 2;
 const NOTETYPE_CSS_FIELD = 3;
+const NOTETYPE_LATEX_PRE_FIELD = 5;
+const NOTETYPE_LATEX_POST_FIELD = 6;
+const NOTETYPE_LATEX_SVG_FIELD = 7;
 
 /** `Notetype.Template.Config`: the question and answer formats. */
 const TEMPLATE_QFMT_FIELD = 1;
@@ -53,6 +56,17 @@ export interface AnkiNotetype {
   readonly id: number;
   /** Cloze note types have no front and back, which is what makes them special. */
   readonly isCloze: boolean;
+  /**
+   * The LaTeX header and footer a `[latex]` field is rendered between. A
+   * reader always fills them in; a writer given none uses Anki's defaults.
+   */
+  readonly latexPost?: string;
+  readonly latexPre?: string;
+  /**
+   * Whether rendered LaTeX is `.svg` rather than `.png`. The extension is part
+   * of the file name a note looks for, so dropping this breaks the images.
+   */
+  readonly latexSvg?: boolean;
   readonly name: string;
   /** The index of the field the browser sorts by. */
   readonly sortField: number;
@@ -246,6 +260,10 @@ interface LegacyTemplate extends Ordered {
 interface LegacyModel {
   readonly css: string;
   readonly id: number;
+  readonly latexPost: string;
+  readonly latexPre: string;
+  /** Absent from collections older than SVG support. */
+  readonly latexsvg?: boolean;
   readonly name: string;
   readonly sortf: number;
   readonly tmpls: readonly LegacyTemplate[];
@@ -287,6 +305,9 @@ const readLegacyNotetypes = (db: Database): AnkiNotetype[] =>
     fields: fieldNamesInOrder(model.flds),
     id: model.id,
     isCloze: model.type === LEGACY_MODEL_CLOZE,
+    latexPost: model.latexPost,
+    latexPre: model.latexPre,
+    latexSvg: model.latexsvg ?? false,
     name: model.name,
     sortField: model.sortf,
     templates: templatesInOrder(model.tmpls),
@@ -374,6 +395,9 @@ const readTableNotetypes = (db: Database): AnkiNotetype[] => {
       fields: names.get(id) ?? [],
       id,
       isCloze: varintField(config, NOTETYPE_KIND_FIELD) === NOTETYPE_KIND_CLOZE,
+      latexPost: stringField(config, NOTETYPE_LATEX_POST_FIELD),
+      latexPre: stringField(config, NOTETYPE_LATEX_PRE_FIELD),
+      latexSvg: varintField(config, NOTETYPE_LATEX_SVG_FIELD) === 1,
       name: String(row.name),
       sortField: varintField(config, NOTETYPE_SORT_FIELD) ?? 0,
       templates: templates.get(id) ?? [],
