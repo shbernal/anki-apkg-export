@@ -33,8 +33,8 @@ It intentionally does not own:
   whose question format, answer format, and CSS the caller may override.
 - **Scheduling.** Every card it writes is new; it never emits review or
   learning cards, and never writes `revlog` rows.
-- **Writing schema 18 or package version 3.** It reads all of them; it writes
-  version 1 at schema 11. See [deck format](reference/deck-format.md).
+- **Package version 3 from `AnkiExport`.** It writes version 1 at schema 11;
+  `writeApkg` writes version 2 or 3. See [deck format](reference/deck-format.md).
 
 ## Quickstart
 

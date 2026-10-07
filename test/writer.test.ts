@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { zstdDecompressSync } from "node:zlib";
 
 import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
@@ -14,7 +15,7 @@ import {
   writeApkg,
   writePackage,
 } from "../src/index.js";
-import { readRows, useSqlModule } from "./_helpers.js";
+import { readRows, unzipDeckToBuffers, useSqlModule } from "./_helpers.js";
 
 /*
  * The whole-collection writer. Whether Anki itself reads what it writes back
@@ -24,14 +25,36 @@ import { readRows, useSqlModule } from "./_helpers.js";
 const FIXTURES = path.join(import.meta.dirname, "fixtures/collections");
 const LAYOUTS = ["v1-schema11", "v1-schema18", "v2-schema11", "v3-schema18"];
 const NOW = 1_700_000_000_000;
+/** Each package version the writer takes, and the schema it holds. */
+const VERSIONS = [
+  [2, 11],
+  [3, 18],
+] as const;
 
-/** Everything a read returns that a write is asked to carry. */
+const byId = (left: Readonly<{ id: number }>, right: Readonly<{ id: number }>) =>
+  left.id - right.id;
+
+/** One archive entry, failing by name rather than handing on `undefined`. */
+const entryOf = (entries: ReadonlyMap<string, Buffer>, name: string): Buffer => {
+  const data = entries.get(name);
+  if (data === undefined) {
+    throw new Error(`Expected a ${name} entry`);
+  }
+
+  return data;
+};
+
+/**
+ * Everything a read returns that a write is asked to carry. Note types and
+ * decks by id: schema 11 keeps them in a JSON object and schema 18 in tables,
+ * and a read promises neither order.
+ */
 const content = ({ cards, decks, media, notes, notetypes }: AnkiPackage) => ({
   cards,
-  decks,
+  decks: [...decks].sort(byId),
   media,
   notes,
-  notetypes,
+  notetypes: [...notetypes].sort(byId),
 });
 
 const NOTE: AnkiNote = {
@@ -76,15 +99,21 @@ const VOCABULARY: WritableCollection = {
 describe("the collection writer", () => {
   const sql = useSqlModule();
 
-  it.each(LAYOUTS)("writes back what it read from %s", async (layout: string) => {
-    expect.assertions(2);
+  it.each(LAYOUTS.flatMap((layout) => VERSIONS.map((version) => [layout, ...version] as const)))(
+    "writes back what it read from %s as version %i",
+    async (layout: string, packageVersion: 2 | 3, schemaVersion: number) => {
+      expect.assertions(2);
 
-    const read = await readApkg(readFileSync(path.join(FIXTURES, `${layout}.apkg`)));
-    const reread = await readApkg(await writeApkg(read, { now: NOW }));
+      const read = await readApkg(readFileSync(path.join(FIXTURES, `${layout}.apkg`)));
+      const reread = await readApkg(await writeApkg(read, { now: NOW, packageVersion }));
 
-    expect(content(reread)).toStrictEqual(content(read));
-    expect([reread.packageVersion, reread.schemaVersion]).toStrictEqual([2, 11]);
-  });
+      expect(content(reread)).toStrictEqual(content(read));
+      expect([reread.packageVersion, reread.schemaVersion]).toStrictEqual([
+        packageVersion,
+        schemaVersion,
+      ]);
+    },
+  );
 
   it("declares package version 2 the way Anki does", () => {
     expect.assertions(2);
@@ -93,6 +122,33 @@ describe("the collection writer", () => {
 
     expect(Object.keys(entries)).toStrictEqual(["meta", "collection.anki21", "media"]);
     expect(entries.meta).toStrictEqual(new Uint8Array([0x08, 0x02]));
+  });
+
+  it("declares package version 3 the way Anki does, with schema 18 under unicase", () => {
+    expect.assertions(4);
+
+    const entries = unzipDeckToBuffers(
+      writePackage(sql(), VOCABULARY, { now: NOW, packageVersion: 3 }),
+    );
+    const collection = zstdDecompressSync(entryOf(entries, "collection.anki21b"));
+    const db = new (sql().Database)(collection);
+    try {
+      const collated = readRows(
+        db,
+        "select name from sqlite_master where sql like '%COLLATE unicase%' order by name",
+      );
+
+      expect([...entries.keys()]).toStrictEqual(["meta", "collection.anki21b", "media"]);
+      expect(entries.get("meta")).toStrictEqual(Buffer.from([0x08, 0x03]));
+      expect(readRows(db, "select ver from col")).toStrictEqual([{ ver: 18 }]);
+      expect(collated).toStrictEqual(
+        ["deck_config", "decks", "fields", "notetypes", "tags", "templates"].map((name) => ({
+          name,
+        })),
+      );
+    } finally {
+      db.close();
+    }
   });
 
   it("adds Default and every parent deck a name implies", async () => {
@@ -140,12 +196,16 @@ describe("the collection writer", () => {
     }
   });
 
-  it("carries media by name", async () => {
+  it.each(VERSIONS)("carries media by name in version %i", async (packageVersion: 2 | 3) => {
     expect.assertions(1);
 
     const bytes = new Uint8Array([1, 2, 3]);
     const { media } = await readApkg(
-      writePackage(sql(), { ...VOCABULARY, media: new Map([["a b.png", bytes]]) }, { now: NOW }),
+      writePackage(
+        sql(),
+        { ...VOCABULARY, media: new Map([["a b.png", bytes]]) },
+        { now: NOW, packageVersion },
+      ),
     );
 
     expect(media).toStrictEqual(new Map([["a b.png", bytes]]));
@@ -184,8 +244,8 @@ describe("the collection writer", () => {
     expect.assertions(1);
 
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const options = { packageVersion: 3 } as unknown as { packageVersion: 2 };
+    const options = { packageVersion: 4 } as unknown as { packageVersion: 2 };
 
-    expect(() => writePackage(sql(), VOCABULARY, options)).toThrow("package version 3");
+    expect(() => writePackage(sql(), VOCABULARY, options)).toThrow("package version 4");
   });
 });

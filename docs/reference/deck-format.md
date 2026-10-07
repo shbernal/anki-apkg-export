@@ -6,7 +6,7 @@ read_when:
   - Changing anything the exporter or template writes into the collection
   - Investigating why an imported deck looks wrong in Anki
   - Working on the reader, or on which packages it accepts
-  - Deciding whether to move to schema 18 / package version v3
+  - Deciding whether `AnkiExport` should move to schema 18 / package version v3
 doc_type: "reference"
 ---
 
@@ -175,11 +175,17 @@ keeps no state between runs to remember it by.
 page says about `AnkiExport` (note identity, `nextPos`, every card new) is the
 caller's business there. What it does decide:
 
-| Entry               | Contents                                                 |
-| ------------------- | -------------------------------------------------------- |
-| `meta`              | `PackageMetadata { version: 2 }`, the two bytes `08 02`. |
-| `collection.anki21` | The SQLite collection, schema 11, `conf.schedVer` 2.     |
-| `media`             | The same index-keyed JSON manifest as version 1.         |
+| Entry       | Version 2                                  | Version 3                                 |
+| ----------- | ------------------------------------------ | ----------------------------------------- |
+| `meta`      | `PackageMetadata { version: 2 }`, `08 02`  | `PackageMetadata { version: 3 }`, `08 03` |
+| collection  | `collection.anki21`, schema 11             | `collection.anki21b`, schema 18, zstd     |
+| `media`     | The index-keyed JSON manifest of version 1 | zstd `MediaEntries`: name, size and sha1  |
+| `0`, `1`, … | Each media file as it is                   | Each media file, zstd                     |
+
+Both are on the v2 scheduler. Schema 18 keeps what schema 11 puts in the `col`
+row's JSON in tables: each note type's config, fields and templates, each deck,
+the `Default` deck options preset (Anki's own bytes for it), and one `config`
+row per collection setting.
 
 - Ids, guids, tags and every card's `type`, `queue`, `due`, `ivl`, `factor`,
   `reps` and `lapses` are stored as given. `left`, `odue`, `odid` and `flags`
@@ -197,9 +203,6 @@ caller's business there. What it does decide:
 
 ## Out of scope
 
-- **Writing schema 18 or package version 3.** Not planned yet; versions 1 and 2
-  are what this package emits, and every Anki release since 2.1 imports both.
-  The reader takes all three, which is a different question.
 - **More than one notetype or template from `AnkiExport`.** Product scope, not a
   limitation to fix incidentally. `writeApkg` takes as many as the collection
   holds.
@@ -290,6 +293,15 @@ seek by name would not.
 
 Neither `node:sqlite` nor `sql.js` can register a collation, which is why this
 is a workaround rather than a fix.
+
+**Writing schema 18 runs the same rewrite the other way.** The tables are
+created `COLLATE NOCASE`, filled, and their declaration rewritten to `unicase`
+as the last step. `NOCASE` folds ASCII and `unicase` folds Unicode, so the name
+indexes come out in Anki's order whenever the names differ only in ASCII case.
+Two names whose order turns on a cased letter outside ASCII, such as `Äb` and
+`äa`, can sit out of order in their index. SQLite's `integrity_check` then
+reports it; Anki reads and imports the file all the same, because nothing an
+import does seeks by name in the package's own collection.
 
 ### Where the tolerance stops
 

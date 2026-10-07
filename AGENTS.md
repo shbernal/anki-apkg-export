@@ -22,7 +22,8 @@ Update the matching page when behavior changes.
 - reads and writes Anki `.apkg` deck packages from JavaScript and TypeScript
 - published to npm as `@shbernal/anki-apkg-export`, ESM-only, Node.js >= 24
 - write path: `src/exporter.ts` holds the deck logic, `src/writer.ts` writes a
-  whole collection described in the reader's shapes, `src/archive.ts` the
+  whole collection described in the reader's shapes (schema 18 for v3 in
+  `src/schema18.ts`), `src/archive.ts` the
   `.apkg` packaging, `src/template.ts` the default note template, `src/text.ts`
   Anki's HTML stripper
 - read path: `src/reader.ts` is its entry, `src/unpack.ts` the container,

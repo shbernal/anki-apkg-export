@@ -1,4 +1,9 @@
+import { createHash } from "node:crypto";
+import { zstdCompressSync } from "node:zlib";
+
 import { strToU8, type ZipOptions, type Zippable, zipSync } from "fflate";
+
+import { writeMessage } from "./protobuf.js";
 
 export type { ZipOptions } from "fflate";
 
@@ -44,7 +49,7 @@ const toArchiveClock = (date: Date): Date =>
   );
 
 interface DeckPackage {
-  /** The exported `collection.anki2` bytes. */
+  /** The collection database, before any compression its layout applies. */
   collection: Uint8Array;
   media: readonly Readonly<MediaItem>[];
   /** The instant the deck was built; every entry is stamped with it, unless
@@ -54,23 +59,81 @@ interface DeckPackage {
   packageVersion?: WritablePackageVersion;
 }
 
-/** The package versions this writes. Version 3 is read, never written. */
+/** The package versions this writes. */
 export const PACKAGE_V1 = 1;
 export const PACKAGE_V2 = 2;
-export type WritablePackageVersion = typeof PACKAGE_V1 | typeof PACKAGE_V2;
+export const PACKAGE_V3 = 3;
+export type WritablePackageVersion = typeof PACKAGE_V1 | typeof PACKAGE_V2 | typeof PACKAGE_V3;
 
-/** The key byte of `PackageMetadata.version`: field 1, wire type varint. */
-const META_VERSION_KEY = 0x08;
+/** `PackageMetadata.version`, and `MediaEntries.entries` with each entry's fields. */
+const META_VERSION_FIELD = 1;
+const MEDIA_ENTRIES_FIELD = 1;
+const MEDIA_NAME_FIELD = 1;
+const MEDIA_SIZE_FIELD = 2;
+const MEDIA_SHA1_FIELD = 3;
+
+/** Versions 1 and 2 map entry names to filenames in JSON. */
+const jsonManifest = (filenames: readonly string[]): Uint8Array => {
+  const byEntry = Object.fromEntries(filenames.entries());
+
+  return strToU8(JSON.stringify(byEntry));
+};
+
+/** The bytes Node's zstd returns, as the plain `Uint8Array` fflate takes. */
+const zstd = (data: Uint8Array): Uint8Array => new Uint8Array(zstdCompressSync(data));
 
 /**
- * Where each version keeps its collection, and the `meta` entry it declares
- * itself with. Version 1 has none; its absence is what says version 1.
+ * Version 3 lists the files in a `MediaEntries` message, positionally, with the
+ * size and sha1 of the bytes before compression.
  */
-const LAYOUTS: Readonly<
-  Record<WritablePackageVersion, Readonly<{ entry: string; meta: Uint8Array | null }>>
-> = {
-  [PACKAGE_V1]: { entry: "collection.anki2", meta: null },
-  [PACKAGE_V2]: { entry: "collection.anki21", meta: Uint8Array.of(META_VERSION_KEY, PACKAGE_V2) },
+const mediaEntry = (item: Readonly<MediaItem>): readonly [number, Uint8Array] => {
+  const data = toBytes(item.data);
+  const entry = writeMessage([
+    [MEDIA_NAME_FIELD, item.filename],
+    [MEDIA_SIZE_FIELD, data.length],
+    [MEDIA_SHA1_FIELD, createHash("sha1").update(data).digest()],
+  ]);
+
+  return [MEDIA_ENTRIES_FIELD, entry];
+};
+
+const protobufManifest = (media: readonly Readonly<MediaItem>[]): Uint8Array =>
+  zstd(writeMessage(media.map((item: Readonly<MediaItem>) => mediaEntry(item))));
+
+const asIs = (data: Uint8Array): Uint8Array => data;
+
+interface Layout {
+  /** The collection's entry name. */
+  readonly entry: string;
+  /** The `meta` entry. Version 1 has none; its absence is what says version 1. */
+  readonly meta: Uint8Array | null;
+  /** Applied to the collection and to each media file. */
+  readonly encode: (data: Uint8Array) => Uint8Array;
+  readonly manifest: (media: readonly Readonly<MediaItem>[]) => Uint8Array;
+}
+
+/** How each version lays its collection and media out. */
+const LAYOUTS: Readonly<Record<WritablePackageVersion, Layout>> = {
+  [PACKAGE_V1]: {
+    entry: "collection.anki2",
+    meta: null,
+    encode: asIs,
+    manifest: (media: readonly Readonly<MediaItem>[]) =>
+      jsonManifest(media.map((item: Readonly<MediaItem>) => item.filename)),
+  },
+  [PACKAGE_V2]: {
+    entry: "collection.anki21",
+    meta: writeMessage([[META_VERSION_FIELD, PACKAGE_V2]]),
+    encode: asIs,
+    manifest: (media: readonly Readonly<MediaItem>[]) =>
+      jsonManifest(media.map((item: Readonly<MediaItem>) => item.filename)),
+  },
+  [PACKAGE_V3]: {
+    entry: "collection.anki21b",
+    meta: writeMessage([[META_VERSION_FIELD, PACKAGE_V3]]),
+    encode: zstd,
+    manifest: protobufManifest,
+  },
 };
 
 /** The `meta` entry, for the versions that carry one. */
@@ -85,8 +148,9 @@ const metaEntry = (meta: Uint8Array | null, mtime: ZipOptions["mtime"]): Zippabl
 /**
  * Zip a collection and its media into the `.apkg` layout: the collection under
  * the entry its package version names, a `meta` entry from version 2 on, a
- * `media` manifest mapping stringified indices to original filenames, and one
- * numerically named entry per file. Media files are stored under their index
+ * `media` manifest naming each file by its index, and one numerically named
+ * entry per file. Version 3 compresses the collection, the manifest and every
+ * file with zstd. Media files are stored under their index
  * rather than their name, which is what lets a deck carry filenames a ZIP or a
  * filesystem would not take.
  */
@@ -104,23 +168,22 @@ export const packageDeck = (
   const mtime = options.mtime ?? toArchiveClock(createdAt);
   const entry = (data: Uint8Array): [Uint8Array, ZipOptions] => [data, { mtime }];
 
-  /* One pass over the media, because the manifest key and the entry name are
-     the same index and that correspondence is the format's actual rule. */
-  const manifest: Record<string, string> = {};
-  const entries: Zippable = {};
+  const layout = LAYOUTS[packageVersion];
 
-  media.forEach((item: Readonly<MediaItem>, idx: number) => {
-    const name = String(idx);
-    manifest[name] = item.filename;
-    entries[name] = entry(toBytes(item.data));
-  });
+  /* Each manifest names a file by its position in the list, and the entry is
+     named by that same index: that correspondence is the format's actual rule. */
+  const entries: Zippable = Object.fromEntries(
+    media.map((item: Readonly<MediaItem>, idx: number) => [
+      String(idx),
+      entry(layout.encode(toBytes(item.data))),
+    ]),
+  );
 
   /* Anki writes `meta` first; the importer finds it by name either way. */
-  const layout = LAYOUTS[packageVersion];
   const files: Zippable = {
     ...metaEntry(layout.meta, mtime),
-    [layout.entry]: entry(collection),
-    media: entry(strToU8(JSON.stringify(manifest))),
+    [layout.entry]: entry(layout.encode(collection)),
+    media: entry(layout.manifest(media)),
     ...entries,
   };
 

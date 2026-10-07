@@ -1,7 +1,7 @@
 /*
- * Just enough of the protobuf wire format to read what Anki stores in it: the
- * package version in a `meta` entry, the media manifest of a v3 package, and a
- * schema-18 notetype's, template's and deck's config.
+ * Just enough of the protobuf wire format to read and write what Anki stores in
+ * it: the package version in a `meta` entry, the media manifest of a v3
+ * package, and a schema-18 notetype's, field's, template's and deck's config.
  *
  * Each is a handful of bytes, and none of them needs a schema: the wire
  * format carries the field number and the shape of every value, and this reads
@@ -219,3 +219,74 @@ export const stringField = (data: Uint8Array, fieldNumber: number): string => {
 
   return TEXT_DECODER.decode(field.bytes);
 };
+
+/*
+ * The other direction, for what a version 3 package writes: the media manifest
+ * and a schema-18 collection's config blobs. Proto3 leaves a scalar at its
+ * default value off the wire, so a zero, `false` or `""` is skipped. Bytes are
+ * always written, because they carry embedded messages, and an empty one inside
+ * a `oneof` still says which branch is set.
+ */
+
+/** A field to write: a varint, a string, or the bytes of an embedded message. */
+export type WireValue = boolean | number | string | Uint8Array;
+
+const TEXT_ENCODER = new TextEncoder();
+
+/** Positive only: nothing written here is a negative `int64`. */
+const encodeVarint = (value: number): number[] => {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Cannot encode ${value} as a protobuf varint`);
+  }
+
+  const bytes: number[] = [];
+  let rest = value;
+
+  while (rest >= CONTINUATION) {
+    bytes.push((rest % PAYLOAD_SCALE) | CONTINUATION);
+    rest = Math.floor(rest / PAYLOAD_SCALE);
+  }
+
+  bytes.push(rest);
+
+  return bytes;
+};
+
+const encodeVarintField = (fieldNumber: number, value: number): number[] => {
+  if (value === 0) {
+    return [];
+  }
+
+  return [...encodeVarint(fieldNumber * WIRE_TYPES + VARINT), ...encodeVarint(value)];
+};
+
+/* Empty bytes are written: they can be an embedded message whose presence matters. */
+const encodeBytesField = (fieldNumber: number, bytes: Uint8Array): number[] => [
+  ...encodeVarint(fieldNumber * WIRE_TYPES + LENGTH_DELIMITED),
+  ...encodeVarint(bytes.length),
+  ...bytes,
+];
+
+const encodeField = (fieldNumber: number, value: WireValue): number[] => {
+  if (typeof value === "number" || typeof value === "boolean") {
+    return encodeVarintField(fieldNumber, Number(value));
+  }
+
+  if (value === "") {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    return encodeBytesField(fieldNumber, TEXT_ENCODER.encode(value));
+  }
+
+  return encodeBytesField(fieldNumber, value);
+};
+
+/** One message, its fields written in the order given. */
+export const writeMessage = (fields: readonly (readonly [number, WireValue])[]): Uint8Array =>
+  Uint8Array.from(
+    fields.flatMap(([fieldNumber, value]: readonly [number, WireValue]) =>
+      encodeField(fieldNumber, value),
+    ),
+  );

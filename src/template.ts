@@ -56,6 +56,8 @@ const NOTE_FIELDS = [
 export const LATEX_PRE =
   "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n";
 
+export const LATEX_POST = String.raw`\end{document}`;
+
 /** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
 /**
  * The ids this template seeds its placeholder deck and note model under.
@@ -178,7 +180,7 @@ const buildModels = (
         bqfmt: "",
       },
     ],
-    latexPost: "\\end{document}",
+    latexPost: LATEX_POST,
     type: 0,
     id: PLACEHOLDER_MODEL_ID,
     css,
@@ -203,7 +205,8 @@ const COL_TABLE = `
         tags            text not null
     );`;
 
-const NOTE_TABLES = `
+/** `notes`, `cards` and `revlog`, which schema 11 and schema 18 share. */
+export const NOTE_TABLES = `
     CREATE TABLE notes (
         id              integer primary key,   /* 0 */
         guid            text not null,         /* 1 */
@@ -247,16 +250,21 @@ const NOTE_TABLES = `
         factor          integer not null,
         time            integer not null,
         type            integer not null
-    );
+    );`;
+
+const LEGACY_GRAVES = `
     CREATE TABLE graves (
         usn             integer not null,
         oid             integer not null,
         type            integer not null
     );`;
 
-const INDEXES = `
+const STATS = `
     ANALYZE sqlite_master;
-    INSERT INTO "sqlite_stat1" VALUES('col',NULL,'1');
+    INSERT INTO "sqlite_stat1" VALUES('col',NULL,'1');`;
+
+/** The indexes over the shared tables, which schema 18 keeps too. */
+export const NOTE_INDEXES = `
     CREATE INDEX ix_notes_usn on notes (usn);
     CREATE INDEX ix_cards_usn on cards (usn);
     CREATE INDEX ix_revlog_usn on revlog (usn);
@@ -282,7 +290,7 @@ const ROLLOVER_HOUR = 4;
  * Nothing here depends on the difference: `crt` only converts day numbers for
  * review and learning cards, and every card this package writes is new.
  */
-const dayRollover = (nowMs: number): number => {
+export const dayRollover = (nowMs: number): number => {
   const midnightUtc = Math.floor(nowMs / MILLISECONDS_PER_DAY) * MILLISECONDS_PER_DAY;
   const rollover = midnightUtc + ROLLOVER_HOUR * MILLISECONDS_PER_HOUR;
 
@@ -333,7 +341,7 @@ export const createCollectionScript = (columns: Readonly<CollectionColumns>, now
       ${sqlString(columns.decks)},
       ${sqlString(columns.dconf)},
       '{}'
-    );${NOTE_TABLES}${INDEXES}
+    );${NOTE_TABLES}${LEGACY_GRAVES}${STATS}${NOTE_INDEXES}
     COMMIT;
   `;
 

@@ -14,6 +14,10 @@ Unreleased. Versions before 4.0.4 predate this file; see the
   own shapes, so `writeApkg(await readApkg(bytes))` carries a package across.
   `writePackage` is the same for a caller holding its own sql.js. `AnkiExport`
   and what it writes are unchanged.
+- **`writeApkg` writes package version 3.** `{ packageVersion: 3 }` writes what
+  current Anki exports by default: schema 18 under `collection.anki21b`, with
+  the collection, the protobuf media manifest and every media file
+  zstd-compressed.
 - **The reader returns cards and decks, and the rest of each note type.**
   `AnkiPackage` gains `cards` (each card's note, deck, `ord` and scheduling
   values as stored) and `decks` (full name and description). Notes carry their

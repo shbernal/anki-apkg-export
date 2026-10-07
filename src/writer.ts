@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 
 import type { Database, SqlJsStatic, SqlValue } from "sql.js";
 
-import { type MediaData, packageDeck, PACKAGE_V2 } from "./archive.js";
+import { type MediaData, packageDeck, PACKAGE_V2, PACKAGE_V3 } from "./archive.js";
 import type { AnkiCard, AnkiDeck, AnkiNote, AnkiNotetype } from "./collection.js";
+import { type BuildClock, createTableCollection, declareUnicase } from "./schema18.js";
 import {
   buildDeck,
   type CollectionColumns,
@@ -11,6 +12,7 @@ import {
   createCollectionScript,
   DCONF,
   DEFAULT_DECK_ID,
+  LATEX_POST,
   LATEX_PRE,
 } from "./template.js";
 import stripHtmlPreservingMediaFilenames from "./text.js";
@@ -22,8 +24,13 @@ import { FIELD_SEPARATOR } from "./wire.js";
  * `Exporter` builds one deck of one note type a card at a time and decides
  * every id itself. This takes a collection already described in the reader's
  * own terms, ids included, and writes it as it is. What it adds is only what
- * schema 11 needs and the description leaves out: the `Default` deck, any
+ * the collection needs and the description leaves out: the `Default` deck, any
  * parent deck a `::` name implies, and the derived `sfld` and `csum` columns.
+ *
+ * Package version 2 holds schema 11, where note types, decks and settings are
+ * JSON in the `col` row. Version 3 holds schema 18, where they are tables of
+ * their own; `schema18.ts` writes those. Notes and cards are the same rows in
+ * both.
  *
  * It is strict the way the exporter is. A note naming a note type that is not
  * there, a card naming a note or deck that is not there, or a note with the
@@ -44,9 +51,11 @@ export interface WritableCollection {
 export interface WriteOptions {
   /**
    * The container layout. Version 2 is schema 11 on the v2 scheduler, under
-   * `collection.anki21`, which every Anki since 2.1 imports.
+   * `collection.anki21`, which every Anki since 2.1 imports. Version 3 is
+   * schema 18, zstd-compressed under `collection.anki21b`, which is what
+   * current Anki exports by default and imports from 2.1.50 on.
    */
-  readonly packageVersion?: typeof PACKAGE_V2;
+  readonly packageVersion?: typeof PACKAGE_V2 | typeof PACKAGE_V3;
   /** The epoch-millisecond instant to build at, defaulting to now. */
   readonly now?: number;
 }
@@ -114,7 +123,7 @@ const buildNotetype = (notetype: Readonly<AnkiNotetype>, mod: number) => ({
   })),
   css: notetype.css,
   latexPre: notetype.latexPre ?? LATEX_PRE,
-  latexPost: notetype.latexPost ?? String.raw`\end{document}`,
+  latexPost: notetype.latexPost ?? LATEX_POST,
   latexsvg: notetype.latexSvg ?? false,
   tags: [],
   vers: [],
@@ -139,10 +148,10 @@ const defaultDeck = (decks: readonly AnkiDeck[]): AnkiDeck[] => {
 
 /**
  * Every deck the cards need: the caller's, each parent a `::` name implies,
- * and `Default`, which schema 11 requires under id 1. A missing parent takes
+ * and `Default`, which both schemas keep under id 1. A missing parent takes
  * the next id above every one the caller used.
  */
-const buildDecks = (decks: readonly AnkiDeck[], mod: number) => {
+const allDecks = (decks: readonly AnkiDeck[]): AnkiDeck[] => {
   const firstFreeId =
     Math.max(DEFAULT_DECK_ID, ...decks.map((deck: Readonly<AnkiDeck>) => deck.id)) + 1;
   const parents = missingAncestors(decks).map((name: string, offset: number) => ({
@@ -151,15 +160,16 @@ const buildDecks = (decks: readonly AnkiDeck[], mod: number) => {
     description: "",
   }));
 
-  return Object.fromEntries(
-    [...defaultDeck(decks), ...decks, ...parents].map(
-      ({ id, name, description }: Readonly<AnkiDeck>) => [
-        id,
-        buildDeck({ id, name, desc: description, usn: -1, mod }),
-      ],
-    ),
-  );
+  return [...defaultDeck(decks), ...decks, ...parents];
 };
+
+const buildDecks = (decks: readonly AnkiDeck[], mod: number) =>
+  Object.fromEntries(
+    allDecks(decks).map(({ id, name, description }: Readonly<AnkiDeck>) => [
+      id,
+      buildDeck({ id, name, desc: description, usn: -1, mod }),
+    ]),
+  );
 
 /**
  * The `col.conf` a fresh collection on the v2 scheduler carries, pointed at
@@ -287,17 +297,49 @@ const insertRows = (db: Database, collection: Readonly<WritableCollection>, mod:
   }
 };
 
+interface Build extends BuildClock {
+  readonly packageVersion: number;
+}
+
+/** Schema 18 for package version 3, schema 11 otherwise. */
+const fillCollection = (
+  db: Database,
+  collection: Readonly<WritableCollection>,
+  { mod, now, packageVersion }: Readonly<Build>,
+): void => {
+  if (packageVersion !== PACKAGE_V3) {
+    db.run(createCollectionScript(buildColumns(collection, mod), now));
+    insertRows(db, collection, mod);
+
+    return;
+  }
+
+  createTableCollection(
+    db,
+    {
+      conf: buildConf(collection),
+      decks: allDecks(collection.decks),
+      notetypes: collection.notetypes,
+    },
+    { mod, now },
+  );
+  insertRows(db, collection, mod);
+  declareUnicase(db);
+};
+
 /** The collection database's bytes. The database lives only for this call. */
 const writeCollection = (
   sql: SqlJsStatic,
   collection: Readonly<WritableCollection>,
-  now: number,
+  { now, packageVersion }: Readonly<Omit<Build, "mod">>,
 ): Uint8Array => {
-  const mod = Math.floor(now / MILLISECONDS_PER_SECOND);
   const db = new sql.Database();
   try {
-    db.run(createCollectionScript(buildColumns(collection, mod), now));
-    insertRows(db, collection, mod);
+    fillCollection(db, collection, {
+      mod: Math.floor(now / MILLISECONDS_PER_SECOND),
+      now,
+      packageVersion,
+    });
 
     return db.export();
   } finally {
@@ -316,9 +358,11 @@ export const writePackage = (
   collection: Readonly<WritableCollection>,
   { packageVersion = PACKAGE_V2, now = Date.now() }: Readonly<WriteOptions> = {},
 ): Buffer => {
-  /* The type says 2, but a JavaScript caller can pass anything. */
-  if (packageVersion !== PACKAGE_V2) {
-    throw new Error(`Cannot write package version ${String(packageVersion)}: only 2 is written`);
+  /* The type says 2 or 3, but a JavaScript caller can pass anything. */
+  if (packageVersion !== PACKAGE_V2 && packageVersion !== PACKAGE_V3) {
+    throw new Error(
+      `Cannot write package version ${String(packageVersion)}: only 2 and 3 are written`,
+    );
   }
   checkCards(collection);
   const media = [...(collection.media ?? [])].map(
@@ -326,7 +370,7 @@ export const writePackage = (
   );
 
   return packageDeck({
-    collection: writeCollection(sql, collection, now),
+    collection: writeCollection(sql, collection, { now, packageVersion }),
     media,
     createdAt: new Date(now),
     packageVersion,

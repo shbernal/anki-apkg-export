@@ -331,7 +331,7 @@ interface WritableCollection {
 }
 
 interface WriteOptions {
-  packageVersion?: 2;
+  packageVersion?: 2 | 3;
   now?: number;
 }
 
@@ -344,11 +344,14 @@ takes the reader's own shapes, so what `readApkg` returns can be handed straight
 back. `AnkiExport` remains the way to build a deck from cards; this is for a
 collection that is already described.
 
-The package is version 2: schema 11 on the v2 scheduler under
-`collection.anki21`, plus the `meta` entry that names the version. `now` stamps
+The package is version 2 unless `packageVersion` says 3. Version 2 is schema 11
+on the v2 scheduler under `collection.anki21`, which every Anki since 2.1
+imports. Version 3 is schema 18, zstd-compressed under `collection.anki21b` with
+zstd media, which is what current Anki exports by default. Both carry the `meta`
+entry that names the version. `now` stamps
 the collection, the rows' `mod` and the archive, as it does for `AnkiExport`.
 
-What the write adds is what schema 11 needs and the description leaves out: the
+What the write adds is what the collection needs and the description leaves out: the
 `Default` deck under id 1 unless a deck already has that id, each parent deck a
 `::` name implies, and every note's `sfld` (its sort field, stripped) and `csum`
 (its first field, stripped and hashed). Notes are not deduplicated and guids are
@@ -356,7 +359,7 @@ written as given.
 
 It throws, writing nothing, when a note names a note type that is not in the
 collection or has a different number of fields than it, when a card names a note
-or deck that is not in the collection, or when `packageVersion` is anything but 2.
+or deck that is not in the collection, or when `packageVersion` is anything but 2 or 3.
 
 ## `writePackage(sql, collection, options?)`
 
