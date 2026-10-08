@@ -419,6 +419,30 @@ describe("packages this reader takes as they come", () => {
   });
 
   /*
+   * Schema 11 keys `col.models` and `col.decks` by id and repeats the id inside
+   * each entry. Older tools wrote that inner id as a string of digits, which
+   * Anki reads as the number, so notes and cards still find their note type
+   * and deck.
+   */
+  it("reads note type and deck ids written as strings", async () => {
+    expect.hasAssertions();
+
+    const sql = await loadSqlModule();
+    const stringly = patchCollection(
+      sql,
+      "v1-schema11",
+      ["models", "decks"]
+        .map(
+          (column) =>
+            `UPDATE col SET ${column} = (SELECT json_group_object(key, json_set(value, '$.id', CAST(json_extract(value, '$.id') AS TEXT))) FROM json_each(col.${column}))`,
+        )
+        .join(";"),
+    );
+
+    expect(readPackage(sql, stringly)).toStrictEqual(readPackage(sql, readFixture("v1-schema11")));
+  });
+
+  /*
    * `fields` outlives the note types it belongs to, and an Anki export ships
    * rows for ids no note type has. The other direction is possible too, and a
    * note type whose rows are gone has no fields rather than somebody else's.

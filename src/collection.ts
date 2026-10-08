@@ -259,7 +259,8 @@ interface LegacyTemplate extends Ordered {
 /** One model as schema 11 serializes it into `col.models`. */
 interface LegacyModel {
   readonly css: string;
-  readonly id: number;
+  /** A string of digits from some older tools; Anki reads either. */
+  readonly id: number | string;
   readonly latexPost: string;
   readonly latexPre: string;
   /** Absent from collections older than SVG support. */
@@ -274,7 +275,8 @@ interface LegacyModel {
 /** One deck as schema 11 serializes it into `col.decks`. */
 interface LegacyDeck {
   readonly desc?: string;
-  readonly id: number;
+  /** A string of digits from some older tools; Anki reads either. */
+  readonly id: number | string;
   readonly name: string;
 }
 
@@ -303,7 +305,7 @@ const readLegacyNotetypes = (db: Database): AnkiNotetype[] =>
   readLegacyMap<LegacyModel>(db, "models").map((model: Readonly<LegacyModel>) => ({
     css: model.css,
     fields: fieldNamesInOrder(model.flds),
-    id: model.id,
+    id: Number(model.id),
     isCloze: model.type === LEGACY_MODEL_CLOZE,
     latexPost: model.latexPost,
     latexPre: model.latexPre,
@@ -316,7 +318,7 @@ const readLegacyNotetypes = (db: Database): AnkiNotetype[] =>
 const readLegacyDecks = (db: Database): AnkiDeck[] =>
   readLegacyMap<LegacyDeck>(db, "decks").map((deck: Readonly<LegacyDeck>) => ({
     description: deck.desc ?? "",
-    id: deck.id,
+    id: Number(deck.id),
     name: deck.name,
   }));
 

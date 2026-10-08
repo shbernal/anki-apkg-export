@@ -178,13 +178,18 @@ const buildDecks = (decks: readonly AnkiDeck[], mod: number) =>
  */
 const buildConf = ({ cards, decks, notetypes }: Readonly<WritableCollection>) => {
   const deckId = decks[0]?.id ?? DEFAULT_DECK_ID;
-  const newPositions = cards
-    .filter((card: Readonly<AnkiCard>) => card.type === CARD_TYPE_NEW)
-    .map((card: Readonly<AnkiCard>) => card.due);
+  /* A loop rather than `Math.max(...)`: spreading a large deck's positions
+     as arguments overflows the stack. */
+  let lastPosition = 0;
+  for (const card of cards) {
+    if (card.type === CARD_TYPE_NEW) {
+      lastPosition = Math.max(lastPosition, card.due);
+    }
+  }
 
   return {
     ...CONF,
-    nextPos: Math.max(0, ...newPositions) + 1,
+    nextPos: lastPosition + 1,
     activeDecks: [deckId],
     curDeck: deckId,
     curModel: notetypes[0]?.id ?? 0,
