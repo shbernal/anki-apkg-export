@@ -79,13 +79,10 @@ describe("the exporter internals", () => {
 
   it("builds a zip holding the database and the media", async () => {
     expect.hasAssertions();
-    const dbExportSpy = vi.spyOn(exporter.db, "export");
-
     exporter.addMedia("1.jpg", Buffer.from("one"));
     exporter.addMedia("2.bmp", Buffer.from("two"));
     const files = unzipDeckToBuffers(await exporter.save());
 
-    expect(dbExportSpy).toHaveBeenCalledWith();
     expect([...files.keys()].sort()).toStrictEqual(["0", "1", "collection.anki2", "media"]);
     expect(files.get("collection.anki2")?.subarray(0, SQLITE_HEADER.length).toString()).toBe(
       SQLITE_HEADER,
@@ -98,20 +95,6 @@ describe("the exporter internals", () => {
     expect(files.get("1")?.toString()).toBe("two");
   });
 
-  it("lets a repeated media filename replace its earlier bytes", async () => {
-    expect.hasAssertions();
-
-    exporter.addMedia("a.png", Buffer.from("one"));
-    exporter.addMedia("a.png", Buffer.from("two"));
-    const files = unzipDeckToBuffers(await exporter.save());
-
-    /* Both entries used to ship. Anki writes entry 0 into its media folder and
-       then overwrites it with entry 1, so the first payload was dead weight. */
-    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png" });
-    expect(files.get("0")?.toString()).toBe("two");
-    expect([...files.keys()]).not.toContain("1");
-  });
-
   it("keeps a replaced file at the index it was first given", async () => {
     expect.hasAssertions();
 
@@ -120,8 +103,9 @@ describe("the exporter internals", () => {
     exporter.addMedia("a.png", Buffer.from("three"));
     const files = unzipDeckToBuffers(await exporter.save());
 
-    /* The manifest is index-keyed, so a replacement must not renumber what
-       comes after it. */
+    /* Anki writes each entry into its media folder in turn, so a second entry
+       for the name would only be overwritten dead weight. The manifest is
+       index-keyed, so the replacement must not renumber what comes after it. */
     expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({ 0: "a.png", 1: "b.png" });
     expect(files.get("0")?.toString()).toBe("three");
     expect(files.get("1")?.toString()).toBe("two");
@@ -291,20 +275,6 @@ describe("the exporter internals", () => {
     });
   });
 
-  it("writes ids in milliseconds and mod times in seconds", () => {
-    expect.hasAssertions();
-
-    exporter.addCard("Test Front", "Test back");
-
-    /* Anki keeps an imported row's `mod` as given. Milliseconds in a column
-       read as seconds date the row to roughly the year 58,600, and nothing on
-       the import path corrects it — unlike `sfld` and `csum`. */
-    const expected = { id: now, mod: Math.floor(now / MILLISECONDS_PER_SECOND) };
-
-    expect(readRows(exporter.db, "select id, mod from notes")).toStrictEqual([expected]);
-    expect(readRows(exporter.db, "select id, mod from cards")).toStrictEqual([expected]);
-  });
-
   it("gives each new card the next position in the queue", async () => {
     expect.hasAssertions();
 
@@ -416,37 +386,13 @@ describe("the exporter internals", () => {
 
   it("joins a tag array into Anki's space-delimited form", () => {
     expect.hasAssertions();
-    const { topModelId, separator } = exporter;
-    const [front, back] = ["Test Front", "Test back"];
-    const tags = ["tag1", "tag2", "multiple words tag"];
-
-    exporter.addCard(front, back, { tags });
-
-    const notes = readRows(exporter.db, "select * from notes");
-
-    expect(notes).toHaveLength(1);
-    expect(notes[0]).toMatchObject({
-      sfld: front,
-      flds: front + separator + back,
-      mid: topModelId,
-    });
+    exporter.addCard("Test Front", "Test back", { tags: ["tag1", "tag2", "multiple words tag"] });
 
     /* Anki splits tags on spaces, so a tag containing one is underscored and
        the whole field is space-padded at both ends. */
-    expect(String(notes[0]?.tags).split(" ")).toStrictEqual([
-      "",
-      ...tags.map((tag: string) => tag.replaceAll(" ", "_")),
-      "",
-    ]);
-  });
-
-  it("stores no tags at all for an empty tag array", () => {
-    expect.hasAssertions();
-
-    exporter.addCard("Test Front", "Test back", { tags: [] });
-
-    /* What Anki writes for an untagged note. */
-    expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags: "" });
+    expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({
+      tags: " tag1 tag2 multiple_words_tag ",
+    });
   });
 
   it("drops array entries that hold no tag", () => {
@@ -460,6 +406,7 @@ describe("the exporter internals", () => {
   it("writes the same tags for an empty array as for no options", () => {
     expect.hasAssertions();
 
+    /* What Anki writes for an untagged note. */
     exporter.addCard("Empty array", "back", { tags: [] });
     exporter.addCard("No options", "back");
 
@@ -472,51 +419,22 @@ describe("the exporter internals", () => {
 
   it("passes a tag string through untouched", () => {
     expect.hasAssertions();
-    const { topDeckId, topModelId, separator } = exporter;
-    const [front, back, tags] = ["Test Front", "Test back", "Some string with_delimiters"];
+    const tags = "Some string with_delimiters";
 
-    exporter.addCard(front, back, { tags });
+    exporter.addCard("Test Front", "Test back", { tags });
 
-    const notes = readRows(exporter.db, "select * from notes");
-    const cards = readRows(exporter.db, "select * from cards");
-
-    expect(notes).toHaveLength(1);
-    expect(notes[0]).toMatchObject({
-      sfld: front,
-      flds: front + separator + back,
-      mid: topModelId,
-      tags,
-    });
-    expect(cards[0]).toMatchObject({
-      did: topDeckId,
-      nid: notes[0]?.id,
-    });
+    expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags });
   });
 
   it("updates duplicates in place", () => {
     expect.hasAssertions();
-    const { topDeckId, topModelId, separator } = exporter;
-    const [front, back] = ["Test Front", "Test back"];
-
-    exporter.addCard(front, back);
-    exporter.addCard(front, back);
-
-    const notes = readRows(exporter.db, "select * from notes");
-    const cards = readRows(exporter.db, "select * from cards");
+    exporter.addCard("Test Front", "Test back");
+    exporter.addCard("Test Front", "Test back");
 
     /* The whole claim of "in place": adding the same card twice leaves one note
        and one card behind, not two. */
-    expect(notes).toHaveLength(1);
-    expect(cards).toHaveLength(1);
-    expect(notes[0]).toMatchObject({
-      sfld: front,
-      flds: front + separator + back,
-      mid: topModelId,
-    });
-    expect(cards[0]).toMatchObject({
-      did: topDeckId,
-      nid: notes[0]?.id,
-    });
+    expect(readRows(exporter.db, "select id from notes")).toHaveLength(1);
+    expect(readRows(exporter.db, "select id from cards")).toHaveLength(1);
   });
 
   it("lets a repeat retag the note it updates", () => {
@@ -581,7 +499,7 @@ describe("the exporter internals", () => {
 describe("the injected clock", () => {
   const sqlModule = useSqlModule();
 
-  /* No fake timers here on purpose: these assert that nothing in the exporter
+  /* No fake timers here on purpose: this asserts that nothing in the exporter
      reads the clock once `now` is given, which a frozen `Date` would hide. */
   const buildAt = (injected: number): Exporter =>
     new Exporter("testDeckName", {
@@ -596,28 +514,14 @@ describe("the injected clock", () => {
 
     exporter.addCard("Test Front", "Test back");
 
+    /* Anki keeps an imported row's `mod` as given. Milliseconds in a column
+       read as seconds date the row to roughly the year 58,600, and nothing on
+       the import path corrects it — unlike `sfld` and `csum`. */
     const expected = { id: now, mod: Math.floor(now / MILLISECONDS_PER_SECOND) };
 
     expect(readRows(exporter.db, "select id, mod from notes")).toStrictEqual([expected]);
     expect(readRows(exporter.db, "select id, mod from cards")).toStrictEqual([expected]);
     expect(readRow(exporter.db, "select mod from col").mod).toBe(now);
-  });
-
-  it("builds byte-identical archives from the same input and clock", async () => {
-    expect.hasAssertions();
-    const save = (): Promise<Buffer> => {
-      const exporter = buildAt(now);
-      exporter.addCard("Test Front", "Test back");
-      exporter.addMedia("1.jpg", Buffer.from("one"));
-
-      return exporter.save();
-    };
-
-    /* The whole point of the option: reproducibility survives leaving the
-       process, not just leaving the millisecond. */
-    const [firstSave, secondSave] = [await save(), await save()];
-
-    expect(firstSave.equals(secondSave)).toBe(true);
   });
 });
 

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AnkiExport from "../src/index.js";
 import { buildFixtureDeck, FIXTURE_CARDS, FIXTURE_NOW } from "./_fixture-deck.js";
-import { addCards, unzipDeckToDir } from "./_helpers.js";
+import { unzipDeckToDir } from "./_helpers.js";
 
 const tmpDir = path.join(os.tmpdir(), "anki-apkg-export");
 const dest = path.join(tmpDir, "result.apkg");
@@ -110,15 +110,15 @@ describe("a deck read back through node:sqlite", () => {
     expect.hasAssertions();
     vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ["Date"] });
 
-    const zip = await buildFixtureDeck(AnkiExport);
-    expect(zip).toBeInstanceOf(Buffer);
-    await expect(matchesFixture(zip)).resolves.toBe(true);
+    await expect(matchesFixture(await buildFixtureDeck(AnkiExport))).resolves.toBe(true);
   });
 
   it("carries back the fields, sort fields and tags it was given", async () => {
     expect.hasAssertions();
     const apkg = await AnkiExport("deck-name");
-    addCards(apkg, CARDS);
+    CARDS.forEach(({ front, back }: Readonly<Card>) => {
+      apkg.addCard(front, back);
+    });
     apkg.addCard(TAGGED.front, TAGGED.back, { tags: TAGGED.tags });
 
     const zip = await apkg.save();

@@ -8,8 +8,7 @@ import AnkiExport from "../src/index.js";
  * file of its own: the memoized module lives at `src/index.ts`'s module scope,
  * so reaching a failed load means failing `initSqlJs` itself. Kept apart from
  * `test/index.test.ts` so the mock cannot leak into the cases that assert
- * against the real WASM module — including the one pinning that a successful
- * load is shared across calls.
+ * against the real WASM module.
  */
 vi.mock(import("sql.js"), () => {
   /* The mock never reads the config it is handed, so it does not restate it. */

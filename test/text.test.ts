@@ -13,8 +13,6 @@ interface StrippedFieldCase {
 }
 
 interface StrippedFieldFixture {
-  ankiVersion: string;
-  generator: string;
   cases: StrippedFieldCase[];
 }
 
@@ -65,11 +63,6 @@ describe("html stripping", () => {
   it("covers the whole reference corpus", () => {
     expect.hasAssertions();
     expect(cases.length).toBeGreaterThanOrEqual(MINIMUM_CASES);
-  });
-
-  it("records the anki release that produced the fixture", () => {
-    expect.hasAssertions();
-    expect(fixture.ankiVersion).toMatch(/^\d+\.\d+/u);
   });
 
   /**

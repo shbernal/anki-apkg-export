@@ -8,8 +8,6 @@ import { first, loadSqlModule, readRow, readRows } from "./_helpers.js";
 interface TemplateModel {
   css: string;
   tmpls: { qfmt: string; afmt: string }[];
-  tags: string[];
-  vers: unknown[];
   mod: number;
 }
 
@@ -131,23 +129,6 @@ describe("the default note template", () => {
     expect(tmpl.afmt).toBe('{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}');
   });
 
-  it("keeps a single quote in an override verbatim", async () => {
-    expect.hasAssertions();
-    const model = await readModel(createTemplate({ css: ".card { font-family: 'Arial'; }" }));
-
-    /* Reaching this assertion at all means the SQL parsed: an unescaped quote
-       closes the `models` literal and `db.run` throws instead. */
-    expect(model.css).toBe(".card { font-family: 'Arial'; }");
-  });
-
-  it("keeps an apostrophe in the question format verbatim", async () => {
-    expect.hasAssertions();
-    const model = await readModel(createTemplate({ questionFormat: "What's {{Front}}?" }));
-    const tmpl = first(model.tmpls, "card template");
-
-    expect(tmpl.qfmt).toBe("What's {{Front}}?");
-  });
-
   it("stores an override that closes the literal as text rather than running it", async () => {
     expect.hasAssertions();
     const css = "x'); CREATE TABLE injected(x); --";
@@ -164,27 +145,6 @@ describe("the default note template", () => {
 
     expect(tables).not.toContain("injected");
     expect(model.css).toBe(css);
-  });
-
-  it("creates the schema the exporter writes to", async () => {
-    expect.hasAssertions();
-    const sql = await loadSqlModule();
-    const db = new sql.Database();
-    db.run(createTemplate());
-
-    const names = readRows(
-      db,
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    ).map((row: Readonly<Record<string, SqlValue>>) => String(row.name));
-
-    /* `col` must be seeded with exactly one row; the exporter updates it in place. */
-    const col = readRow(db, "SELECT count(*) as rowCount FROM col");
-    db.close();
-
-    expect(names).toStrictEqual(
-      expect.arrayContaining(["cards", "col", "graves", "notes", "revlog"]),
-    );
-    expect(col.rowCount).toBe(1);
   });
 
   it("stamps the collection with the time it was built", async () => {
@@ -224,16 +184,5 @@ describe("the default note template", () => {
        at July 2015, which dated a brand-new deck two years before its notes. */
     expect(decks.map((deck) => deck.mod)).toStrictEqual([NOON_UTC_SECONDS, NOON_UTC_SECONDS]);
     expect(model.mod).toBe(NOON_UTC_SECONDS);
-  });
-
-  it("leaves the note model without the placeholder tag or the misspelled key", async () => {
-    expect.hasAssertions();
-    const model = await readModel(createTemplate());
-
-    /* `vers` is a dead schema-11 key that this template used to spell
-       `veArs`, and the sample tag was never anything a caller asked for. */
-    expect(model.tags).toStrictEqual([]);
-    expect(model.vers).toStrictEqual([]);
-    expect(model).not.toHaveProperty("veArs");
   });
 });

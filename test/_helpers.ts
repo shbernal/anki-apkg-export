@@ -5,11 +5,6 @@ import { unzipSync } from "fflate";
 import initSqlJs, { type Database, type SqlJsStatic, type SqlValue } from "sql.js";
 import { beforeAll } from "vitest";
 
-interface Card {
-  front: string;
-  back: string;
-}
-
 /**
  * The WASM straight out of the local install. Tests that build an `Exporter`
  * by hand supply their own sql.js, so they deliberately do not go through
@@ -92,15 +87,6 @@ export const first = <TItem>(items: readonly TItem[], describeItem: string): TIt
   }
 
   return item;
-};
-
-export const addCards = (
-  apkg: Readonly<{ addCard: (front: string, back: string) => void }>,
-  list: readonly Readonly<Card>[],
-): void => {
-  list.forEach(({ front, back }: Readonly<Card>) => {
-    apkg.addCard(front, back);
-  });
 };
 
 /** Reads a saved deck without touching the filesystem. */
