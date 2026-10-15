@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import NAMED_ENTITIES from "./html-entities.js";
 
 /**
@@ -324,3 +326,14 @@ const stripHtml = (html: string): string => decodeEntities(html.replaceAll(HTML,
 export default function stripHtmlPreservingMediaFilenames(html: string): string {
   return stripHtml(replaceMediaTags(html));
 }
+
+/** Anki's `field_checksum`: the first 8 hex digits of the sha1, read as base 16. */
+const CHECKSUM_HEX_DIGITS = 8;
+const CHECKSUM_RADIX = 16;
+
+/** Given the stripped *first* field, which is what Anki hashes. */
+export const fieldChecksum = (strippedField: string): number => {
+  const hex = createHash("sha1").update(strippedField).digest("hex");
+
+  return Number.parseInt(hex.slice(0, CHECKSUM_HEX_DIGITS), CHECKSUM_RADIX);
+};

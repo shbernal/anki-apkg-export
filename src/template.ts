@@ -58,7 +58,6 @@ export const LATEX_PRE =
 
 export const LATEX_POST = String.raw`\end{document}`;
 
-/** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
 /**
  * The ids this template seeds its placeholder deck and note model under.
  *
@@ -101,6 +100,7 @@ export const buildDeck = ({
 /** Anki's own first deck, which every schema-11 collection carries under id 1. */
 export const DEFAULT_DECK_ID = 1;
 
+/** Deck `mod` is in seconds, unlike the collection's own millisecond `col.mod`. */
 const buildDecks = (mod: number) => ({
   [DEFAULT_DECK_ID]: buildDeck({ id: DEFAULT_DECK_ID, name: "Default", desc: "", usn: 0, mod }),
   [PLACEHOLDER_DECK_ID]: buildDeck({
@@ -188,7 +188,8 @@ const buildModels = (
   },
 });
 
-const COL_TABLE = `
+/** The `col` table, which schema 11 and schema 18 share. */
+export const COL_TABLE = `
     CREATE TABLE col (
         id              integer primary key,
         crt             integer not null,
@@ -286,7 +287,7 @@ const ROLLOVER_HOUR = 4;
  *
  * Anki uses 04:00 *local*. This uses 04:00 UTC, because a local value would
  * make the same deck compress to different bytes in different timezones —
- * the reproducibility `toArchiveClock` in the exporter exists to protect.
+ * the reproducibility `toArchiveClock` in `archive.ts` exists to protect.
  * Nothing here depends on the difference: `crt` only converts day numbers for
  * review and learning cards, and every card this package writes is new.
  */

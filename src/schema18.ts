@@ -2,7 +2,14 @@ import type { Database } from "sql.js";
 
 import type { AnkiDeck, AnkiNotetype, AnkiTemplate } from "./collection.js";
 import { writeMessage } from "./protobuf.js";
-import { dayRollover, LATEX_POST, LATEX_PRE, NOTE_INDEXES, NOTE_TABLES } from "./template.js";
+import {
+  COL_TABLE,
+  dayRollover,
+  LATEX_POST,
+  LATEX_PRE,
+  NOTE_INDEXES,
+  NOTE_TABLES,
+} from "./template.js";
 
 /*
  * A schema-18 collection, which is what a version 3 package carries.
@@ -24,22 +31,7 @@ import { dayRollover, LATEX_POST, LATEX_PRE, NOTE_INDEXES, NOTE_TABLES } from ".
 const TABLE_SCHEMA = 18;
 
 /** Anki's own DDL for the tables schema 18 adds, as it writes them. */
-const TABLES = `
-    CREATE TABLE col (
-        id              integer primary key,
-        crt             integer not null,
-        mod             integer not null,
-        scm             integer not null,
-        ver             integer not null,
-        dty             integer not null,
-        usn             integer not null,
-        ls              integer not null,
-        conf            text not null,
-        models          text not null,
-        decks           text not null,
-        dconf           text not null,
-        tags            text not null
-    );${NOTE_TABLES}${NOTE_INDEXES}
+const TABLES = `${COL_TABLE}${NOTE_TABLES}${NOTE_INDEXES}
     CREATE TABLE deck_config (
         id integer PRIMARY KEY NOT NULL,
         name text NOT NULL COLLATE unicase,

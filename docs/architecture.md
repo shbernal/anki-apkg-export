@@ -11,19 +11,19 @@ doc_type: "architecture"
 
 # Architecture
 
-Twelve modules under `src/`, split into a write path and a read path that share
+Thirteen modules under `src/`, split into a write path and a read path that share
 one entry point and one file of wire constants.
 
 A new module needs a reason better than deduplication. It needs a seam.
-`archive.ts` is the sixth because it has one: it knows about ZIP entries, DOS
+`archive.ts` is its own module because it has one: it knows about ZIP entries, DOS
 timestamps, and the media manifest, and nothing at all about sqlite. The
 exporter hands it bytes and gets a `.apkg` back.
 
 `MILLISECONDS_PER_SECOND`, by contrast, is declared in `exporter.ts`, in
-`template.ts`, and again in `test/exporter.test.ts`, and looks like a module
+`writer.ts`, in `template.ts`, and again in `test/exporter.test.ts`, and looks like a module
 waiting to happen. It is not. In `template.ts` it belongs to a family with
 `MILLISECONDS_PER_HOUR` and `MILLISECONDS_PER_DAY` that the day-rollover maths
-needs together; in `exporter.ts` it is one divisor used once; and a test
+needs together; in `exporter.ts` and `writer.ts` it is one divisor used once; and a test
 restating a constant independently is what keeps the assertion from being a
 tautology. A module holding `1000` would split the first group to merge the
 second. That is the distinction: a shared boundary earns a file, a shared
@@ -39,7 +39,7 @@ literal does not.
 | `schema18.ts`      | The schema-18 collection a version-3 package holds: Anki's DDL, the note type, deck and settings tables, and the `unicase` declaration put back last.    |
 | `archive.ts`       | The `.apkg` container: the media manifest, zstd for version 3, the UTC-pinned ZIP timestamps, and the zipping. Knows nothing about sqlite.               |
 | `template.ts`      | The empty collection: Anki's schema-11 DDL plus its default `conf`, `decks`, `dconf`, and note model, as one SQL script.                                 |
-| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from.                                         |
+| `text.ts`          | A port of Anki's `strip_html_preserving_media_filenames`, which produces the text `sfld` and `csum` derive from, and the `csum` hash itself.             |
 | `html-entities.ts` | The 252-name HTML 4 entity table `text.ts` decodes against. Data only.                                                                                   |
 | `reader.ts`        | The read path's entry point: unpack the container, read the collection, put the media back beside it.                                                    |
 | `unpack.ts`        | The `.apkg` container, read: package version, the decoy, zstd, and the two media-manifest encodings. Knows nothing about sqlite.                         |

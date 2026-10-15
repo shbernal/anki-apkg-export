@@ -43,6 +43,14 @@ interface Varint {
   readonly end: number;
 }
 
+const varintFailure = (consumed: number): Error => {
+  if (consumed === VARINT_MAX_BYTES) {
+    return new Error("Malformed protobuf: a varint is longer than the wire format allows");
+  }
+
+  return new Error("Malformed protobuf: a varint runs past the end of the message");
+};
+
 /**
  * A base-128 varint, low group first.
  *
@@ -54,14 +62,6 @@ interface Varint {
  * within those ten bytes can still exceed `Number.MAX_SAFE_INTEGER`, and
  * refusing it would be refusing a well-formed message.
  */
-const varintFailure = (consumed: number): Error => {
-  if (consumed === VARINT_MAX_BYTES) {
-    return new Error("Malformed protobuf: a varint is longer than the wire format allows");
-  }
-
-  return new Error("Malformed protobuf: a varint runs past the end of the message");
-};
-
 const varintAt = (data: Uint8Array, at: number): Varint => {
   let value = 0;
   let scale = 1;

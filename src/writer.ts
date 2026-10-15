@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { Database, SqlJsStatic, SqlValue } from "sql.js";
 
 import { type MediaData, packageDeck, PACKAGE_V2, PACKAGE_V3 } from "./archive.js";
@@ -15,7 +13,7 @@ import {
   LATEX_POST,
   LATEX_PRE,
 } from "./template.js";
-import stripHtmlPreservingMediaFilenames from "./text.js";
+import stripHtmlPreservingMediaFilenames, { fieldChecksum } from "./text.js";
 import { FIELD_SEPARATOR } from "./wire.js";
 
 /*
@@ -65,16 +63,6 @@ const DECK_NAME_SEPARATOR = "::";
 const SCHEDULER_V2 = 2;
 /** A new card's `type`, whose `due` is its new-queue position. */
 const CARD_TYPE_NEW = 0;
-
-/** Anki's field checksum: the first 8 hex digits of the sha1, read as base 16. */
-const CHECKSUM_HEX_DIGITS = 8;
-const CHECKSUM_RADIX = 16;
-
-const fieldChecksum = (strippedField: string): number => {
-  const hex = createHash("sha1").update(strippedField).digest("hex");
-
-  return Number.parseInt(hex.slice(0, CHECKSUM_HEX_DIGITS), CHECKSUM_RADIX);
-};
 
 /** Every ancestor of a `::` name, outermost first, then the name itself. */
 const deckLineage = (name: string): string[] => {

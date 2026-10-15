@@ -4,7 +4,7 @@ import type { Database, SqlJsStatic } from "sql.js";
 
 import { type MediaData, packageDeck, type ZipOptions } from "./archive.js";
 import { PLACEHOLDER_DECK_ID, PLACEHOLDER_MODEL_ID } from "./template.js";
-import stripHtmlPreservingMediaFilenames from "./text.js";
+import stripHtmlPreservingMediaFilenames, { fieldChecksum } from "./text.js";
 import { FIELD_SEPARATOR } from "./wire.js";
 
 interface ExporterOptions {
@@ -13,10 +13,6 @@ interface ExporterOptions {
   /** Epoch milliseconds to build this deck at; defaults to the current time. */
   now?: number;
 }
-
-/** Anki's field checksum is the first 8 hex digits of the sha1, read as base 16. */
-const CHECKSUM_HEX_DIGITS = 8;
-const CHECKSUM_RADIX = 16;
 
 /**
  * Anki hands the first new card position 1 and counts up from there. The
@@ -219,8 +215,8 @@ export default class Exporter {
       return;
     }
 
-    /* Set first: `db.close()` finalizes every statement still registered on the
-       handle, and a second close would be operating on a freed pointer. */
+    /* Set first, so a `db.close()` that throws still leaves the exporter
+       refusing further use rather than reaching a half-freed handle. */
     this.closed = true;
     this.db.close();
   }
@@ -359,7 +355,7 @@ export default class Exporter {
         ":tags": tags,
         ":flds": fields,
         ":sfld": sortField,
-        ":csum": this._fieldChecksum(sortField),
+        ":csum": fieldChecksum(sortField),
         ":flags": 0,
         ":data": "",
       },
@@ -400,20 +396,6 @@ export default class Exporter {
         ":data": "",
       },
     );
-  }
-
-  /**
-   * Anki's `field_checksum`: the first four bytes of the sha1, read big endian.
-   * Named for what it must be given — the *stripped first field*. The hash
-   * itself was always right; passing it the joined field list was the defect.
-   */
-  private _fieldChecksum(strippedFirstField: string): number {
-    const hash = createHash("sha1")
-      .update(strippedFirstField)
-      .digest("hex")
-      .slice(0, CHECKSUM_HEX_DIGITS);
-
-    return Number.parseInt(hash, CHECKSUM_RADIX);
   }
 
   /**
