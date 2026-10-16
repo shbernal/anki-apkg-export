@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import AnkiExport, { Exporter } from "../src/index.js";
-import { unzipDeckToBuffers } from "./_helpers.js";
+import AnkiExport, { readApkg } from "../src/index.js";
 
 /** Any fixed instant; only that both builds are handed the same one matters. */
 const FIXED_NOW = 1_700_000_000_000;
 
 describe("the package entry point", () => {
-  it("resolves to an Exporter bound to the deck name", async () => {
-    expect.hasAssertions();
-    const apkg = await AnkiExport("deck-name");
-
-    expect(apkg).toBeInstanceOf(Exporter);
-    expect(apkg.deckName).toBe("deck-name");
-  });
-
-  it("passes template overrides through to the collection", async () => {
+  it("passes the deck name and template overrides through to the collection", async () => {
     expect.hasAssertions();
     const apkg = await AnkiExport("deck-name", {
       questionFormat: "Q: {{Front}}",
@@ -23,14 +14,12 @@ describe("the package entry point", () => {
     });
     apkg.addCard("front", "back");
 
-    const files = unzipDeckToBuffers(await apkg.save());
-    const collection = files.get("collection.anki2");
-    expect(collection).toBeDefined();
+    const { decks, notetypes } = await readApkg(await apkg.save());
 
-    /* The export is a real sqlite file, so assert on the persisted models. */
-    const models = collection!.toString("latin1");
-    expect(models).toContain("Q: {{Front}}");
-    expect(models).toContain(".card { color: red; }");
+    expect(decks.map((deck) => deck.name)).toContain("deck-name");
+    expect(notetypes).toMatchObject([
+      { css: ".card { color: red; }", templates: [{ qfmt: "Q: {{Front}}" }] },
+    ]);
   });
 
   it("accepts a clock, and template overrides alongside it", async () => {

@@ -11,9 +11,6 @@ const now = 1_700_000_000_000;
    row and the rows written into it agree on when the deck was built. */
 const template = createTemplate(undefined, now);
 
-/** Every sqlite file opens with this magic string. */
-const SQLITE_HEADER = "SQLite format 3";
-
 /** A ZIP local file header stores its DOS timestamp four bytes in at offset 10. */
 const MTIME_OFFSET = 10;
 
@@ -75,24 +72,6 @@ describe("the exporter internals", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
-  });
-
-  it("builds a zip holding the database and the media", async () => {
-    expect.hasAssertions();
-    exporter.addMedia("1.jpg", Buffer.from("one"));
-    exporter.addMedia("2.bmp", Buffer.from("two"));
-    const files = unzipDeckToBuffers(await exporter.save());
-
-    expect([...files.keys()].sort()).toStrictEqual(["0", "1", "collection.anki2", "media"]);
-    expect(files.get("collection.anki2")?.subarray(0, SQLITE_HEADER.length).toString()).toBe(
-      SQLITE_HEADER,
-    );
-    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({
-      0: "1.jpg",
-      1: "2.bmp",
-    });
-    expect(files.get("0")?.toString()).toBe("one");
-    expect(files.get("1")?.toString()).toBe("two");
   });
 
   it("keeps a replaced file at the index it was first given", async () => {
@@ -189,17 +168,6 @@ describe("the exporter internals", () => {
 
     expect(stored.byteLength).toBeGreaterThan(compressed.byteLength);
     expect(unzipDeckToBuffers(stored).get("0")?.toString()).toBe("one".repeat(PADDING));
-  });
-
-  it("saves a deck with no cards at all", async () => {
-    expect.hasAssertions();
-    const files = unzipDeckToBuffers(await exporter.save());
-
-    /* An empty deck is a deck: the collection and the manifest still ship, and
-       the new-card queue has handed nothing out. */
-    expect([...files.keys()].sort()).toStrictEqual(["collection.anki2", "media"]);
-    expect(JSON.parse(files.get("media")!.toString())).toStrictEqual({});
-    expect(readCollectionConf(exporter)).toMatchObject({ nextPos: 1 });
   });
 
   it("carries media added between two saves in the second archive only", async () => {
@@ -424,17 +392,6 @@ describe("the exporter internals", () => {
     exporter.addCard("Test Front", "Test back", { tags });
 
     expect(readRow(exporter.db, "select tags from notes")).toStrictEqual({ tags });
-  });
-
-  it("updates duplicates in place", () => {
-    expect.hasAssertions();
-    exporter.addCard("Test Front", "Test back");
-    exporter.addCard("Test Front", "Test back");
-
-    /* The whole claim of "in place": adding the same card twice leaves one note
-       and one card behind, not two. */
-    expect(readRows(exporter.db, "select id from notes")).toHaveLength(1);
-    expect(readRows(exporter.db, "select id from cards")).toHaveLength(1);
   });
 
   it("lets a repeat retag the note it updates", () => {

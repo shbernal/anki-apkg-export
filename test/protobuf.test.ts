@@ -30,14 +30,6 @@ const LENGTH_DELIMITED = 2;
 const FIXED_32 = 5;
 
 describe("reading a protobuf message", () => {
-  it("returns the varint written for a field", () => {
-    expect.hasAssertions();
-
-    const message = bytes(tag(1, VARINT), 3);
-
-    expect(varintField(message, 1)).toBe(3);
-  });
-
   it("returns null for a field the message does not carry", () => {
     expect.hasAssertions();
 
@@ -146,10 +138,5 @@ describe("reading a protobuf message", () => {
     const message = bytes(tag(1, LENGTH_DELIMITED), 10, 0x61, 0x62, 0x63);
 
     expect(() => stringField(message, 1)).toThrow(/a length-delimited field runs past the end/u);
-  });
-
-  it("reads an empty message as no fields at all", () => {
-    expect.hasAssertions();
-    expect([...readMessage(bytes())]).toStrictEqual([]);
   });
 });

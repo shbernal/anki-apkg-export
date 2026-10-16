@@ -1,10 +1,9 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
 import NAMED_ENTITIES from "../src/html-entities.js";
-import stripHtmlPreservingMediaFilenames from "../src/text.js";
+import stripHtmlPreservingMediaFilenames, { fieldChecksum } from "../src/text.js";
 
 interface StrippedFieldCase {
   input: string;
@@ -15,9 +14,6 @@ interface StrippedFieldCase {
 interface StrippedFieldFixture {
   cases: StrippedFieldCase[];
 }
-
-/** `csum` is the first four bytes of the sha1, read big endian. */
-const CHECKSUM_HEX_DIGITS = 8;
 
 /** The HTML 4 set the `htmlescape` crate carries, which is what Anki decodes. */
 const NAMED_ENTITY_COUNT = 252;
@@ -55,9 +51,6 @@ const readFixture = (): StrippedFieldFixture => {
 
 const fixture = readFixture();
 const { cases } = fixture;
-
-const fieldChecksum = (text: string): number =>
-  Number.parseInt(createHash("sha1").update(text).digest("hex").slice(0, CHECKSUM_HEX_DIGITS), 16);
 
 describe("html stripping", () => {
   it("covers the whole reference corpus", () => {
