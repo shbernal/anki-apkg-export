@@ -1,7 +1,7 @@
 ---
 doc-schema-version: 1
 title: "Architecture"
-summary: "The six source modules, what each owns, and the boundaries that should not be rediscovered."
+summary: "The thirteen source modules, what each owns, and the boundaries that should not be rediscovered."
 read_when:
   - Changing module boundaries
   - Adding a feature and deciding where it belongs

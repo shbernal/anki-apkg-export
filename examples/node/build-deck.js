@@ -23,13 +23,9 @@ const run = async () => {
 
   addCards(apkg);
 
-  try {
-    const zip = await apkg.save();
-    fs.writeFileSync(path.join(process.cwd(), "output.apkg"), zip);
-    console.log(`Package has been generated: output.apkg`);
-  } catch (error) {
-    console.error(error);
-  }
+  const zip = await apkg.save();
+  fs.writeFileSync(path.join(process.cwd(), "output.apkg"), zip);
+  console.log(`Package has been generated: output.apkg`);
 };
 
 await run();
