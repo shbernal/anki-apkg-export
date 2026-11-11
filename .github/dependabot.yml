@@ -12,6 +12,11 @@ updates:
     # never propose a release that pnpm would still refuse to install.
     cooldown:
       default-days: 7
+    ignore:
+      # Typed against the engines floor on purpose: a newer major would let
+      # typecheck accept Node APIs that Node 24 lacks.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # oxlint and its type-aware sidecar must move together: oxlint-tsgolint's
       # version tracks the TypeScript release it was built against, and a

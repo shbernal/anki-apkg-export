@@ -28,6 +28,7 @@ pnpm add @shbernal/anki-apkg-export
 
 ```ts
 import fs from "node:fs";
+
 import AnkiExport from "@shbernal/anki-apkg-export";
 
 const apkg = await AnkiExport("deck-name");
@@ -61,6 +62,7 @@ can ignore it. Full signatures and defaults are in
 
 ```ts
 import fs from "node:fs";
+
 import { readApkg } from "@shbernal/anki-apkg-export";
 
 const { notes, notetypes, media } = await readApkg(fs.readFileSync("deck.apkg"));
@@ -117,6 +119,7 @@ A build that caches or diffs its decks wants this.
 
 ```ts
 import fs from "node:fs";
+
 import { readApkg, writeApkg } from "@shbernal/anki-apkg-export";
 
 const deck = await readApkg(fs.readFileSync("deck.apkg"));

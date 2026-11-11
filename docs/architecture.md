@@ -150,7 +150,7 @@ exporter refuses every operation by name rather than faulting inside WASM.
 
   The same reasoning retired the rest of the per-card reads. Row ids and queue
   positions are handed out by the exporter, so what a `SELECT ... ORDER BY id
-DESC` would report is already in that map; `addCard` now runs no `SELECT` at
+  DESC` would report is already in that map; `addCard` now runs no `SELECT` at
   all. This is one mechanism fewer rather than a speed-up. Those queries were
   primary-key paths and cost nothing. `test/exporter.test.ts` watches every
   statement the class can issue and fails on a `select` among them, so a

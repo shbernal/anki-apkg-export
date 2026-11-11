@@ -24,6 +24,12 @@ Unreleased. Versions before 4.0.4 predate this file; see the
   `guid`, and note types their `templates`, `css` and `sortField`. Schema 18's
   deck names come back joined by `::`, the way schema 11 stores them.
 
+### Changed
+
+- **sql.js 1.16, which bundles SQLite 3.54.1.** The newer SQLite lays out the
+  same rows in different database bytes, so `test/fixtures/output.apkg` is
+  regenerated; the deck's contents are unchanged and Anki still imports it.
+
 ## 6.1.1
 
 Four inputs the reader used to answer wrongly rather than refuse. Nothing about
@@ -289,7 +295,7 @@ bytes written are not.
 ### Added
 
 - **`close()`, and `[Symbol.dispose]` alongside it**, so `using apkg = await
-AnkiExport(...)` releases the sql.js database at the end of the block. Without
+  AnkiExport(...)` releases the sql.js database at the end of the block. Without
   it the wasm heap for each exporter was held until the process exited: ten
   build-and-discard rounds grew from 30MB to 41MB, and stay flat at 31MB with
   it. Calling `addCard`, `addMedia`, or `save` after `close` throws rather than
