@@ -4,7 +4,11 @@ Notable changes per release, with anything landed since the last one under
 Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
-## Unreleased
+## 6.2.0
+
+`writeApkg` writes a whole collection, as package version 2 or 3, and the reader
+returns everything it needs to carry a package across. `AnkiExport` and what it
+writes are unchanged apart from the SQLite inside sql.js.
 
 ### Added
 
@@ -29,6 +33,8 @@ Unreleased. Versions before 4.0.4 predate this file; see the
 - **sql.js 1.16, which bundles SQLite 3.54.1.** The newer SQLite lays out the
   same rows in different database bytes, so `test/fixtures/output.apkg` is
   regenerated; the deck's contents are unchanged and Anki still imports it.
+- Dev tooling and the pnpm pin refreshed. Commit messages are checked in CI
+  rather than by git hooks.
 
 ## 6.1.1
 
