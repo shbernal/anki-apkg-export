@@ -15,7 +15,7 @@ pnpm install
 ```
 
 Node.js >= 24, ESM only. Tests run against `src/`, so nothing needs building
-first. Installing also installs the lefthook git hooks.
+first.
 
 ## Gates
 
@@ -36,10 +36,9 @@ Anything release-shaped also gets `npm pack --dry-run --ignore-scripts`.
 While iterating there are `pnpm run test:watch`, `pnpm run build:watch`, and
 `pnpm run test:coverage`.
 
-Pre-commit formats the staged files and lints them without `--type-aware` for
-speed; pre-push runs the full lint, the typecheck, and the tests. Do not bypass
-the hooks. [docs/tooling.md](docs/tooling.md) explains the lint setup and why
-each disabled rule is disabled.
+There are no git hooks; CI is where the gates run.
+[docs/tooling.md](docs/tooling.md) explains the lint setup and why each disabled
+rule is disabled.
 
 ## Changing what the deck contains
 
@@ -95,7 +94,8 @@ sees every note move when they change, so say so in the pull request.
 
 One independent change per commit. A behavior change and its doc update belong
 together; a rename and a new feature do not. Commit messages carry no AI
-attribution trailers, and a shared `commit-msg` hook rejects them.
+attribution: no `Co-authored-by:` trailer for a tool, no "Generated with" line.
+CI's `commit-check` job rejects them, under the rules in `.github/cchk.toml`.
 
 ## Issues and pull requests
 
@@ -104,4 +104,5 @@ got, and what you expected. When it concerns a generated deck, attach the deck
 or the handful of lines that build it; either beats describing it.
 
 Fully AI-generated issues and pull requests are welcome. Say so in the body, and
-name the harness and the model you used.
+name the harness and the model you used: the pull request template asks for an
+`AI disclosure:` line.

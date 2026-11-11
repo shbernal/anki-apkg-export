@@ -43,8 +43,9 @@ golden test with `UPDATE_FIXTURE` set. It is not a standalone script on purpose:
 one would need `dist/`, inverting the gate order above, and would duplicate the
 deck definition that lives once in `test/_fixture-deck.ts`.
 
-Git hooks are lefthook's: pre-commit lints staged files without `--type-aware`
-for speed, pre-push runs the full type-aware lint.
+There are no git hooks. CI runs the gates on every pull request, plus a
+`commit-check` job that refuses AI attribution in commit messages under the
+rules in `.github/cchk.toml`.
 
 ## The Anki oracle
 
