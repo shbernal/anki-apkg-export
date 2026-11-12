@@ -80,4 +80,5 @@ read out of them.
 - `CHANGELOG.md` gets the release's section in the same commit as the version
   bump, and the GitHub release body is that section verbatim
 - do not `npm publish` or `pnpm publish` by hand
-- ask before creating tags, GitHub releases, or publishing
+- agents may cut patch and minor releases (tag, GitHub release, publish through
+  `publish.yml`) without asking; a major release still needs the owner
