@@ -4,7 +4,10 @@ Notable changes per release, with anything landed since the last one under
 Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
-## Unreleased
+## 6.2.1
+
+The reader opens the right collection in a version 2 package that has lost its
+`meta` entry.
 
 ### Fixed
 
