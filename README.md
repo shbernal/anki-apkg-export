@@ -132,15 +132,16 @@ already described; `AnkiExport` is still the way to build one from cards.
 
 ## Generated decks
 
-Decks are **written** at schema 11, package version 1 by `AnkiExport` and 2 by `writeApkg`, which every current Anki
-release imports. Reading is not the mirror of that: see above for what it takes. Rows are written the way Anki writes them for the same
+Decks are **written** at schema 11, package version 1 by `AnkiExport`; `writeApkg` writes package version 2 (schema 11)
+or 3 (schema 18). Every current Anki release imports all three. Reading is not the mirror of that: see above for what it takes. Rows are written the way Anki writes them for the same
 content, so a deck from here agrees with one Anki would have produced. Notes are
 matched on content, so re-importing a regenerated deck updates the collection
 instead of doubling it.
 
-The field-by-field contract, the deliberate deviations, and the known
-non-conformances are in
-[docs/reference/deck-format](docs/reference/deck-format.md).
+The field-by-field contract and the deliberate deviations are in
+[docs/reference/deck-format](docs/reference/deck-format.md). The format itself is
+specified, claim by claim against the official Anki library, in
+[apkg-spec](https://github.com/shbernal/apkg-spec), whose eval scores this package.
 
 ## Documentation
 

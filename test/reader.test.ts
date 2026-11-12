@@ -243,6 +243,16 @@ describe("every package layout Anki writes", () => {
       );
     },
   );
+
+  /* Without `meta`, Anki takes a package holding `collection.anki21` for v2 and
+     opens that, so the decoy beside it stays a decoy. */
+  it("reads v2 without its meta entry as v2", async () => {
+    expect.hasAssertions();
+
+    const pkg = await readApkg(without("v2-schema11", "meta"));
+
+    expect(pkg).toStrictEqual(await readApkg(readFixture("v2-schema11")));
+  });
 });
 
 describe("a deck this package wrote, read back", () => {

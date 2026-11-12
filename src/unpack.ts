@@ -15,7 +15,7 @@ import { repeatedField, stringField, varintField } from "./protobuf.js";
  * Nothing here opens a database. It hands back bytes.
  */
 
-/** The package layouts this reads. `meta` names one; its absence means v1. */
+/** The package layouts this reads. `meta` names one; see `declaredVersion` for its absence. */
 const PACKAGE_V1 = 1;
 const PACKAGE_V2 = 2;
 const PACKAGE_V3 = 3;
@@ -78,11 +78,17 @@ interface Container {
 }
 
 /**
- * No `meta` at all is the v1 layout, which predates the entry. A `meta` that is
- * there and names no version is not v1: `Meta.version` is an enum, and its zero
- * value is the one that says the writer did not know either.
+ * With no `meta`, a package holding `collection.anki21` is v2 and any other is
+ * v1, which predates the entry; that is how Anki decides it. Taking every
+ * meta-less package for v1 opens the decoy `collection.anki2` of a v2 package.
+ * A `meta` that is there and names no version is neither: `Meta.version` is an
+ * enum, and its zero value is the one that says the writer did not know either.
  */
-const declaredVersion = (meta: Uint8Array | undefined): number => {
+const declaredVersion = (archive: ReadonlyMap<string, Uint8Array>): number => {
+  const meta = archive.get("meta");
+  if (meta === undefined && archive.has("collection.anki21")) {
+    return PACKAGE_V2;
+  }
   if (meta === undefined) {
     return PACKAGE_V1;
   }
@@ -90,8 +96,8 @@ const declaredVersion = (meta: Uint8Array | undefined): number => {
   return varintField(meta, META_VERSION_FIELD) ?? PACKAGE_UNKNOWN;
 };
 
-const readContainer = (meta: Uint8Array | undefined): Container => {
-  const packageVersion = declaredVersion(meta);
+const readContainer = (archive: ReadonlyMap<string, Uint8Array>): Container => {
+  const packageVersion = declaredVersion(archive);
   const entry = COLLECTION_ENTRY[packageVersion];
 
   if (entry === undefined) {
@@ -177,7 +183,7 @@ const readMedia = (
  */
 export const unpackDeck = (apkg: Uint8Array): UnpackedPackage => {
   const archive = new Map(Object.entries(unzipSync(apkg)));
-  const { entry, packageVersion } = readContainer(archive.get("meta"));
+  const { entry, packageVersion } = readContainer(archive);
   const collection = archive.get(entry);
 
   if (collection === undefined) {

@@ -4,6 +4,16 @@ Notable changes per release, with anything landed since the last one under
 Unreleased. Versions before 4.0.4 predate this file; see the
 [tags](https://github.com/shbernal/anki-apkg-export/tags) for their history.
 
+## Unreleased
+
+### Fixed
+
+- **A package with no `meta` entry is read by what it holds.** One that holds
+  `collection.anki21` is version 2, the way Anki reads it; only the rest are
+  version 1. Every meta-less package used to be taken for version 1, so a
+  version 2 package that had lost its `meta` came back as the decoy
+  `collection.anki2`: one note asking to update Anki, and no error.
+
 ## 6.2.0
 
 `writeApkg` writes a whole collection, as package version 2 or 3, and the reader
