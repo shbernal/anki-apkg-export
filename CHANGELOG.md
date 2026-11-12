@@ -30,6 +30,10 @@ writes are unchanged apart from the SQLite inside sql.js.
 
 ### Changed
 
+- **Hand-built reader objects need the new fields.** `AnkiPackage` now requires
+  `cards` and `decks`, `AnkiNote` requires `guid`, and `AnkiNotetype` requires
+  `templates`, `css` and `sortField`; code that builds them by hand stops
+  compiling until it supplies them.
 - **sql.js 1.16, which bundles SQLite 3.54.1.** The newer SQLite lays out the
   same rows in different database bytes, so `test/fixtures/output.apkg` is
   regenerated; the deck's contents are unchanged and Anki still imports it.
