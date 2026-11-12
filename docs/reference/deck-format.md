@@ -1,7 +1,7 @@
 ---
 doc-schema-version: 1
 title: "Deck format"
-summary: "What the generated schema-11 deck contains field by field, where it deliberately deviates from Anki, what remains non-conformant, and which packages the reader accepts."
+summary: "What the generated schema-11 deck contains field by field, where it deliberately deviates from Anki, and which packages the reader accepts."
 read_when:
   - Changing anything the exporter or template writes into the collection
   - Investigating why an imported deck looks wrong in Anki
@@ -21,6 +21,11 @@ The goal is stronger than "the importer accepts it": rows are written the way
 Anki writes them for the same content, so an exported deck agrees with the one
 the reference implementation would have produced. The values below were
 measured against Anki 26.8.1.
+
+The format itself is specified in
+[apkg-spec](https://github.com/shbernal/apkg-spec), whose eval scores this
+package's reader and `writeApkg` against the official Anki library. This page is
+what the package decides on top of that.
 
 ## Archive layout
 
@@ -63,8 +68,7 @@ there is cosmetic in the collection but still means the file disagrees with Anki
 - **`csum`** is the first four bytes of `sha1(sfld)` read big endian, over the
   _stripped first field_, never the joined field list.
 - **`guid`** is sha1 hex of the deck name, the front and the back joined by
-  `U+001F`. See [note identity](#note-identity) for what that buys and costs,
-  and [known non-conformance](#known-non-conformance) for its shape.
+  `U+001F`. See [note identity](#note-identity) for what that buys and costs.
 - **`tags`** is the tag list space-delimited and padded with a space at each
   end, so an Anki search for `" tag "` matches the first and last tags too. A
   note with no tags stores `""`, which is what `addCard` writes both when no
@@ -151,6 +155,12 @@ Three consequences, all of them structural rather than fixable:
   either boundary gets one round of duplicates, once. The 6.0.0 form is
   unambiguous by construction, so there is no third boundary to come.
 
+The guid is 40 hex characters where Anki generates about ten of base91. Anki
+treats `guid` as opaque text and accepts any string unique to the note, so the
+shape differs and the package still conforms. A random guid in Anki's shape
+would defeat everything above, since this package keeps no state between runs
+to remember it by.
+
 ## Deliberate deviations
 
 **`col.crt` uses the 04:00 UTC rollover where Anki uses 04:00 local.** Anki's
@@ -159,15 +169,6 @@ would make the same deck compress to different bytes in different timezones,
 which is exactly what the archive's UTC timestamp pinning exists to prevent.
 `crt` only converts day numbers for review and learning cards, and this package
 emits neither.
-
-## Known non-conformance
-
-**`guid` shape.** Anki uses base91 of a random 64-bit int, roughly 10
-characters; this writes 40-char sha1 hex. Anki treats `guid` as opaque text, so
-this imports correctly and the shape is the only non-conformance; what the hash
-is taken over is covered under [note identity](#note-identity). A random guid
-would match Anki's shape but would defeat that entirely, since this package
-keeps no state between runs to remember it by.
 
 ## Whole collections
 
@@ -226,10 +227,11 @@ entry means half a filename read as the whole one.
 
 ### Package versions
 
-The version is a varint in field 1 of a two-byte `meta` entry. **No `meta` at
-all is version 1**, which predates the entry; a `meta` that is there and names
-no version is refused, because `Meta.version` is an enum whose zero value means
-the writer did not know either.
+The version is a varint in field 1 of a two-byte `meta` entry. **With no `meta`
+at all, a package holding `collection.anki21` is version 2 and any other is
+version 1**, which predates the entry; Anki decides it the same way. A `meta`
+that is there and names no version is refused, because `Meta.version` is an
+enum whose zero value means the writer did not know either.
 
 | Version | Collection entry     | Compression | Media manifest              |
 | ------- | -------------------- | ----------- | --------------------------- |
